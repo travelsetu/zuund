@@ -46,36 +46,62 @@ ln -sfnT "$release" "$ADMIN_ROOT/current"
 ls -1dt "$ADMIN_ROOT"/releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
 echo "    admin -> $release"
 
-echo "==> nginx"
-for f in zuund admin.zuund api.zuund; do
-  cp "infra/nginx/$f.conf" "/etc/nginx/sites-available/$f"
-  ln -sf "/etc/nginx/sites-available/$f" "/etc/nginx/sites-enabled/$f"
-done
-nginx -t && systemctl reload nginx
+echo "==> nginx + tls"
+# Each site has two files in infra/nginx: <site>.conf (TLS, the real one) and
+# <site>.http.conf (plain HTTP bootstrap). A site gets the TLS file as soon as
+# every hostname it serves has a certificate, and the bootstrap file until
+# then. certbot is only ever asked for certificate files (certonly, webroot);
+# it never rewrites nginx config. Rewriting it — the `certbot --nginx` way —
+# means copying a plain-HTTP file over the live one and reloading, and for the
+# second or two until certbot puts the TLS lines back every HTTPS handshake
+# for that host fails. That is downtime, and it happened on every deploy.
+SITES=("zuund:zuund.com www.zuund.com" "admin.zuund:admin.zuund.com" "api.zuund:api.zuund.com")
 
-echo "==> tls"
-# The nginx files in git are plain HTTP. For every host that already has a
-# certificate, ask certbot to write its TLS lines back into the fresh copy.
-# For a host that has none yet, issue one as soon as its DNS points here.
-my_ip=$(curl -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
-for host in "${HOSTS[@]}"; do
-  if [ -d "/etc/letsencrypt/live/$host" ] || certbot certificates 2>/dev/null | grep -q "Domains:.*\b$host\b"; then
-    certbot --nginx --reinstall -d "$host" --redirect -n >/dev/null 2>&1 \
-      && echo "    $host: tls reinstalled" \
-      || echo "    $host: tls reinstall FAILED"
-  else
-    resolved=$(dig +short A "$host" | tail -1)
-    if [ "$resolved" = "$my_ip" ]; then
-      certbot --nginx -d "$host" --redirect -n --agree-tos --keep-until-expiring \
-        --register-unsafely-without-email >/dev/null 2>&1 \
-        && echo "    $host: certificate issued" \
-        || echo "    $host: certificate issue FAILED (see /var/log/letsencrypt)"
-    else
-      echo "    $host: no certificate and DNS -> '${resolved:-none}' (not $my_ip); served over http until it points here"
+has_cert() { [ -f "/etc/letsencrypt/live/$1/fullchain.pem" ]; }
+
+render_nginx() {
+  local changed=0 site hosts h src dst
+  for entry in "${SITES[@]}"; do
+    site=${entry%%:*}; hosts=${entry#*:}
+    src="infra/nginx/$site.conf"
+    for h in $hosts; do has_cert "$h" || src="infra/nginx/$site.http.conf"; done
+    dst="/etc/nginx/sites-available/$site"
+    if ! cmp -s "$src" "$dst"; then
+      cp "$src" "$dst"; changed=1
+      echo "    $site <- $(basename "$src")"
     fi
-  fi
-done
-nginx -t && systemctl reload nginx
+    [ -L "/etc/nginx/sites-enabled/$site" ] || { ln -sf "$dst" "/etc/nginx/sites-enabled/$site"; changed=1; }
+  done
+  # Reload only when something changed: a reload is graceful, but there is no
+  # point asking for one on every deploy.
+  if [ "$changed" = 1 ]; then nginx -t && systemctl reload nginx; else echo "    nginx unchanged"; fi
+}
+
+issue_missing_certs() {
+  local my_ip resolved host
+  my_ip=$(curl -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
+  for host in "${HOSTS[@]}"; do
+    has_cert "$host" && continue
+    resolved=$(dig +short A "$host" | tail -1)
+    if [ "$resolved" != "$my_ip" ]; then
+      echo "    $host: no certificate; DNS -> '${resolved:-none}' (not $my_ip). Served over http until it points here."
+      continue
+    fi
+    # The bootstrap config for this host is live (render_nginx ran first), so
+    # the challenge file is reachable at /.well-known/acme-challenge/.
+    if certbot certonly --webroot -w /var/www/html -d "$host" -n --agree-tos \
+         --register-unsafely-without-email --keep-until-expiring \
+         --deploy-hook 'systemctl reload nginx' >/dev/null 2>&1; then
+      echo "    $host: certificate issued"
+    else
+      echo "    $host: certificate issue FAILED (see /var/log/letsencrypt/letsencrypt.log)"
+    fi
+  done
+}
+
+render_nginx          # bootstrap configs for anything still without a certificate
+issue_missing_certs   # may add certificates
+render_nginx          # promote those sites to their TLS config
 
 echo "==> pm2"
 # startOrReload: first deploy starts, later ones roll instances in place.
