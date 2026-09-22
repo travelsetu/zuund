@@ -1,0 +1,52 @@
+name: Deploy
+
+# Every push to main deploys. The build runs on the server, not the runner: the
+# box needs node_modules for Prisma's generated client and argon2's native
+# binding anyway, and shipping those from another machine invites ABI mismatches.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A second push mid-build would leave the tree half-built; queue instead.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          for attempt in 1 2 3; do
+            if ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/tmp/keyscan.err; then
+              exit 0
+            fi
+            echo "ssh-keyscan attempt $attempt failed:"; cat /tmp/keyscan.err; sleep 5
+          done
+          echo "::error::Could not read the server's host key after three attempts; re-run the workflow."
+          exit 1
+
+      - name: Deploy on the server
+        run: |
+          ssh -i ~/.ssh/deploy "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" bash -euo pipefail <<'REMOTE'
+            cd /srv/jhoond
+            git fetch --quiet origin
+            git reset --quiet --hard origin/main
+            bash infra/deploy.sh
+          REMOTE
+
+      - name: Try the public names
+        continue-on-error: true
+        run: |
+          for url in "https://api.${{ secrets.SITE_HOST }}/api/health" "https://${{ secrets.SITE_HOST }}/" "https://admin.${{ secrets.SITE_HOST }}/"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo unreachable)
+            echo "$url -> $code"
+          done
+          echo "Anything other than 200 is expected until DNS points at ${{ secrets.VPS_HOST }} and certbot has run."

@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Native modules that need their install scripts to run.
+onlyBuiltDependencies:
+  - argon2
+  - prisma
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild

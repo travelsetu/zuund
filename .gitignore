@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+.turbo/
+
+# env files (examples are committed)
+.env
+.env.*
+!.env.example
+
+# prisma generated client
+apps/backend/src/generated/
+
+# logs & misc
+*.log
+.DS_Store
+coverage/
+.vite/

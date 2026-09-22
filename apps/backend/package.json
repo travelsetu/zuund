@@ -1,0 +1,46 @@
+{
+  "name": "@jhoond/backend",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NestJS API for jhoond",
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@jhoond/shared": "workspace:*",
+    "@nestjs/common": "^12.0.4",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.4",
+    "@nestjs/jwt": "^12.0.2",
+    "@nestjs/platform-express": "^12.0.4",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "pg": "^8.23.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@jhoond/tsconfig": "workspace:*",
+    "@nestjs/cli": "^12.0.3",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.10.0",
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.3",
+    "prisma": "7.10.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "@jhoond/tsconfig/nest.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
+  },
+  "include": ["src", "prisma", "prisma.config.ts"]
+}
