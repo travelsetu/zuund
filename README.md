@@ -1,6 +1,9 @@
 # zuund
 
-Monorepo for the zuund platform: a NestJS API backed by PostgreSQL, and a React admin dashboard.
+Monorepo for ZUUND, an India-first collective buying platform. Phase 1 (cars) is implemented:
+buying posts, buyer discovery, connections, messaging, collectives with a ₹500 per-post Buying
+Pass, polls, shared files, activities, notifications, reports and an admin console. The business
+rules and where they are enforced are documented in [docs/PHASE1.md](docs/PHASE1.md).
 
 ```
 zuund/
@@ -24,15 +27,16 @@ zuund/
 
 ## Stack
 
-| Layer      | Choice                                                    |
-| ---------- | --------------------------------------------------------- |
-| Runtime    | Node 24 (`.nvmrc`), pnpm 10 (`packageManager` field)      |
-| Database   | PostgreSQL 16 via Docker Compose, Prisma 7 as ORM         |
-| Backend    | NestJS 12, JWT auth in httpOnly cookies, argon2id hashing |
-| Admin      | React 19, Vite 8, React Router 8 (plain SPA, no SSR)      |
-| Web        | Next.js 16 (App Router)                                   |
-| Monorepo   | pnpm workspaces + Turborepo                               |
-| Validation | zod schemas shared between backend and frontend           |
+| Layer      | Choice                                                              |
+| ---------- | ------------------------------------------------------------------- |
+| Runtime    | Node 24 (`.nvmrc`), pnpm 10 (`packageManager` field)                |
+| Payments   | Razorpay behind a `PaymentProvider` interface; mock provider in dev |
+| Database   | PostgreSQL 16 via Docker Compose, Prisma 7 as ORM                   |
+| Backend    | NestJS 12, JWT auth in httpOnly cookies, argon2id hashing           |
+| Admin      | React 19, Vite 8, React Router 8 (plain SPA, no SSR)                |
+| Web        | Next.js 16 (App Router)                                             |
+| Monorepo   | pnpm workspaces + Turborepo                                         |
+| Validation | zod schemas shared between backend and frontend                     |
 
 ### Why Turborepo on top of pnpm workspaces
 
@@ -102,8 +106,9 @@ same port.
 ### Other commands
 
 ```bash
-pnpm build        # build shared → backend → dashboard
+pnpm build        # build shared → backend → dashboard → web
 pnpm typecheck    # tsc --noEmit in every package
+pnpm test         # backend test suite (needs a local Postgres with a `zuund_test` database)
 pnpm format       # prettier --write
 ```
 

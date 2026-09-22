@@ -8,7 +8,8 @@ import { AppModule } from './app.module';
 import type { Env } from './config/env';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody: payment webhooks are verified by an HMAC over the exact bytes received.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   const config = app.get(ConfigService<Env, true>);
 
   app.setGlobalPrefix('api');

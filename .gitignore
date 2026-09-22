@@ -20,3 +20,6 @@ apps/backend/src/generated/
 .DS_Store
 coverage/
 .vite/
+
+# local uploads
+apps/backend/uploads/

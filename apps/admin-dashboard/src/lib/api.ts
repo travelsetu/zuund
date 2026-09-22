@@ -1,4 +1,22 @@
-import type { ApiError, AuthResponse, LoginRequest } from '@zuund/shared';
+import type {
+  AdminCollectiveDto,
+  AdminCollectiveMemberDto,
+  AdminIntentDetailDto,
+  AdminIntentDto,
+  AdminPassDto,
+  AdminPaymentDto,
+  AdminReportDto,
+  AdminStatsDto,
+  AdminUserDetailDto,
+  AdminUserDto,
+  ApiError,
+  AuditLogDto,
+  AuthResponse,
+  CarDto,
+  CityDto,
+  LoginRequest,
+  Page,
+} from '@zuund/shared';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '') + '/api';
 
@@ -10,11 +28,16 @@ export class ApiRequestError extends Error {
     super(formatMessage(status, body));
     this.name = 'ApiRequestError';
   }
+
+  /** Stable code from the API envelope, e.g. VALIDATION_FAILED, FORBIDDEN, RATE_LIMITED. */
+  get code(): string {
+    return this.body?.error.code ?? 'UNKNOWN';
+  }
 }
 
 function formatMessage(status: number, body: ApiError | null): string {
-  if (!body) return `Request failed with status ${status}`;
-  return Array.isArray(body.message) ? body.message.join('\n') : body.message;
+  if (!body?.error) return `Request failed with status ${status}`;
+  return body.error.message;
 }
 
 interface RequestOptions {
@@ -63,6 +86,22 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await res.json()) as T;
 }
 
+/** Query params; empty strings and undefined are dropped so filters stay optional. */
+export type Params = Record<string, string | number | boolean | undefined>;
+
+function qs(params: Params = {}): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === '' || v === false) continue;
+    sp.set(k, String(v));
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : '';
+}
+
+const post = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: 'POST', body: body ?? {} });
+
 export const api = {
   auth: {
     login: (data: LoginRequest) =>
@@ -73,5 +112,49 @@ export const api = {
       }),
     me: () => request<AuthResponse>('/auth/me'),
     logout: () => request<void>('/auth/logout', { method: 'POST', retryOnUnauthorized: false }),
+  },
+  catalog: {
+    cars: (q: string) => request<CarDto[]>(`/cars${qs({ q, limit: 50 })}`),
+    cities: () => request<CityDto[]>('/cities'),
+  },
+  admin: {
+    stats: () => request<AdminStatsDto>('/admin/stats'),
+
+    users: (p: Params) => request<Page<AdminUserDto>>(`/admin/users${qs(p)}`),
+    user: (id: string) => request<AdminUserDetailDto>(`/admin/users/${id}`),
+    userAction: (id: string, action: string, note?: string) =>
+      post<AdminUserDetailDto>(`/admin/users/${id}/action`, { action, note: note || undefined }),
+
+    intents: (p: Params) => request<Page<AdminIntentDto>>(`/admin/buying-intents${qs(p)}`),
+    intent: (id: string) => request<AdminIntentDetailDto>(`/admin/buying-intents/${id}`),
+    closeIntent: (id: string, note?: string) =>
+      post<AdminIntentDetailDto>(`/admin/buying-intents/${id}/close`, { note: note || undefined }),
+
+    collectives: (p: Params) => request<Page<AdminCollectiveDto>>(`/admin/collectives${qs(p)}`),
+    collective: (id: string) =>
+      request<AdminCollectiveDto & { members: AdminCollectiveMemberDto[] }>(
+        `/admin/collectives/${id}`,
+      ),
+    collectiveAction: (id: string, action: string, note?: string) =>
+      post<AdminCollectiveDto & { members: AdminCollectiveMemberDto[] }>(
+        `/admin/collectives/${id}/action`,
+        {
+          action,
+          note: note || undefined,
+        },
+      ),
+
+    payments: (p: Params) => request<Page<AdminPaymentDto>>(`/admin/payments${qs(p)}`),
+    payment: (id: string) => request<AdminPaymentDto>(`/admin/payments/${id}`),
+    refund: (id: string, amount?: number, note?: string) =>
+      post<AdminPaymentDto>(`/admin/payments/${id}/refund`, { amount, note: note || undefined }),
+
+    passes: (p: Params) => request<Page<AdminPassDto>>(`/admin/buying-passes${qs(p)}`),
+
+    reports: (p: Params) => request<Page<AdminReportDto>>(`/admin/reports${qs(p)}`),
+    reportAction: (id: string, action: string, note?: string) =>
+      post<void>(`/admin/reports/${id}/action`, { action, note: note || undefined }),
+
+    auditLogs: (p: Params) => request<Page<AuditLogDto>>(`/admin/audit-logs${qs(p)}`),
   },
 };

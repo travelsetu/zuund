@@ -1,3 +1,5 @@
+import type { UserRole } from '../generated/prisma/client';
+
 export const ACCESS_COOKIE = 'access_token';
 export const REFRESH_COOKIE = 'refresh_token';
 
@@ -17,8 +19,9 @@ export interface RefreshTokenPayload {
   type: 'refresh';
 }
 
-/** Shape attached to `req.user` by JwtAccessGuard. */
+/** Shape attached to `req.user` by JwtAccessGuard. Role and status are read from the DB on every request so a suspension takes effect immediately. */
 export interface RequestUser {
   userId: string;
   email: string;
+  role: UserRole;
 }

@@ -50,7 +50,48 @@ export const envSchema = z.object({
         .map((s) => s.trim())
         .filter(Boolean),
     ),
+
+  /** Public base URL of this API, used to build file URLs. */
+  PUBLIC_API_URL: z.string().default('http://localhost:3000'),
+  /** Where uploaded files are written. Served at PUBLIC_API_URL/uploads/… */
+  UPLOAD_DIR: z.string().default('./uploads'),
+  UPLOAD_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
+
+  // ── Buying pass ──
+  /** Paise. ₹500 = 50000. */
+  BUYING_PASS_AMOUNT: z.coerce.number().int().positive().default(50_000),
+  BUYING_PASS_VALIDITY_DAYS: z.coerce.number().int().positive().max(60).default(60),
+  /** What happens to the pass/payment when a member leaves a collective. */
+  REFUND_ON_LEAVE: z.enum(['NONE', 'FULL']).default('NONE'),
+
+  // ── Payments ──
+  PAYMENT_PROVIDER: z.enum(['razorpay', 'mock']).default('mock'),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 });
+
+/** Cross-field rules, applied in validateEnv() so the object type above stays a plain ZodObject. */
+function checkEnv(env: z.infer<typeof envSchema>): string[] {
+  const problems: string[] = [];
+  if (env.PAYMENT_PROVIDER === 'razorpay') {
+    for (const k of [
+      'RAZORPAY_KEY_ID',
+      'RAZORPAY_KEY_SECRET',
+      'RAZORPAY_WEBHOOK_SECRET',
+    ] as const) {
+      if (!env[k]) problems.push(`${k}: required when PAYMENT_PROVIDER=razorpay`);
+    }
+  }
+  if (env.NODE_ENV === 'production' && env.PAYMENT_PROVIDER === 'mock') {
+    problems.push('PAYMENT_PROVIDER: the mock provider cannot be used in production');
+  }
+  return problems;
+}
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -63,5 +104,10 @@ export function validateEnv(raw: Record<string, unknown>): Env {
     );
     throw new Error(`Invalid environment configuration:\n${lines.join('\n')}`);
   }
+  const problems = checkEnv(result.data);
+  if (problems.length)
+    throw new Error(
+      `Invalid environment configuration:\n${problems.map((p) => `  - ${p}`).join('\n')}`,
+    );
   return result.data;
 }

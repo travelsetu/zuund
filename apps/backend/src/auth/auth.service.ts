@@ -1,5 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { E } from '../common/domain.exception';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -41,9 +48,59 @@ export class AuthService {
     const hash = user?.passwordHash ?? (await this.dummyHash);
     const ok = await argon2.verify(hash, password).catch(() => false);
     if (!user || !ok) {
-      throw new UnauthorizedException('Invalid email or password');
+      this.logger.warn(`Failed login for ${email}`);
+      throw E.INVALID_CREDENTIALS();
     }
+    if (user.status !== 'ACTIVE') throw E.ACCOUNT_NOT_ACTIVE();
     return this.issueSession(user);
+  }
+
+  /** Self-service signup for buyers. Admins are only ever created by the seed or another admin. */
+  async register(input: {
+    name: string;
+    email: string;
+    password: string;
+    cityId?: string;
+  }): Promise<AuthResult> {
+    const existing = await this.users.findByEmail(input.email);
+    if (existing) throw E.EMAIL_TAKEN();
+    if (input.cityId) {
+      const city = await this.prisma.city.findFirst({
+        where: { id: input.cityId, status: 'ACTIVE' },
+      });
+      if (!city) throw new BadRequestException('Unknown city');
+    }
+    const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+    const user = await this.prisma.user.create({
+      data: {
+        email: input.email.trim().toLowerCase(),
+        name: input.name,
+        passwordHash,
+        role: 'USER',
+        profile: { create: { cityId: input.cityId ?? null } },
+      },
+    });
+    return this.issueSession(user);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new UnauthorizedException();
+    const ok = await argon2.verify(user.passwordHash, currentPassword).catch(() => false);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      // A password change ends every other session.
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   /**
@@ -78,6 +135,7 @@ export class AuthService {
 
     const user = await this.users.findById(stored.userId);
     if (!user) throw new UnauthorizedException('User no longer exists');
+    if (user.status !== 'ACTIVE') throw E.ACCOUNT_NOT_ACTIVE();
 
     await this.prisma.refreshToken.update({
       where: { id: stored.id },

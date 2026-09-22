@@ -8,17 +8,83 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+// ───────────────────────────── Users ─────────────────────────────
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  VERIFIED
+}
+
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  passwordHash       String             @map("password_hash")
+  name               String?
+  role               UserRole           @default(USER)
+  status             UserStatus         @default(ACTIVE)
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  verifiedAt         DateTime?          @map("verified_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  profile       UserProfile?
   refreshTokens RefreshToken[]
 
+  buyingIntents          BuyingIntent[]
+  intentHistoryChanges   BuyingIntentHistory[]  @relation("IntentHistoryChangedBy")
+  buyingPasses           BuyingPass[]
+  payments               Payment[]
+  createdCollectives     Collective[]           @relation("CollectiveCreator")
+  memberships            CollectiveMembership[]
+  sentConnections        Connection[]           @relation("ConnectionRequester")
+  receivedConnections    Connection[]           @relation("ConnectionRecipient")
+  blockedConnections     Connection[]           @relation("ConnectionBlockedBy")
+  conversationMembers    ConversationMember[]
+  messages               Message[]
+  messageReactions       MessageReaction[]
+  polls                  Poll[]
+  pollVotes              PollVote[]
+  uploadedFiles          FileObject[]
+  sharedFiles            SharedFile[]
+  activities             Activity[]
+  activityParticipations ActivityParticipant[]
+  notifications          Notification[]
+  reportsFiled           Report[]               @relation("ReportReporter")
+  reportsAgainst         Report[]               @relation("ReportedUser")
+  reportsResolved        Report[]               @relation("ReportResolver")
+  auditLogs              AuditLog[]
+
+  @@index([role])
+  @@index([status])
+  @@index([createdAt])
   @@map("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  cityId    String?  @map("city_id")
+  photoUrl  String?  @map("photo_url")
+  about     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city City? @relation(fields: [cityId], references: [id])
+
+  @@index([cityId])
+  @@map("user_profiles")
 }
 
 /// One row per issued refresh token. The raw token only ever lives in the
@@ -35,4 +101,696 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// ───────────────────────────── Catalog ─────────────────────────────
+
+enum CatalogStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model City {
+  id        String        @id @default(uuid())
+  name      String
+  state     String
+  slug      String        @unique
+  status    CatalogStatus @default(ACTIVE)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  profiles      UserProfile[]
+  buyingIntents BuyingIntent[]
+  collectives   Collective[]
+
+  @@index([status])
+  @@map("cities")
+}
+
+model Car {
+  id          String        @id @default(uuid())
+  brand       String
+  model       String
+  displayName String        @map("display_name")
+  slug        String        @unique
+  imageUrl    String?       @map("image_url")
+  status      CatalogStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  buyingIntents BuyingIntent[]
+  collectives   Collective[]
+
+  @@index([brand])
+  @@index([status])
+  @@map("cars")
+}
+
+// ───────────────────────────── Buying intent ─────────────────────────────
+
+enum PurchaseTimeline {
+  WITHIN_7_DAYS
+  WITHIN_15_DAYS
+  WITHIN_30_DAYS
+  WITHIN_60_DAYS
+}
+
+enum IntentLevel {
+  INTERESTED
+  COMMITTED
+  READY
+}
+
+enum BuyingIntentStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  EXPIRED
+}
+
+/// A Buying Post. One user cannot hold two ACTIVE intents for the same car and
+/// city: enforced by a partial unique index in the migration (Prisma has no
+/// syntax for it) — see migrations/*_phase1/migration.sql.
+model BuyingIntent {
+  id               String             @id @default(uuid())
+  userId           String             @map("user_id")
+  carId            String             @map("car_id")
+  cityId           String             @map("city_id")
+  purchaseTimeline PurchaseTimeline   @map("purchase_timeline")
+  intentLevel      IntentLevel        @default(INTERESTED) @map("intent_level")
+  status           BuyingIntentStatus @default(ACTIVE)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  closedAt         DateTime?          @map("closed_at")
+  pausedAt         DateTime?          @map("paused_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  car  Car  @relation(fields: [carId], references: [id])
+  city City @relation(fields: [cityId], references: [id])
+
+  history     BuyingIntentHistory[]
+  passes      BuyingPass[]
+  payments    Payment[]
+  memberships CollectiveMembership[]
+
+  @@index([userId])
+  @@index([carId])
+  @@index([cityId])
+  @@index([status])
+  @@index([purchaseTimeline])
+  @@index([createdAt])
+  @@index([carId, cityId, status])
+  @@map("buying_intents")
+}
+
+model BuyingIntentHistory {
+  id             String       @id @default(uuid())
+  buyingIntentId String       @map("buying_intent_id")
+  previousLevel  IntentLevel? @map("previous_level")
+  newLevel       IntentLevel  @map("new_level")
+  changedAt      DateTime     @default(now()) @map("changed_at")
+  changedById    String       @map("changed_by_id")
+
+  buyingIntent BuyingIntent @relation(fields: [buyingIntentId], references: [id], onDelete: Cascade)
+  changedBy    User         @relation("IntentHistoryChangedBy", fields: [changedById], references: [id])
+
+  @@index([buyingIntentId, changedAt])
+  @@map("buying_intent_history")
+}
+
+// ───────────────────────────── Buying pass + payment ─────────────────────────────
+
+enum BuyingPassStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+/// The ₹500 pass for ONE buying intent. At most one ACTIVE pass per intent:
+/// partial unique index in the migration.
+model BuyingPass {
+  id             String           @id @default(uuid())
+  buyingIntentId String           @map("buying_intent_id")
+  userId         String           @map("user_id")
+  paymentId      String?          @unique @map("payment_id")
+  /// Paise. ₹500 = 50000.
+  amount         Int
+  currency       String           @default("INR")
+  status         BuyingPassStatus @default(PENDING)
+  activatedAt    DateTime?        @map("activated_at")
+  expiresAt      DateTime?        @map("expires_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  buyingIntent BuyingIntent @relation(fields: [buyingIntentId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment      Payment?     @relation("PassPayment", fields: [paymentId], references: [id])
+
+  payments    Payment[]              @relation("PaymentPass")
+  memberships CollectiveMembership[]
+
+  @@index([buyingIntentId])
+  @@index([userId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("buying_passes")
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  userId            String        @map("user_id")
+  buyingIntentId    String        @map("buying_intent_id")
+  buyingPassId      String?       @map("buying_pass_id")
+  /// Paise.
+  amount            Int
+  currency          String        @default("INR")
+  provider          String
+  providerOrderId   String?       @unique @map("provider_order_id")
+  providerPaymentId String?       @unique @map("provider_payment_id")
+  status            PaymentStatus @default(INITIATED)
+  idempotencyKey    String        @unique @map("idempotency_key")
+  failureReason     String?       @map("failure_reason")
+  refundedAmount    Int?          @map("refunded_amount")
+  providerRefundId  String?       @map("provider_refund_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buyingIntent BuyingIntent @relation(fields: [buyingIntentId], references: [id], onDelete: Cascade)
+  buyingPass   BuyingPass?  @relation("PaymentPass", fields: [buyingPassId], references: [id])
+
+  activatedPass BuyingPass? @relation("PassPayment")
+
+  @@index([userId])
+  @@index([buyingIntentId])
+  @@index([buyingPassId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+/// Every webhook delivery the provider sends, keyed by its event id, so a
+/// redelivered event is recognised and not processed twice.
+model PaymentWebhookEvent {
+  id              String    @id @default(uuid())
+  provider        String
+  providerEventId String    @map("provider_event_id")
+  eventType       String    @map("event_type")
+  payload         Json
+  receivedAt      DateTime  @default(now()) @map("received_at")
+  processedAt     DateTime? @map("processed_at")
+  error           String?
+
+  @@unique([provider, providerEventId])
+  @@map("payment_webhook_events")
+}
+
+// ───────────────────────────── Collectives ─────────────────────────────
+
+enum CollectiveStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+model Collective {
+  id        String           @id @default(uuid())
+  carId     String           @map("car_id")
+  cityId    String           @map("city_id")
+  creatorId String           @map("creator_id")
+  name      String
+  status    CollectiveStatus @default(ACTIVE)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  closedAt  DateTime?        @map("closed_at")
+
+  car     Car  @relation(fields: [carId], references: [id])
+  city    City @relation(fields: [cityId], references: [id])
+  creator User @relation("CollectiveCreator", fields: [creatorId], references: [id])
+
+  memberships  CollectiveMembership[]
+  conversation Conversation?
+  polls        Poll[]
+  sharedFiles  SharedFile[]
+  activities   Activity[]
+
+  @@index([carId])
+  @@index([cityId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([carId, cityId, status])
+  @@map("collectives")
+}
+
+enum MembershipStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  LEFT
+  REMOVED
+  REFUNDED
+  EXPIRED
+}
+
+/// Which buying intent (and which pass) put this user in this collective.
+/// At most one PENDING_PAYMENT/ACTIVE membership per (collective, user):
+/// partial unique index in the migration.
+model CollectiveMembership {
+  id             String           @id @default(uuid())
+  collectiveId   String           @map("collective_id")
+  userId         String           @map("user_id")
+  buyingIntentId String           @map("buying_intent_id")
+  buyingPassId   String?          @map("buying_pass_id")
+  status         MembershipStatus @default(PENDING_PAYMENT)
+  joinedAt       DateTime?        @map("joined_at")
+  leftAt         DateTime?        @map("left_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  collective   Collective   @relation(fields: [collectiveId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buyingIntent BuyingIntent @relation(fields: [buyingIntentId], references: [id])
+  buyingPass   BuyingPass?  @relation(fields: [buyingPassId], references: [id])
+
+  @@index([collectiveId, status])
+  @@index([userId, status])
+  @@index([buyingIntentId])
+  @@index([buyingPassId])
+  @@map("collective_memberships")
+}
+
+// ───────────────────────────── Connections ─────────────────────────────
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  BLOCKED
+}
+
+/// Exactly one row per pair of users, whichever direction the request went.
+/// userLowId/userHighId are the two ids sorted, so (A,B) and (B,A) collide.
+model Connection {
+  id          String           @id @default(uuid())
+  requesterId String           @map("requester_id")
+  recipientId String           @map("recipient_id")
+  userLowId   String           @map("user_low_id")
+  userHighId  String           @map("user_high_id")
+  status      ConnectionStatus @default(PENDING)
+  blockedById String?          @map("blocked_by_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  acceptedAt  DateTime?        @map("accepted_at")
+  rejectedAt  DateTime?        @map("rejected_at")
+  cancelledAt DateTime?        @map("cancelled_at")
+  blockedAt   DateTime?        @map("blocked_at")
+
+  requester User  @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  recipient User  @relation("ConnectionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  blockedBy User? @relation("ConnectionBlockedBy", fields: [blockedById], references: [id])
+
+  @@unique([userLowId, userHighId])
+  @@index([requesterId, status])
+  @@index([recipientId, status])
+  @@index([status])
+  @@map("connections")
+}
+
+// ───────────────────────────── Messaging ─────────────────────────────
+
+enum ConversationType {
+  DIRECT
+  COLLECTIVE
+}
+
+model Conversation {
+  id            String           @id @default(uuid())
+  type          ConversationType
+  collectiveId  String?          @unique @map("collective_id")
+  /// For DIRECT: the two member ids sorted and joined with ':' so the pair is unique.
+  directKey     String?          @unique @map("direct_key")
+  lastMessageAt DateTime?        @map("last_message_at")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  collective Collective? @relation(fields: [collectiveId], references: [id], onDelete: Cascade)
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model ConversationMember {
+  conversationId  String    @map("conversation_id")
+  userId          String    @map("user_id")
+  joinedAt        DateTime  @default(now()) @map("joined_at")
+  leftAt          DateTime? @map("left_at")
+  /// Messages created at or before this instant have been delivered to this member.
+  lastDeliveredAt DateTime? @map("last_delivered_at")
+  /// Messages created at or before this instant have been read by this member.
+  lastReadAt      DateTime? @map("last_read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+enum MessageType {
+  TEXT
+  ATTACHMENT
+  SYSTEM
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String      @map("conversation_id")
+  senderId       String      @map("sender_id")
+  messageType    MessageType @default(TEXT) @map("message_type")
+  content        String
+  replyToId      String?     @map("reply_to_id")
+  attachmentId   String?     @map("attachment_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+  replyTo      Message?     @relation("MessageReply", fields: [replyToId], references: [id])
+  attachment   FileObject?  @relation(fields: [attachmentId], references: [id])
+
+  replies   Message[]         @relation("MessageReply")
+  reactions MessageReaction[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model MessageReaction {
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+// ───────────────────────────── Polls ─────────────────────────────
+
+enum PollStatus {
+  ACTIVE
+  CLOSED
+}
+
+model Poll {
+  id              String     @id @default(uuid())
+  collectiveId    String     @map("collective_id")
+  creatorId       String     @map("creator_id")
+  question        String
+  multipleChoice  Boolean    @default(false) @map("multiple_choice")
+  /// Off unless the creator turns it on; the spec says not to assume.
+  allowVoteChange Boolean    @default(false) @map("allow_vote_change")
+  status          PollStatus @default(ACTIVE)
+  expiresAt       DateTime?  @map("expires_at")
+  closedAt        DateTime?  @map("closed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  collective Collective @relation(fields: [collectiveId], references: [id], onDelete: Cascade)
+  creator    User       @relation(fields: [creatorId], references: [id])
+
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([collectiveId, status])
+  @@index([expiresAt])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String @id @default(uuid())
+  pollId    String @map("poll_id")
+  label     String
+  sortOrder Int    @map("sort_order")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId, sortOrder])
+  @@map("poll_options")
+}
+
+/// One row per (poll, user, option). Single-choice polls are additionally
+/// held to one row per (poll, user) inside the voting transaction.
+model PollVote {
+  id        String   @id @default(uuid())
+  pollId    String   @map("poll_id")
+  optionId  String   @map("option_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId, optionId])
+  @@index([pollId, optionId])
+  @@map("poll_votes")
+}
+
+// ───────────────────────────── Files, activities ─────────────────────────────
+
+/// An uploaded binary. Storage backend is abstracted; storageKey is what the
+/// backend uses to find it, url is what clients fetch.
+model FileObject {
+  id         String   @id @default(uuid())
+  uploaderId String   @map("uploader_id")
+  storageKey String   @unique @map("storage_key")
+  url        String
+  fileName   String   @map("file_name")
+  mimeType   String   @map("mime_type")
+  sizeBytes  Int      @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  messages    Message[]
+  sharedFiles SharedFile[]
+
+  @@index([uploaderId])
+  @@map("file_objects")
+}
+
+enum SharedFileType {
+  DOCUMENT
+  IMAGE
+  LINK
+}
+
+model SharedFile {
+  id           String         @id @default(uuid())
+  collectiveId String         @map("collective_id")
+  sharerId     String         @map("sharer_id")
+  type         SharedFileType
+  title        String
+  description  String?
+  fileId       String?        @map("file_id")
+  url          String?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  collective Collective  @relation(fields: [collectiveId], references: [id], onDelete: Cascade)
+  sharer     User        @relation(fields: [sharerId], references: [id])
+  file       FileObject? @relation(fields: [fileId], references: [id])
+
+  @@index([collectiveId, createdAt])
+  @@map("shared_files")
+}
+
+enum ActivityType {
+  ONLINE
+  IN_PERSON
+  HYBRID
+}
+
+enum ActivityStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+model Activity {
+  id           String         @id @default(uuid())
+  collectiveId String         @map("collective_id")
+  creatorId    String         @map("creator_id")
+  title        String
+  description  String?
+  type         ActivityType
+  /// Calendar day of the activity.
+  date         DateTime       @db.Date
+  /// Wall-clock start/end on that day, "HH:MM" 24h, in the collective's local time (IST).
+  startTime    String         @map("start_time")
+  endTime      String?        @map("end_time")
+  meetingLink  String?        @map("meeting_link")
+  location     String?
+  status       ActivityStatus @default(SCHEDULED)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  collective   Collective            @relation(fields: [collectiveId], references: [id], onDelete: Cascade)
+  creator      User                  @relation(fields: [creatorId], references: [id])
+  participants ActivityParticipant[]
+
+  @@index([collectiveId, date])
+  @@map("activities")
+}
+
+enum ParticipantStatus {
+  GOING
+  NOT_GOING
+}
+
+model ActivityParticipant {
+  activityId String            @map("activity_id")
+  userId     String            @map("user_id")
+  status     ParticipantStatus
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([activityId, userId])
+  @@map("activity_participants")
+}
+
+// ───────────────────────────── Notifications, reports, audit ─────────────────────────────
+
+enum NotificationType {
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  NEW_MESSAGE
+  MENTION
+  NEW_POLL
+  POLL_CLOSING
+  COLLECTIVE_INVITATION
+  COLLECTIVE_MEMBERSHIP
+  NEW_ACTIVITY
+  ACTIVITY_REMINDER
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PASS_EXPIRING
+  PASS_EXPIRED
+}
+
+/// UNREAD/READ is readAt IS NULL / NOT NULL. dedupeKey lets scheduled jobs
+/// (pass expiry warnings) run on every API instance without double-sending.
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  dedupeKey String?          @unique @map("dedupe_key")
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+enum ReportTargetType {
+  USER
+  MESSAGE
+  SHARED_FILE
+  POLL
+  COLLECTIVE
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+model Report {
+  id             String           @id @default(uuid())
+  reporterId     String           @map("reporter_id")
+  targetType     ReportTargetType @map("target_type")
+  targetId       String           @map("target_id")
+  /// The user the report is ultimately about (target owner), for admin filtering.
+  reportedUserId String?          @map("reported_user_id")
+  reason         String
+  details        String?
+  status         ReportStatus     @default(OPEN)
+  resolvedById   String?          @map("resolved_by_id")
+  resolvedAt     DateTime?        @map("resolved_at")
+  resolutionNote String?          @map("resolution_note")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  reporter     User  @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User? @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  resolvedBy   User? @relation("ReportResolver", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([reportedUserId])
+  @@map("reports")
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+/// Who did what. actorType distinguishes an admin console action from a
+/// user's own action from a scheduled job (which has no user; actorId is
+/// then the affected user).
+model AuditLog {
+  id         String    @id @default(uuid())
+  actorId    String    @map("actor_id")
+  actorType  ActorType @default(ADMIN) @map("actor_type")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

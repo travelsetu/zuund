@@ -21,6 +21,8 @@ echo "==> deploying $sha: $(git log -1 --pretty=%s)"
 
 [ -f .env ] || { echo "!! $ROOT/.env is missing; copy .env.example and fill it in"; exit 1; }
 node scripts/link-env.mjs
+# Uploaded files live outside the checkout so a deploy never touches them.
+mkdir -p /srv/zuund-uploads
 
 echo "==> postgres"
 docker compose --env-file .env -f docker-compose.yml -p zuund up -d --wait

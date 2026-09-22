@@ -12,7 +12,9 @@
   "dependencies": {
     "next": "^16.3.5",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "@zuund/shared": "workspace:*",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

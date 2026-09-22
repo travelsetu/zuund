@@ -4,6 +4,7 @@ export interface AuthUser {
   email: string;
   name: string | null;
   createdAt: string;
+  role: 'USER' | 'ADMIN';
 }
 
 /** Response for POST /api/auth/login, POST /api/auth/refresh and GET /api/auth/me */
@@ -11,9 +12,15 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-/** Standard error envelope produced by the backend's exception filter. */
+/** Every API error: `{ success: false, error: { code, message, details? } }`. */
 export interface ApiError {
-  statusCode: number;
-  message: string | string[];
-  error?: string;
+  success: false;
+  error: {
+    /** Stable machine-readable code, e.g. VALIDATION_FAILED, DUPLICATE_ACTIVE_POST, BUYING_PASS_EXPIRED. */
+    code: string;
+    /** Safe to show to the user as-is. */
+    message: string;
+    /** For VALIDATION_FAILED: [{ path, message }]. */
+    details?: unknown;
+  };
 }
