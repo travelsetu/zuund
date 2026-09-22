@@ -10,7 +10,8 @@ zuund/
 ├── apps/
 │   ├── backend/           NestJS + Prisma API            dev http://localhost:3000/api   prod https://api.zuund.com
 │   ├── admin-dashboard/   React + Vite + React Router    dev http://localhost:5173       prod https://admin.zuund.com
-│   └── web/               Next.js public site            dev http://localhost:3001       prod https://zuund.com
+│   ├── web/               Next.js user web app           dev http://localhost:3001       prod https://zuund.com
+│   └── mobile/            Expo (React Native) app        Expo Go via `pnpm dev:mobile`
 ├── packages/
 │   ├── shared/            Types + zod schemas used by both apps (@zuund/shared)
 │   └── tsconfig/          Base TypeScript configs (@zuund/tsconfig)
@@ -79,7 +80,11 @@ pnpm dev              # backend + dashboard + web together (Turborepo TUI; press
 pnpm dev:backend      # only the API, with watch mode
 pnpm dev:dashboard    # only the admin dashboard
 pnpm dev:web          # only the Next.js site
+pnpm dev:mobile       # Expo dev server; scan the QR code with Expo Go (same Wi-Fi), or pnpm dev:mobile:tunnel
 ```
+
+The mobile app talks to the API on this machine's LAN address, port 3000, derived from the Expo dev
+server; set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to override (production: https://api.zuund.com).
 
 Then open http://localhost:5173 and sign in with the seeded admin.
 

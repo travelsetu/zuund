@@ -26,7 +26,9 @@
     "bootstrap": "pnpm install && pnpm env:link && pnpm db:up && pnpm db:generate && pnpm db:migrate && pnpm db:seed",
     "dev:web": "turbo run dev --filter=@zuund/web",
     "env:link": "node scripts/link-env.mjs",
-    "deploy:trigger": "gh workflow run deploy.yml -R travelsetu/zuund"
+    "deploy:trigger": "gh workflow run deploy.yml -R travelsetu/zuund",
+    "dev:mobile": "pnpm --filter @zuund/mobile start",
+    "dev:mobile:tunnel": "pnpm --filter @zuund/mobile start:tunnel"
   },
   "devDependencies": {
     "prettier": "^3.9.8",

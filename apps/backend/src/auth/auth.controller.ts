@@ -48,6 +48,15 @@ export class AuthController {
     return { user };
   }
 
+  /** Register for clients without a cookie jar (mobile): tokens come back in the body. */
+  @Post('register/token')
+  @HttpCode(201)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  async registerToken(@Body(new ZodValidationPipe(registerRequestSchema)) body: RegisterRequest) {
+    const { user, tokens } = await this.auth.register(body);
+    return { user, ...tokens };
+  }
+
   /**
    * Same as login, but returns the tokens in the body instead of cookies, for
    * clients without a cookie jar (the React Native app). Refresh for those
@@ -98,7 +107,10 @@ export class AuthController {
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
-    await this.auth.logout(req.cookies?.[REFRESH_COOKIE] as string | undefined);
+    const bearer = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : undefined;
+    await this.auth.logout((req.cookies?.[REFRESH_COOKIE] as string | undefined) ?? bearer);
     this.cookies.clear(res);
   }
 

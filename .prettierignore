@@ -6,3 +6,5 @@ apps/backend/src/generated
 apps/backend/prisma/migrations
 .next
 next-env.d.ts
+apps/mobile/.expo
+apps/mobile/expo-env.d.ts

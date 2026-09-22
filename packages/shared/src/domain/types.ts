@@ -1,5 +1,6 @@
 import type {
   ActivityStatus,
+  BuyerFilter,
   ActivityType,
   BuyingIntentStatus,
   BuyingPassStatus,
@@ -118,6 +119,8 @@ export interface BuyerDiscoveryDto extends Page<BuyerDto> {
   city: CityDto;
   /** Active buyers for this car+city, excluding the viewer. A count, not a score. */
   totalActiveBuyers: number;
+  /** The same count broken down per filter pill. Counts, never scores. */
+  counts: Record<BuyerFilter, number>;
 }
 
 export interface BuyerProfileDto {

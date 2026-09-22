@@ -250,8 +250,13 @@ export class BuyingIntentsService {
           ? { createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } }
           : {};
 
-    const [totalActiveBuyers, rows] = await Promise.all([
+    const recentSince = new Date(Date.now() - 7 * 86_400_000);
+    const [totalActiveBuyers, ready, committed, interested, recent, rows] = await Promise.all([
       this.prisma.buyingIntent.count({ where: base }),
+      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'READY' } }),
+      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'COMMITTED' } }),
+      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'INTERESTED' } }),
+      this.prisma.buyingIntent.count({ where: { ...base, createdAt: { gte: recentSince } } }),
       this.prisma.buyingIntent.findMany({
         where: { ...base, ...filter, ...afterCursor(decodeCursor(q.cursor)) },
         include: {
@@ -281,7 +286,19 @@ export class BuyingIntentsService {
         connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
       };
     });
-    return { ...page, car: toCar(car), city: toCity(city), totalActiveBuyers };
+    return {
+      ...page,
+      car: toCar(car),
+      city: toCity(city),
+      totalActiveBuyers,
+      counts: {
+        ALL: totalActiveBuyers,
+        READY: ready,
+        COMMITTED: committed,
+        INTERESTED: interested,
+        RECENT: recent,
+      },
+    };
   }
 
   /** "237 people are looking to buy Hyundai Creta in Ahmedabad." — a count, no viewer needed. */
