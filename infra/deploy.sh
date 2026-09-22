@@ -77,12 +77,23 @@ render_nginx() {
   if [ "$changed" = 1 ]; then nginx -t && systemctl reload nginx; else echo "    nginx unchanged"; fi
 }
 
+# Asks the zone's own nameservers, not the box's resolver. Let's Encrypt looks
+# the name up authoritatively, so that is the answer that matters — and the
+# host's upstream resolver was seen holding a stale "no such name" for ten
+# minutes after a record was added, which would have skipped issuance.
+resolve_authoritative() {
+  local host="$1" zone ns
+  zone=${host#*.}; [[ "$zone" == *.* ]] || zone="$host"
+  ns=$(dig +short NS "$zone" | head -1)
+  if [ -n "$ns" ]; then dig +short A "$host" "@$ns" | tail -1; else dig +short A "$host" | tail -1; fi
+}
+
 issue_missing_certs() {
   local my_ip resolved host
   my_ip=$(curl -s --max-time 5 https://api.ipify.org || hostname -I | awk '{print $1}')
   for host in "${HOSTS[@]}"; do
     has_cert "$host" && continue
-    resolved=$(dig +short A "$host" | tail -1)
+    resolved=$(resolve_authoritative "$host")
     if [ "$resolved" != "$my_ip" ]; then
       echo "    $host: no certificate; DNS -> '${resolved:-none}' (not $my_ip). Served over http until it points here."
       continue
