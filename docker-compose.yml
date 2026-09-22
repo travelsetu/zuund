@@ -1,21 +1,21 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: jhoond-postgres
+    container_name: zuund-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-jhoond}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jhoond}
-      POSTGRES_DB: ${POSTGRES_DB:-jhoond}
+      POSTGRES_USER: ${POSTGRES_USER:-zuund}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zuund}
+      POSTGRES_DB: ${POSTGRES_DB:-zuund}
     ports:
       - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
     volumes:
-      - jhoond_pgdata:/var/lib/postgresql/data
+      - zuund_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-jhoond} -d ${POSTGRES_DB:-jhoond}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-zuund} -d ${POSTGRES_DB:-zuund}']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  jhoond_pgdata:
+  zuund_pgdata:

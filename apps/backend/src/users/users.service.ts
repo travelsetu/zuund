@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AuthUser } from '@jhoond/shared';
+import type { AuthUser } from '@zuund/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
 

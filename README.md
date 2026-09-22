@@ -1,16 +1,16 @@
-# jhoond
+# zuund
 
-Monorepo for the jhoond platform: a NestJS API backed by PostgreSQL, and a React admin dashboard.
+Monorepo for the zuund platform: a NestJS API backed by PostgreSQL, and a React admin dashboard.
 
 ```
-jhoond/
+zuund/
 ├── apps/
 │   ├── backend/           NestJS + Prisma API            dev http://localhost:3000/api   prod https://api.zuund.com
 │   ├── admin-dashboard/   React + Vite + React Router    dev http://localhost:5173       prod https://admin.zuund.com
 │   └── web/               Next.js public site            dev http://localhost:3001       prod https://zuund.com
 ├── packages/
-│   ├── shared/            Types + zod schemas used by both apps (@jhoond/shared)
-│   └── tsconfig/          Base TypeScript configs (@jhoond/tsconfig)
+│   ├── shared/            Types + zod schemas used by both apps (@zuund/shared)
+│   └── tsconfig/          Base TypeScript configs (@zuund/tsconfig)
 ├── infra/
 │   ├── nginx/             One server block per hostname, copied to the VPS on deploy
 │   ├── deploy.sh          Zero-downtime deploy, run on the VPS by the GitHub workflow
@@ -37,7 +37,7 @@ jhoond/
 ### Why Turborepo on top of pnpm workspaces
 
 pnpm workspaces handle linking and installation. Turborepo adds the two things that
-matter once you have a shared package: it runs `build` for `@jhoond/shared` before the
+matter once you have a shared package: it runs `build` for `@zuund/shared` before the
 apps that depend on it (`dependsOn: ["^build"]`), and it runs `dev` for every app in
 parallel with one command. It is a single dev dependency with one config file. Nx was
 not worth its extra weight for a repo of this size.
@@ -84,16 +84,16 @@ single origin and the auth cookies work without any CORS configuration.
 
 ### Database commands
 
-| Command            | What it does                                               |
-| ------------------ | ---------------------------------------------------------- |
-| `pnpm db:up`       | Start Postgres in the background                           |
-| `pnpm db:down`     | Stop Postgres (data is kept in the `jhoond_pgdata` volume) |
-| `pnpm db:reset`    | Stop Postgres **and delete the volume**, then start fresh  |
-| `pnpm db:logs`     | Tail Postgres logs                                         |
-| `pnpm db:migrate`  | `prisma migrate dev`: create/apply migrations              |
-| `pnpm db:generate` | Regenerate the Prisma client after editing the schema      |
-| `pnpm db:seed`     | Run `apps/backend/prisma/seed.ts`                          |
-| `pnpm db:studio`   | Open Prisma Studio                                         |
+| Command            | What it does                                              |
+| ------------------ | --------------------------------------------------------- |
+| `pnpm db:up`       | Start Postgres in the background                          |
+| `pnpm db:down`     | Stop Postgres (data is kept in the `zuund_pgdata` volume) |
+| `pnpm db:reset`    | Stop Postgres **and delete the volume**, then start fresh |
+| `pnpm db:logs`     | Tail Postgres logs                                        |
+| `pnpm db:migrate`  | `prisma migrate dev`: create/apply migrations             |
+| `pnpm db:generate` | Regenerate the Prisma client after editing the schema     |
+| `pnpm db:seed`     | Run `apps/backend/prisma/seed.ts`                         |
+| `pnpm db:studio`   | Open Prisma Studio                                        |
 
 Postgres is published on `127.0.0.1:5433` by default (see `POSTGRES_PORT` in `.env`) so it
 does not collide with a Homebrew or system Postgres on 5432. `DATABASE_URL` must use the
@@ -137,5 +137,5 @@ and refuses to start with a clear error if anything is missing or malformed.
 
 ## Adding a new shared type
 
-Edit `packages/shared/src`, then run `pnpm --filter @jhoond/shared build` (or just `pnpm dev`,
-which watches it). Both apps import from `@jhoond/shared`.
+Edit `packages/shared/src`, then run `pnpm --filter @zuund/shared build` (or just `pnpm dev`,
+which watches it). Both apps import from `@zuund/shared`.

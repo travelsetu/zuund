@@ -1,8 +1,8 @@
 {
-  "name": "@jhoond/admin-dashboard",
+  "name": "@zuund/admin-dashboard",
   "version": "0.0.0",
   "private": true,
-  "description": "Admin dashboard for jhoond (React + Vite + React Router)",
+  "description": "Admin dashboard for zuund (React + Vite + React Router)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,14 +11,14 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@jhoond/shared": "workspace:*",
+    "@zuund/shared": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router": "^8.4.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@jhoond/tsconfig": "workspace:*",
+    "@zuund/tsconfig": "workspace:*",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.1",

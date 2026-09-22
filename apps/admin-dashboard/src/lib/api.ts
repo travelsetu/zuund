@@ -1,4 +1,4 @@
-import type { ApiError, AuthResponse, LoginRequest } from '@jhoond/shared';
+import type { ApiError, AuthResponse, LoginRequest } from '@zuund/shared';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '') + '/api';
 

@@ -1,5 +1,5 @@
 {
-  "name": "@jhoond/shared",
+  "name": "@zuund/shared",
   "version": "0.0.0",
   "private": true,
   "description": "Types and validation schemas shared between the backend and dashboards",
@@ -26,7 +26,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@jhoond/tsconfig": "workspace:*",
+    "@zuund/tsconfig": "workspace:*",
     "tsup": "^8.5.0",
     "typescript": "~5.9.3"
   }

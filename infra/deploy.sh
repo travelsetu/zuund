@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Zero-downtime deploy of jhoond on the VPS. Run as root from /srv/jhoond after
+# Zero-downtime deploy of zuund on the VPS. Run as root from /srv/zuund after
 # the checkout is at the commit to deploy (the GitHub workflow does the fetch).
 #
 #   api / web   pm2 cluster rolling reload: new instance up and ready before the
@@ -11,8 +11,8 @@
 #               suit both: add and backfill now, drop or rename in a later deploy.
 set -euo pipefail
 
-ROOT=/srv/jhoond
-ADMIN_ROOT=/srv/jhoond-admin
+ROOT=/srv/zuund
+ADMIN_ROOT=/srv/zuund-admin
 HOSTS=(zuund.com www.zuund.com admin.zuund.com api.zuund.com)
 
 cd "$ROOT"
@@ -23,15 +23,15 @@ echo "==> deploying $sha: $(git log -1 --pretty=%s)"
 node scripts/link-env.mjs
 
 echo "==> postgres"
-docker compose --env-file .env -f docker-compose.yml -p jhoond up -d --wait
+docker compose --env-file .env -f docker-compose.yml -p zuund up -d --wait
 
 echo "==> install"
 pnpm install --frozen-lockfile
 
 echo "==> migrate"
-pnpm --filter @jhoond/backend prisma:deploy
+pnpm --filter @zuund/backend prisma:deploy
 # Idempotent: creates the admin from ADMIN_* only if that email does not exist.
-pnpm --filter @jhoond/backend prisma:seed
+pnpm --filter @zuund/backend prisma:seed
 
 echo "==> build"
 pnpm build

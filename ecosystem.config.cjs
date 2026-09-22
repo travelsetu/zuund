@@ -31,8 +31,8 @@ const ZERO_DOWNTIME = {
 module.exports = {
   apps: [
     {
-      name: 'jhoond-api',
-      cwd: '/srv/jhoond/apps/backend',
+      name: 'zuund-api',
+      cwd: '/srv/zuund/apps/backend',
       script: 'dist/main.js',
       instances: 2,
       env: { NODE_ENV: 'production', PORT: '4300', HOST },
@@ -40,8 +40,8 @@ module.exports = {
       ...ZERO_DOWNTIME,
     },
     {
-      name: 'jhoond-web',
-      cwd: '/srv/jhoond/apps/web',
+      name: 'zuund-web',
+      cwd: '/srv/zuund/apps/web',
       script: 'node_modules/next/dist/bin/next',
       args: `start --port 3300 --hostname ${HOST}`,
       instances: 1,

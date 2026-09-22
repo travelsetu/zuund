@@ -36,7 +36,7 @@ jobs:
       - name: Deploy on the server
         run: |
           ssh -i ~/.ssh/deploy "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" bash -euo pipefail <<'REMOTE'
-            cd /srv/jhoond
+            cd /srv/zuund
             git fetch --quiet origin
             git reset --quiet --hard origin/main
             bash infra/deploy.sh

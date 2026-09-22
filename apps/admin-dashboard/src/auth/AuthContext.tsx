@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AuthUser, LoginRequest } from '@jhoond/shared';
+import type { AuthUser, LoginRequest } from '@zuund/shared';
 import { api, ApiRequestError } from '@/lib/api';
 
 interface AuthContextValue {

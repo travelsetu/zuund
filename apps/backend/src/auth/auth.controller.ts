@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { loginRequestSchema, type AuthResponse, type LoginRequest } from '@jhoond/shared';
+import { loginRequestSchema, type AuthResponse, type LoginRequest } from '@zuund/shared';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { REFRESH_COOKIE, type RequestUser } from './auth.constants';
 import { AuthCookies } from './auth.cookies';

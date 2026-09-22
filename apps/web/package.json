@@ -1,5 +1,5 @@
 {
-  "name": "@jhoond/web",
+  "name": "@zuund/web",
   "version": "0.0.0",
   "private": true,
   "description": "Public site for zuund.com (Next.js)",

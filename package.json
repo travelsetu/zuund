@@ -1,5 +1,5 @@
 {
-  "name": "jhoond",
+  "name": "zuund",
   "private": true,
   "packageManager": "pnpm@10.33.2",
   "engines": {
@@ -7,8 +7,8 @@
   },
   "scripts": {
     "dev": "turbo run dev",
-    "dev:backend": "turbo run dev --filter=@jhoond/backend",
-    "dev:dashboard": "turbo run dev --filter=@jhoond/admin-dashboard",
+    "dev:backend": "turbo run dev --filter=@zuund/backend",
+    "dev:dashboard": "turbo run dev --filter=@zuund/admin-dashboard",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
@@ -19,14 +19,14 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d --wait",
     "db:logs": "docker compose logs -f postgres",
-    "db:generate": "pnpm --filter @jhoond/backend prisma:generate",
-    "db:migrate": "pnpm --filter @jhoond/backend prisma:migrate",
-    "db:seed": "pnpm --filter @jhoond/backend prisma:seed",
-    "db:studio": "pnpm --filter @jhoond/backend prisma:studio",
+    "db:generate": "pnpm --filter @zuund/backend prisma:generate",
+    "db:migrate": "pnpm --filter @zuund/backend prisma:migrate",
+    "db:seed": "pnpm --filter @zuund/backend prisma:seed",
+    "db:studio": "pnpm --filter @zuund/backend prisma:studio",
     "bootstrap": "pnpm install && pnpm env:link && pnpm db:up && pnpm db:generate && pnpm db:migrate && pnpm db:seed",
-    "dev:web": "turbo run dev --filter=@jhoond/web",
+    "dev:web": "turbo run dev --filter=@zuund/web",
     "env:link": "node scripts/link-env.mjs",
-    "deploy:trigger": "gh workflow run deploy.yml -R travelsetu/jhoond"
+    "deploy:trigger": "gh workflow run deploy.yml -R travelsetu/zuund"
   },
   "devDependencies": {
     "prettier": "^3.9.8",

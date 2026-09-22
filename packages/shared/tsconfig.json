@@ -1,5 +1,5 @@
 {
-  "extends": "@jhoond/tsconfig/base.json",
+  "extends": "@zuund/tsconfig/base.json",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",

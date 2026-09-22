@@ -3,7 +3,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import type { AuthUser } from '@jhoond/shared';
+import type { AuthUser } from '@zuund/shared';
 import type { Env } from '../config/env';
 import type { User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';

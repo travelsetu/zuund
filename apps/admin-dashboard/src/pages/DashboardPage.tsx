@@ -13,7 +13,7 @@ export function DashboardPage() {
   return (
     <div className="page">
       <header className="topbar">
-        <strong>jhoond</strong>
+        <strong>zuund</strong>
         <div className="topbar-right">
           <span className="muted">{user?.email}</span>
           <button type="button" className="secondary" onClick={onLogout}>

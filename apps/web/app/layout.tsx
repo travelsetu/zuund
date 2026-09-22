@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'jhoond',
-  description: 'jhoond',
+  title: 'zuund',
+  description: 'zuund',
   metadataBase: new URL('https://zuund.com'),
 };
 

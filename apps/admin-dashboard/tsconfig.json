@@ -1,5 +1,5 @@
 {
-  "extends": "@jhoond/tsconfig/vite-react.json",
+  "extends": "@zuund/tsconfig/vite-react.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

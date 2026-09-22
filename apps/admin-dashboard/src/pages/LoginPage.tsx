@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
-import { loginRequestSchema } from '@jhoond/shared';
+import { loginRequestSchema } from '@zuund/shared';
 import { useAuth } from '@/auth/AuthContext';
 import { ApiRequestError } from '@/lib/api';
 
@@ -47,7 +47,7 @@ export function LoginPage() {
     <div className="centered">
       <form className="card" onSubmit={onSubmit} noValidate>
         <h1>Sign in</h1>
-        <p className="muted">jhoond admin dashboard</p>
+        <p className="muted">zuund admin dashboard</p>
 
         <label htmlFor="email">Email</label>
         <input
