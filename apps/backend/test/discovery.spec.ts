@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  activateMemberships,
   createPost,
   registerUser,
   setup,
@@ -18,6 +19,7 @@ describe('buyer discovery', () => {
     ctx = await setup();
     viewer = await registerUser(ctx, 'Viewer', ctx.ahmedabad.id);
     await createPost(viewer.agent, ctx.creta, ctx.ahmedabad, 'WITHIN_30_DAYS', 'COMMITTED');
+    await activateMemberships(viewer);
     others = [];
     for (let i = 0; i < 5; i++) {
       const u = await registerUser(ctx, `Buyer${i}`, ctx.ahmedabad.id);
@@ -60,10 +62,11 @@ describe('buyer discovery', () => {
     }
   });
 
-  it('counts the same way for a viewer without a post of their own', async () => {
+  it('someone who has not joined sees only the count, not the buyers', async () => {
     const stranger = await registerUser(ctx, 'Stranger');
     const res = await stranger.agent.get(url());
-    expect(res.body.totalActiveBuyers).toBe(6); // the viewer's post now counts too
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('JOIN_COLLECTIVE_FIRST');
     const count = await stranger.agent.get(
       `/api/buyers/count?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}`,
     );

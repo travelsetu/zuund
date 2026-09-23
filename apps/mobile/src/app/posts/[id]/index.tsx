@@ -83,7 +83,7 @@ export default function PostDetail() {
             }
           />
         </View>
-        {intent.status === 'ACTIVE' ? (
+        {intent.status === 'ACTIVE' && intent.membership?.status === 'ACTIVE' ? (
           <Button
             title="See other buyers"
             icon="people-outline"

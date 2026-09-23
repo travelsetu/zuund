@@ -31,6 +31,7 @@ import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagina
 import type { BuyingIntentStatus, Prisma } from '../generated/prisma/client';
 import { AuditService } from '../common/audit.service';
 import { connectionsWith } from '../common/connections';
+import { requireJoined } from '../common/joined';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -263,6 +264,7 @@ export class BuyingIntentsService {
       this.catalog.requireActiveCar(q.carId),
       this.catalog.requireActiveCity(q.cityId),
     ]);
+    await requireJoined(this.prisma, viewerId, { carId: q.carId, cityId: q.cityId });
     const blockedIds = await this.blockedUserIds(viewerId);
 
     const base: Prisma.BuyingIntentWhereInput = {

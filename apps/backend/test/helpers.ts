@@ -301,3 +301,31 @@ export async function upload(agent: Agent, buffer: Buffer, filename: string, con
 }
 
 export const DAY_MS = 86_400_000;
+
+/**
+ * Tests have no free places, so a new post waits for payment. This stands in for the
+ * payment: the user's pending memberships become ACTIVE, i.e. they have joined.
+ */
+export async function activateMemberships(user: { id: string }): Promise<void> {
+  const { count } = await db.collectiveMembership.updateMany({
+    where: { userId: user.id, status: 'PENDING_PAYMENT' },
+    data: { status: 'ACTIVE', joinedAt: new Date() },
+  });
+  if (!count) throw new Error('activateMemberships: nothing pending for this user');
+}
+
+/**
+ * A user who has joined a collective, so they may see and contact other buyers. The
+ * membership is for 1 kW rooftop solar, which the car specs never look at.
+ */
+export async function joinedUser(
+  ctx: TestContext,
+  name: string,
+  cityId?: string,
+): Promise<TestUser> {
+  const u = await registerUser(ctx, name, cityId);
+  const solar = await db.car.findUniqueOrThrow({ where: { slug: '1-kw-rooftop-solar' } });
+  await createPost(u.agent, solar, ctx.ahmedabad);
+  await activateMemberships(u);
+  return u;
+}

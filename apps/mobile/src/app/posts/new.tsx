@@ -75,8 +75,14 @@ export default function NewPost() {
             }
           : {}),
       });
+      // Creating the post joined its collective: a free place goes straight to the
+      // welcome; otherwise the Buying Pass is next.
       router.dismissTo('/');
-      router.push(`/posts/${post.id}/buyers`);
+      if (post.membership?.status === 'ACTIVE')
+        router.push({ pathname: '/posts/[id]/success', params: { id: post.id, free: '1' } });
+      else if (post.membership?.status === 'PENDING_PAYMENT') router.push(`/posts/${post.id}/pay`);
+      // Already in this collective through an earlier post: show who else is buying.
+      else router.push(`/posts/${post.id}/buyers`);
     } catch (e) {
       setBusy(false);
       if (e instanceof ApiRequestError && e.code === 'DUPLICATE_ACTIVE_POST') {

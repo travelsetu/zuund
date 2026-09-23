@@ -42,11 +42,20 @@ export default function GroupDetails() {
   const [joining, setJoining] = useState(false);
   const { data, reload, refresh, refreshing } = useFocusData(async () => {
     const intent = await api.intents.get(id);
-    const [cols, buyers] = await Promise.all([
-      api.collectives.list({ carId: intent.car.id, cityId: intent.city.id }),
-      api.buyers.discover({ carId: intent.car.id, cityId: intent.city.id }),
+    const scope = { carId: intent.car.id, cityId: intent.city.id };
+    // Who the other buyers are is for members; everyone else sees how many there are.
+    const joined = intent.membership?.status === 'ACTIVE';
+    const [cols, buyers, count] = await Promise.all([
+      api.collectives.list(scope),
+      joined ? api.buyers.discover(scope) : Promise.resolve(null),
+      joined ? Promise.resolve(null) : api.buyers.count(scope),
     ]);
-    return { intent, collective: cols.items[0] ?? null, buyers };
+    return {
+      intent,
+      collective: cols.items[0] ?? null,
+      buyers,
+      buyerCount: buyers?.totalActiveBuyers ?? count?.count ?? 0,
+    };
   }, [id]);
 
   if (!data)
@@ -56,7 +65,7 @@ export default function GroupDetails() {
         <Loading />
       </Screen>
     );
-  const { intent, collective, buyers } = data;
+  const { intent, collective, buyers, buyerCount } = data;
   const member = collective?.membership?.status === 'ACTIVE';
   // Before anyone has started the collective, all free places are open.
   const freeLeft = collective ? collective.freePlacesLeft : FREE_MEMBERS_PER_COLLECTIVE;
@@ -116,7 +125,14 @@ export default function GroupDetails() {
               <Text style={[type.hero, { color: colors.brand }]}>₹500</Text>
               <Text style={type.small}>Buying Pass for this Buying Post only</Text>
             </View>
-            <Button title="Join Now" onPress={() => router.push(`/posts/${id}/pay`)} />
+            <Button
+              title={
+                collective?.membership?.status === 'PENDING_PAYMENT'
+                  ? 'Pay for Buying Pass'
+                  : 'Join Now'
+              }
+              onPress={() => router.push(`/posts/${id}/pay`)}
+            />
           </View>
         )
       }
@@ -147,7 +163,7 @@ export default function GroupDetails() {
       <ChipRow>
         <Chip label="About" active={tab === 'about'} onPress={() => setTab('about')} />
         <Chip
-          label={`Buyers (${buyers.totalActiveBuyers})`}
+          label={`Buyers (${buyerCount})`}
           active={tab === 'buyers'}
           onPress={() => setTab('buyers')}
         />
@@ -170,7 +186,17 @@ export default function GroupDetails() {
           <Check>No dealers or sellers inside the collective</Check>
         </Card>
       ) : tab === 'buyers' ? (
-        buyers.items.length ? (
+        !buyers ? (
+          <Empty
+            icon="lock-closed-outline"
+            title={
+              buyerCount
+                ? `${buyerCount} ${buyerCount === 1 ? 'buyer' : 'buyers'} in this collective`
+                : 'No other buyers yet'
+            }
+            body="Join the collective to see who they are, connect and message them."
+          />
+        ) : buyers.items.length ? (
           <View>
             {buyers.items.map((b: BuyerDto) => (
               <BuyerRow

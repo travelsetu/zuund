@@ -2,6 +2,7 @@ import request from 'supertest';
 import { isTravelWeekOpen, travelMonthOptions, travelWeekDays } from '@zuund/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  activateMemberships,
   createPost,
   db,
   registerUser,
@@ -105,6 +106,7 @@ describe('catalog categories', () => {
     const b = await registerUser(ctx, 'SolarB', ctx.ahmedabad.id);
     await createPost(a.agent, panel, ctx.ahmedabad);
     await createPost(b.agent, panel, ctx.ahmedabad);
+    await activateMemberships(a);
     const res = await a.agent.get(`/api/buyers?carId=${panel.id}&cityId=${ctx.ahmedabad.id}`);
     expect(res.status).toBe(200);
     expect(res.body.totalActiveBuyers).toBe(1);
@@ -155,6 +157,7 @@ describe('catalog categories', () => {
     const b = await registerUser(ctx, 'TripB', ctx.surat.id);
     await createPost(a.agent, goa, ctx.surat);
     await createPost(b.agent, goa, ctx.surat);
+    await activateMemberships(a);
     const res = await a.agent.get(`/api/buyers?carId=${goa.id}&cityId=${ctx.surat.id}`);
     expect(res.body.totalActiveBuyers).toBe(1);
     expect(res.body.car.category).toBe('HOLIDAY');
@@ -206,6 +209,7 @@ describe('catalog categories', () => {
 
     // Another buyer of the same trip sees the plan, but not the children's ages.
     await createPost(b.agent, bali, ctx.surat);
+    await activateMemberships(b);
     const seen = await b.agent.get(`/api/buyers?carId=${bali.id}&cityId=${ctx.surat.id}`);
     expect(seen.body.items[0].holiday).toEqual({
       travelMonth: months[3],

@@ -31,6 +31,9 @@ import type { RequestUser } from '../auth/auth.constants';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { DomainException } from '../common/domain.exception';
+import { CollectivesService } from '../collectives/collectives.service';
+import { PaymentsService } from '../payments/payments.service';
 import { BuyingIntentsService } from './buying-intents.service';
 
 const mineQuery = pageQuerySchema.extend({
@@ -41,14 +44,34 @@ const countQuery = z.object({ carId: z.uuid(), cityId: z.uuid() });
 @Controller()
 @UseGuards(JwtAccessGuard)
 export class BuyingIntentsController {
-  constructor(private readonly intents: BuyingIntentsService) {}
+  constructor(
+    private readonly intents: BuyingIntentsService,
+    private readonly collectives: CollectivesService,
+    private readonly payments: PaymentsService,
+  ) {}
 
+  /**
+   * Creating a post also joins the collective for its item and city (starting it if
+   * there is none), taking a free place when one is open. The returned post carries
+   * the membership: ACTIVE if it was free, otherwise PENDING_PAYMENT for the Buying
+   * Pass, which the app asks for straight away.
+   */
   @Post('buying-intents')
-  create(
+  async create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createBuyingIntentRequestSchema)) body: CreateBuyingIntentRequest,
   ): Promise<BuyingIntentDto> {
-    return this.intents.create(user.userId, body);
+    const intent = await this.intents.create(user.userId, body);
+    try {
+      const collective = await this.collectives.create(user.userId, intent.id);
+      if (collective.membership?.status === 'PENDING_PAYMENT') {
+        await this.payments.claimFreePlace(user.userId, collective.membership.id);
+      }
+    } catch (e) {
+      // Still a member through an earlier (e.g. closed) post: keep that membership.
+      if (!(e instanceof DomainException && e.code === 'ALREADY_IN_COLLECTIVE')) throw e;
+    }
+    return this.intents.getOwned(user.userId, intent.id);
   }
 
   @Get('buying-intents')

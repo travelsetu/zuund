@@ -28,18 +28,31 @@ export function PassPanel({ intent }: { intent: BuyingIntentDto }) {
       </View>
       {!pass || status === 'PENDING' || status === 'CANCELLED' ? (
         <>
-          <Text style={type.small}>
-            Unlocks the collective's discussion, polls, shared information and activities for up to
-            60 days. The first {FREE_MEMBERS_PER_COLLECTIVE} members of each collective join free;
-            after that it's ₹500 for this Buying Post only.
-          </Text>
-          {intent.status === 'ACTIVE' ? (
+          {intent.membership?.status === 'PENDING_PAYMENT' ? (
+            <Text style={type.small}>
+              This post has joined its collective. A Buying Pass (₹500, for this Buying Post only)
+              unlocks the discussion, polls, shared information and activities for up to 60 days.
+            </Text>
+          ) : (
+            <Text style={type.small}>
+              Unlocks the collective's discussion, polls, shared information and activities for up
+              to 60 days. The first {FREE_MEMBERS_PER_COLLECTIVE} members of each collective join
+              free; after that it's ₹500 for this Buying Post only.
+            </Text>
+          )}
+          {intent.status !== 'ACTIVE' ? null : intent.membership?.status === 'PENDING_PAYMENT' ? (
+            <Button
+              variant="green"
+              title="Pay for Buying Pass"
+              onPress={() => router.push(`/posts/${intent.id}/pay`)}
+            />
+          ) : (
             <Button
               variant="green"
               title="View collective & join"
               onPress={() => router.push(`/posts/${intent.id}/collective`)}
             />
-          ) : null}
+          )}
         </>
       ) : (
         <View style={{ gap: 6 }}>

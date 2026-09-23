@@ -12,6 +12,7 @@ import type { Connection, Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { requireJoined } from '../common/joined';
 
 const withUsers = {
   requester: { include: { profile: { include: { city: true } } } },
@@ -34,6 +35,7 @@ export class ConnectionsService {
 
   async request(requesterId: string, recipientId: string): Promise<ConnectionDto> {
     if (requesterId === recipientId) throw E.SELF_ACTION('You cannot connect with yourself');
+    await requireJoined(this.prisma, requesterId);
     const recipient = await this.prisma.user.findFirst({
       where: { id: recipientId, status: 'ACTIVE' },
       select: { id: true },
@@ -100,6 +102,7 @@ export class ConnectionsService {
     const row = await this.requireRow(id);
     if (row.recipientId !== userId) throw new ForbiddenException('Only the recipient can accept');
     if (row.status !== 'PENDING') throw E.REQUEST_NOT_PENDING();
+    await requireJoined(this.prisma, userId);
     const updated = await this.prisma.connection.update({
       where: { id },
       data: { status: 'ACCEPTED', acceptedAt: new Date() },

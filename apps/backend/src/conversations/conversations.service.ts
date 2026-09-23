@@ -19,6 +19,7 @@ import { FilesService } from '../files/files.service';
 import type { Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { requireJoined } from '../common/joined';
 
 const messageInclude = {
   sender: { include: { profile: { include: { city: true } } } },
@@ -44,6 +45,7 @@ export class ConversationsService {
 
   async openDirect(userId: string, otherId: string): Promise<ConversationDto> {
     if (userId === otherId) throw new BadRequestException();
+    await requireJoined(this.prisma, userId);
     if (!(await this.connections.areConnected(userId, otherId))) throw E.NOT_CONNECTED();
     const directKey = [userId, otherId].sort().join(':');
     const conv = await this.prisma.conversation.upsert({
@@ -153,6 +155,7 @@ export class ConversationsService {
   ): Promise<MessageDto> {
     const conv = await this.requireMember(conversationId, userId);
     if (conv.type === 'DIRECT') {
+      await requireJoined(this.prisma, userId);
       const other = conv.members.find((m) => m.userId !== userId);
       if (other && (await this.connections.isBlocked(userId, other.userId))) throw E.BLOCKED();
     }

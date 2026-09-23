@@ -7,6 +7,7 @@ import {
   payFor,
   PDF,
   PNG,
+  joinedUser,
   registerUser,
   setup,
   teardown,
@@ -27,7 +28,7 @@ describe('files', () => {
     ctx = await setup();
     rahul = await registerUser(ctx, 'Rahul');
     priya = await registerUser(ctx, 'Priya');
-    outsider = await registerUser(ctx, 'Outsider');
+    outsider = await joinedUser(ctx, 'Outsider');
     const a = (await createPost(rahul.agent, ctx.creta, ctx.ahmedabad)).id;
     const b = (await createPost(priya.agent, ctx.creta, ctx.ahmedabad)).id;
     collectiveId = (await joinCollective(rahul.agent, a)).id;

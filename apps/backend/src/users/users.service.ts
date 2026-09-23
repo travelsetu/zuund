@@ -10,6 +10,7 @@ import { isUniqueViolation } from '../common/prisma-errors';
 import { toCar, toCity, toMe, toPublicUser } from '../common/mappers';
 import { OtpService } from '../otp/otp.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { requireJoined } from '../common/joined';
 import type { User } from '../generated/prisma/client';
 
 const withProfile = { profile: { include: { city: true } } } as const;
@@ -116,6 +117,7 @@ export class UsersService {
    * blocked by, the viewer is not visible.
    */
   async getPublicProfile(viewerId: string, userId: string): Promise<BuyerProfileDto> {
+    if (viewerId !== userId) await requireJoined(this.prisma, viewerId);
     const u = await this.prisma.user.findFirst({
       where: { id: userId, status: 'ACTIVE' },
       include: {

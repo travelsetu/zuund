@@ -274,6 +274,9 @@ export const api = {
   buyers: {
     discover: (p: { carId: string; cityId: string; filter?: BuyerFilter; cursor?: string }) =>
       request<BuyerDiscoveryDto>(`/buyers${qs({ ...p, limit: 20 })}`),
+    /** How many others are buying it: open to everyone, unlike the list itself. */
+    count: (p: { carId: string; cityId: string }) =>
+      request<{ count: number }>(`/buyers/count${qs(p)}`),
   },
   connections: {
     list: (box: 'ACCEPTED' | 'INCOMING' | 'OUTGOING' | 'BLOCKED', cursor?: string) =>

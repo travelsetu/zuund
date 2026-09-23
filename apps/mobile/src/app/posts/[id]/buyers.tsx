@@ -21,7 +21,7 @@ import {
   ProductArt,
   Screen,
 } from '@/components/ui';
-import { api, errorMessage } from '@/lib/api';
+import { api, ApiRequestError, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { atLeast } from '@/lib/minDuration';
 import { useLightStatusBar } from '@/lib/statusBar';
@@ -48,6 +48,8 @@ export default function Buyers() {
   const [page, setPage] = useState<BuyerDiscoveryDto | null>(null);
   const [items, setItems] = useState<BuyerDto[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  // Not joined yet: the list is for members, so offer the Buying Pass instead.
+  const [locked, setLocked] = useState(false);
   const [more, setMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const firstLoad = useRef(true);
@@ -71,7 +73,9 @@ export default function Buyers() {
         setItems((prev) => (cursor ? [...prev, ...res.items] : res.items));
         setErr(null);
       } catch (e) {
-        setErr(errorMessage(e));
+        if (e instanceof ApiRequestError && e.body?.error?.code === 'JOIN_COLLECTIVE_FIRST')
+          setLocked(true);
+        else setErr(errorMessage(e));
       }
     },
     [id, filter],
@@ -82,6 +86,25 @@ export default function Buyers() {
     void load();
   }, [load]);
 
+  if (locked)
+    return (
+      <Screen
+        footer={
+          <Button
+            variant="green"
+            title="Pay for Buying Pass"
+            onPress={() => router.replace(`/posts/${id}/pay`)}
+          />
+        }
+      >
+        <Header />
+        <Empty
+          icon="lock-closed-outline"
+          title="Join the collective to see other buyers"
+          body="Once your Buying Post has joined, you can see who else is buying, connect and message them."
+        />
+      </Screen>
+    );
   if (!page)
     return (
       <Screen>

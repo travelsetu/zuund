@@ -77,6 +77,12 @@ export const E = {
   ALREADY_IN_COLLECTIVE: (m = 'This buying post is already in a collective') =>
     new DomainException('ALREADY_IN_COLLECTIVE', m, HttpStatus.CONFLICT),
   // payments
+  JOIN_COLLECTIVE_FIRST: () =>
+    new DomainException(
+      'JOIN_COLLECTIVE_FIRST',
+      'Join the collective to see and contact other buyers',
+      HttpStatus.FORBIDDEN,
+    ),
   JOIN_FIRST: () =>
     new DomainException('JOIN_FIRST', 'Join the collective with this buying post before paying'),
   PAYMENT_ALREADY_SUCCEEDED: () =>

@@ -3,6 +3,7 @@ import {
   connect,
   db,
   PNG,
+  joinedUser,
   registerUser,
   setup,
   teardown,
@@ -21,9 +22,9 @@ describe('messages', () => {
 
   beforeAll(async () => {
     ctx = await setup();
-    rahul = await registerUser(ctx, 'Rahul');
-    priya = await registerUser(ctx, 'Priya');
-    amit = await registerUser(ctx, 'Amit');
+    rahul = await joinedUser(ctx, 'Rahul');
+    priya = await joinedUser(ctx, 'Priya');
+    amit = await joinedUser(ctx, 'Amit');
   });
   afterAll(async () => {
     await teardown(ctx);

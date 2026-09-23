@@ -2,6 +2,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createPost,
+  joinedUser,
   registerUser,
   setup,
   teardown,
@@ -57,7 +58,7 @@ describe('error envelope', () => {
   });
 
   it('404 not found', async () => {
-    const u = await registerUser(ctx, 'Seeker');
+    const u = await joinedUser(ctx, 'Seeker');
     const res = await u.agent.get('/api/users/00000000-0000-4000-8000-000000000000');
     expect(res.status).toBe(404);
     shape(res.body);

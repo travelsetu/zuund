@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  activateMemberships,
   createPost,
   db,
+  joinedUser,
   registerUser,
   setup,
   teardown,
@@ -16,8 +18,8 @@ describe('connections', () => {
   let priya: TestUser;
   beforeAll(async () => {
     ctx = await setup();
-    rahul = await registerUser(ctx, 'Rahul');
-    priya = await registerUser(ctx, 'Priya');
+    rahul = await joinedUser(ctx, 'Rahul');
+    priya = await joinedUser(ctx, 'Priya');
   });
   afterAll(async () => {
     await teardown(ctx);
@@ -59,7 +61,7 @@ describe('connections', () => {
   });
 
   it('only the recipient can accept or reject; only pending requests can be', async () => {
-    const amit = await registerUser(ctx, 'Amit');
+    const amit = await joinedUser(ctx, 'Amit');
     const req = await rahul.agent.post('/api/connections').send({ userId: amit.id });
     expect((await rahul.agent.post(`/api/connections/${req.body.id}/accept`)).status).toBe(403);
     const rejected = await amit.agent.post(`/api/connections/${req.body.id}/reject`);
@@ -76,7 +78,7 @@ describe('connections', () => {
   });
 
   it('requester cancels a pending request; either side removes an accepted one', async () => {
-    const neha = await registerUser(ctx, 'Neha');
+    const neha = await joinedUser(ctx, 'Neha');
     const req = await rahul.agent.post('/api/connections').send({ userId: neha.id });
     expect((await neha.agent.delete(`/api/connections/${req.body.id}`)).status).toBe(403);
     const cancelled = await rahul.agent.delete(`/api/connections/${req.body.id}`);
@@ -92,9 +94,10 @@ describe('connections', () => {
   });
 
   it('blocking hides the profile, discovery and any further requests', async () => {
-    const troll = await registerUser(ctx, 'Troll');
+    const troll = await joinedUser(ctx, 'Troll');
     await createPost(troll.agent, ctx.creta, ctx.ahmedabad);
     await createPost(rahul.agent, ctx.creta, ctx.ahmedabad);
+    await activateMemberships(rahul);
     expect(
       (await rahul.agent.get(`/api/buyers?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}`)).body
         .totalActiveBuyers,
@@ -123,5 +126,34 @@ describe('connections', () => {
       (await rahul.agent.post('/api/connections/unblock').send({ userId: troll.id })).status,
     ).toBe(204);
     expect((await troll.agent.get(`/api/users/${rahul.id}`)).status).toBe(200);
+  });
+
+  it('nothing happens until you have joined: no buyers, profiles, requests or messages', async () => {
+    const newbie = await registerUser(ctx, 'Newbie');
+    await createPost(newbie.agent, ctx.venue, ctx.ahmedabad); // waiting for its Buying Pass
+    const refused = [
+      await newbie.agent.get(`/api/buyers?carId=${ctx.venue.id}&cityId=${ctx.ahmedabad.id}`),
+      await newbie.agent.get(`/api/users/${rahul.id}`),
+      await newbie.agent.post('/api/connections').send({ userId: rahul.id }),
+      await newbie.agent.post('/api/conversations/direct').send({ userId: rahul.id }),
+    ];
+    for (const res of refused) {
+      expect(res.status).toBe(403);
+      expect(res.body.error.code).toBe('JOIN_COLLECTIVE_FIRST');
+    }
+    // Their own profile is still theirs to see.
+    expect((await newbie.agent.get(`/api/users/${newbie.id}`)).status).toBe(200);
+    // A request to someone who hasn't joined can't be accepted until they do.
+    const req = await rahul.agent.post('/api/connections').send({ userId: newbie.id });
+    expect(req.status).toBe(201);
+    const accept = await newbie.agent.post(`/api/connections/${req.body.id}/accept`);
+    expect(accept.body.error.code).toBe('JOIN_COLLECTIVE_FIRST');
+
+    await activateMemberships(newbie);
+    expect(
+      (await newbie.agent.get(`/api/buyers?carId=${ctx.venue.id}&cityId=${ctx.ahmedabad.id}`))
+        .status,
+    ).toBe(200);
+    expect((await newbie.agent.post(`/api/connections/${req.body.id}/accept`)).status).toBe(201);
   });
 });

@@ -34,9 +34,10 @@ describe('payments', () => {
     await teardownAll();
   });
 
-  it('refuses to pay for a post that has not joined the collective', async () => {
+  it('refuses to pay for a post that has left the collective', async () => {
     const loner = await registerUser(ctx, 'Loner');
     const p = await createPost(loner.agent, ctx.creta, ctx.ahmedabad);
+    await loner.agent.post(`/api/collectives/${collectiveId}/leave`).expect(204);
     const res = await loner.agent
       .post('/api/payments')
       .send({ buyingIntentId: p.id, collectiveId, idempotencyKey: `k-${randomUUID()}` });
