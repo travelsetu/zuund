@@ -3,17 +3,20 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { AuthShell } from '@/components/AuthShell';
 import { Logo } from '@/components/Logo';
 import { OtpField, useOtpSender } from '@/components/OtpField';
 import { PhoneField } from '@/components/PhoneField';
-import { Button, ErrorText, Header, Screen } from '@/components/ui';
+import { Button, ErrorText, Header } from '@/components/ui';
 import { ApiRequestError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useIsDesktop } from '@/lib/layout';
 import { geoGuess } from '@/lib/geo';
 import { space, type } from '@/theme';
 
 /** Sign in with a WhatsApp number and the code sent to it on WhatsApp. */
 export default function Login() {
+  const desktop = useIsDesktop();
   const { loginWithOtp } = useAuth();
   const otp = useOtpSender();
   // Sent here from sign-up with a number that already has an account.
@@ -68,10 +71,10 @@ export default function Login() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen>
+      <AuthShell>
         <Header />
         <View style={{ alignItems: 'center', gap: space.sm }}>
-          <Logo size={34} />
+          {desktop ? null : <Logo size={34} />}
           <Text style={type.h1}>Welcome back</Text>
           <Text style={[type.small, { textAlign: 'center' }]}>
             Sign in with your WhatsApp number. We send you a code on WhatsApp.
@@ -116,7 +119,7 @@ export default function Login() {
           title="New to ZUUND? Create an account"
           onPress={() => router.replace('/register')}
         />
-      </Screen>
+      </AuthShell>
     </KeyboardAvoidingView>
   );
 }

@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { CityPicker } from '@/components/CityPicker';
+import { AuthShell } from '@/components/AuthShell';
 import { Logo } from '@/components/Logo';
 import { OtpField, prettyPhone, useOtpSender } from '@/components/OtpField';
 import { PhoneField } from '@/components/PhoneField';
-import { Button, ErrorText, Field, Header, Notice, Screen } from '@/components/ui';
+import { Button, ErrorText, Field, Header, Notice } from '@/components/ui';
 import { geoGuess } from '@/lib/geo';
 import { ApiRequestError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useIsDesktop } from '@/lib/layout';
 import { space, type } from '@/theme';
 
 /**
@@ -19,6 +21,7 @@ import { space, type } from '@/theme';
  * was already entered there is carried over (`phone`, `code` params).
  */
 export default function Register() {
+  const desktop = useIsDesktop();
   const { register } = useAuth();
   const carried = useLocalSearchParams<{ phone?: string; code?: string }>();
   const hasCarried = !!(carried.phone && carried.code);
@@ -111,10 +114,10 @@ export default function Register() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Screen>
+      <AuthShell>
         <Header />
         <View style={{ alignItems: 'center', gap: space.sm }}>
-          <Logo size={34} />
+          {desktop ? null : <Logo size={34} />}
           <Text style={type.h1}>Create your account</Text>
           <Text style={[type.small, { textAlign: 'center' }]}>
             Your WhatsApp number is never shown to other buyers.
@@ -178,7 +181,7 @@ export default function Register() {
           title="I already have an account"
           onPress={() => router.replace('/login')}
         />
-      </Screen>
+      </AuthShell>
     </KeyboardAvoidingView>
   );
 }
