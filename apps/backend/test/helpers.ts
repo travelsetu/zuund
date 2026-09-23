@@ -9,6 +9,7 @@ const THROTTLER_OPTIONS = 'THROTTLER:MODULE_OPTIONS';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
+import { travelMonthOptions } from '@zuund/shared';
 import { OtpSender } from '../src/otp/otp.sender';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
@@ -205,9 +206,21 @@ export async function createPost(
     'WITHIN_7_DAYS' | 'WITHIN_15_DAYS' | 'WITHIN_30_DAYS' | 'WITHIN_60_DAYS' = 'WITHIN_30_DAYS',
   intentLevel: 'INTERESTED' | 'COMMITTED' | 'READY' = 'INTERESTED',
 ) {
+  // Holiday packages need the trip; any valid one will do for most specs.
+  const holiday =
+    car.category === 'HOLIDAY'
+      ? {
+          travelMonth: travelMonthOptions()[1],
+          travelWeek: 2,
+          adults: 2,
+          childAges: [],
+          nights: 4,
+          hotelCategory: 'THREE_STAR',
+        }
+      : undefined;
   const res = await agent
     .post('/api/buying-intents')
-    .send({ carId: car.id, cityId: city.id, purchaseTimeline, intentLevel });
+    .send({ carId: car.id, cityId: city.id, purchaseTimeline, intentLevel, holiday });
   if (res.status !== 201)
     throw new Error(`createPost failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body as { id: string; status: string; intentLevel: string; purchaseTimeline: string };

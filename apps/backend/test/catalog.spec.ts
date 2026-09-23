@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { isTravelWeekOpen, travelMonthOptions, travelWeekDays } from '@zuund/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createPost,
@@ -157,5 +158,80 @@ describe('catalog categories', () => {
     const res = await a.agent.get(`/api/buyers?carId=${goa.id}&cityId=${ctx.surat.id}`);
     expect(res.body.totalActiveBuyers).toBe(1);
     expect(res.body.car.category).toBe('HOLIDAY');
+  });
+
+  it('a holiday post needs its trip: month, travellers, nights and hotel', async () => {
+    const bali = await db.car.findUniqueOrThrow({ where: { slug: 'bali-holiday-package' } });
+    const creta = await db.car.findUniqueOrThrow({ where: { slug: 'hyundai-creta' } });
+    const a = await registerUser(ctx, 'Tripper', ctx.surat.id);
+    const b = await registerUser(ctx, 'Other', ctx.surat.id);
+    const months = travelMonthOptions();
+    const trip = {
+      travelMonth: months[3],
+      travelWeek: 3,
+      adults: 2,
+      childAges: [4, 9],
+      nights: 5,
+      hotelCategory: 'FOUR_STAR',
+    };
+    const base = { cityId: ctx.surat.id, purchaseTimeline: 'WITHIN_30_DAYS' };
+
+    const none = await a.agent.post('/api/buying-intents').send({ ...base, carId: bali.id });
+    expect(none.body.error.code).toBe('HOLIDAY_DETAILS_REQUIRED');
+    // Only this month and the next three.
+    const [y, m] = months[3]!.split('-').map(Number);
+    const tooFar = `${m === 12 ? y! + 1 : y}-${String((m! % 12) + 1).padStart(2, '0')}`;
+    const far = await a.agent
+      .post('/api/buying-intents')
+      .send({ ...base, carId: bali.id, holiday: { ...trip, travelMonth: tooFar } });
+    expect(far.body.error.code).toBe('TRAVEL_MONTH_OUT_OF_RANGE');
+    const noWeek = await a.agent
+      .post('/api/buying-intents')
+      .send({ ...base, carId: bali.id, holiday: { ...trip, travelWeek: 5 } });
+    expect(noWeek.status).toBe(400);
+    const bad = await a.agent
+      .post('/api/buying-intents')
+      .send({ ...base, carId: bali.id, holiday: { ...trip, adults: 0, childAges: [18] } });
+    expect(bad.status).toBe(400);
+    const notHoliday = await a.agent
+      .post('/api/buying-intents')
+      .send({ ...base, carId: creta.id, holiday: trip });
+    expect(notHoliday.status).toBe(400);
+
+    const ok = await a.agent
+      .post('/api/buying-intents')
+      .send({ ...base, carId: bali.id, holiday: trip });
+    expect(ok.status).toBe(201);
+    expect(ok.body.holiday).toEqual(trip);
+
+    // Another buyer of the same trip sees the plan, but not the children's ages.
+    await createPost(b.agent, bali, ctx.surat);
+    const seen = await b.agent.get(`/api/buyers?carId=${bali.id}&cityId=${ctx.surat.id}`);
+    expect(seen.body.items[0].holiday).toEqual({
+      travelMonth: months[3],
+      travelWeek: 3,
+      adults: 2,
+      children: 2,
+      nights: 5,
+      hotelCategory: 'FOUR_STAR',
+    });
+    // Cars carry no trip.
+    const car = await createPost(a.agent, creta, ctx.surat);
+    expect((await a.agent.get(`/api/buying-intents/${car.id}`)).body.holiday).toBeNull();
+  });
+
+  it('weeks of the current month that are over are closed (Indian time)', () => {
+    const now = new Date('2026-09-23T06:00:00Z'); // 23 Sep, 11:30 IST
+    expect([1, 2, 3, 4].map((w) => isTravelWeekOpen('2026-09', w, now))).toEqual([
+      false,
+      false,
+      false,
+      true,
+    ]);
+    expect(isTravelWeekOpen('2026-10', 1, now)).toBe(true);
+    expect(isTravelWeekOpen('2026-08', 4, now)).toBe(false);
+    // 21 Sep 20:00 UTC is already 22 Sep in India: week 3 (15–21) is over.
+    expect(isTravelWeekOpen('2026-09', 3, new Date('2026-09-21T20:00:00Z'))).toBe(false);
+    expect(travelWeekDays('2027-02', 4)).toEqual([22, 28]);
   });
 });

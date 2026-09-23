@@ -154,3 +154,99 @@ export const BUYING_PASS_CURRENCY = 'INR';
 export const BUYING_PASS_VALIDITY_DAYS = 60;
 /** Display fallback before a collective exists; the server's CollectiveDto.freePlacesLeft is authoritative. */
 export const FREE_MEMBERS_PER_COLLECTIVE = 5;
+
+/** Hotel category asked for on a holiday Buying Post. */
+export const HOTEL_CATEGORIES = ['BUDGET', 'THREE_STAR', 'FOUR_STAR', 'FIVE_STAR'] as const;
+export type HotelCategory = (typeof HOTEL_CATEGORIES)[number];
+export const HOTEL_CATEGORY_LABELS: Record<HotelCategory, string> = {
+  BUDGET: 'Budget',
+  THREE_STAR: '3 Star',
+  FOUR_STAR: '4 Star',
+  FIVE_STAR: '5 Star',
+};
+
+/** Holiday trip limits, shared by the form and the server. */
+export const HOLIDAY_LIMITS = {
+  /** Travel month: the current one plus this many after it. */
+  monthsAhead: 3,
+  maxAdults: 20,
+  maxChildren: 10,
+  maxChildAge: 17,
+  maxNights: 30,
+} as const;
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The travel months on offer: this month and the next three, as "2026-09". Months
+ * turn over on Indian time (UTC+5:30), wherever the server or phone happens to be.
+ */
+export function travelMonthOptions(now: Date = new Date()): string[] {
+  const ist = new Date(now.getTime() + 330 * 60_000);
+  const y = ist.getUTCFullYear();
+  const m = ist.getUTCMonth();
+  return Array.from({ length: HOLIDAY_LIMITS.monthsAhead + 1 }, (_, i) => {
+    const d = new Date(Date.UTC(y, m + i, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+}
+
+/** Weeks of a travel month: 1 = days 1–7, 2 = 8–14, 3 = 15–21, 4 = 22 to the end. */
+export const TRAVEL_WEEKS = [1, 2, 3, 4] as const;
+export type TravelWeek = (typeof TRAVEL_WEEKS)[number];
+
+/** The days a week covers in a month, e.g. week 4 of Feb 2027 → [22, 28]. */
+export function travelWeekDays(month: string, week: number): [number, number] {
+  const [y, m] = month.split('-').map(Number);
+  const last = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
+  return [(week - 1) * 7 + 1, week === 4 ? last : week * 7];
+}
+
+/** "1–7 Dec" */
+export function formatTravelWeek(month: string, week: number): string {
+  const [from, to] = travelWeekDays(month, week);
+  const m = Number(month.split('-')[1]);
+  return `${from}–${to} ${MONTHS[m - 1]}`;
+}
+
+/** False for a week of the current month that is already over (Indian time). */
+export function isTravelWeekOpen(month: string, week: number, now: Date = new Date()): boolean {
+  const ist = new Date(now.getTime() + 330 * 60_000);
+  const current = `${ist.getUTCFullYear()}-${String(ist.getUTCMonth() + 1).padStart(2, '0')}`;
+  if (month !== current) return month > current;
+  return travelWeekDays(month, week)[1] >= ist.getUTCDate();
+}
+
+/** "2026-12" → "Dec 2026". */
+export function formatTravelMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return y && m ? `${MONTHS[m - 1]} ${y}` : month;
+}
+
+/** "2 adults, 1 child" */
+export function formatTravellers(adults: number, children: number): string {
+  const a = `${adults} ${adults === 1 ? 'adult' : 'adults'}`;
+  return children ? `${a}, ${children} ${children === 1 ? 'child' : 'children'}` : a;
+}
+
+/** "15–21 Oct 2026" */
+export function formatTravelDates(month: string, week: number): string {
+  return `${formatTravelWeek(month, week)} ${month.split('-')[0]}`;
+}
+
+/** "15–21 Oct 2026 · 5 nights · 2 adults, 1 child · 4 Star" for lists and cards. */
+export function formatTrip(t: {
+  travelMonth: string;
+  travelWeek: number;
+  nights: number;
+  adults: number;
+  children: number;
+  hotelCategory: HotelCategory;
+}): string {
+  return [
+    formatTravelDates(t.travelMonth, t.travelWeek),
+    `${t.nights} ${t.nights === 1 ? 'night' : 'nights'}`,
+    formatTravellers(t.adults, t.children),
+    HOTEL_CATEGORY_LABELS[t.hotelCategory],
+  ].join(' · ');
+}

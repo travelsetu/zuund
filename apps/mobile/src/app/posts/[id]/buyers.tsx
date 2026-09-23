@@ -150,6 +150,7 @@ export default function Buyers() {
               user={b.user}
               purchaseTimeline={b.purchaseTimeline}
               intentLevel={b.intentLevel}
+              trip={b.holiday}
               action={
                 <ConnectButton
                   userId={b.user.id}

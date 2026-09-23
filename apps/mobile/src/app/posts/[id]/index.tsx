@@ -3,6 +3,10 @@ import {
   INTENT_LEVEL_LABELS,
   PURCHASE_TIMELINES,
   PURCHASE_TIMELINE_LABELS,
+  HOTEL_CATEGORY_LABELS,
+  formatTravelDates,
+  formatTravellers,
+  type HolidayDetailsDto,
   type IntentLevel,
   type PurchaseTimeline,
 } from '@zuund/shared';
@@ -25,7 +29,7 @@ import {
 import { api, errorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { useFocusData } from '@/lib/useAsync';
-import { space, type } from '@/theme';
+import { colors, space, type } from '@/theme';
 
 /** One Buying Post: its timeline, intent (with history), status and Buying Pass. */
 export default function PostDetail() {
@@ -66,8 +70,9 @@ export default function PostDetail() {
         <ProductArt car={intent.car} size="md" />
         <Text style={type.h1}>{intent.car.displayName}</Text>
         <Text style={type.body}>
-          {intent.city.name}, buying{' '}
-          {PURCHASE_TIMELINE_LABELS[intent.purchaseTimeline].toLowerCase()}
+          {intent.holiday
+            ? `From ${intent.city.name}, booking ${PURCHASE_TIMELINE_LABELS[intent.purchaseTimeline].toLowerCase()}`
+            : `${intent.city.name}, buying ${PURCHASE_TIMELINE_LABELS[intent.purchaseTimeline].toLowerCase()}`}
         </Text>
         <View style={{ flexDirection: 'row', gap: space.sm }}>
           <IntentBadge level={intent.intentLevel} />
@@ -88,12 +93,14 @@ export default function PostDetail() {
         ) : null}
       </Card>
 
+      {intent.holiday ? <TripCard trip={intent.holiday} /> : null}
+
       <PassPanel intent={intent} />
 
       {editable ? (
         <>
           <View style={{ gap: space.sm }}>
-            <Text style={type.h3}>Buying timeline</Text>
+            <Text style={type.h3}>{intent.holiday ? 'Booking timeline' : 'Buying timeline'}</Text>
             <View
               style={{
                 flexDirection: 'row',
@@ -183,5 +190,35 @@ export default function PostDetail() {
         </View>
       ) : null}
     </Screen>
+  );
+}
+
+/** The holiday's plan: dates, length, who travels (children's ages too: this is the owner's view). */
+function TripCard({ trip }: { trip: HolidayDetailsDto }) {
+  const rows: [string, string][] = [
+    [
+      'Travel dates',
+      `Week ${trip.travelWeek}: ${formatTravelDates(trip.travelMonth, trip.travelWeek)}`,
+    ],
+    ['Nights', String(trip.nights)],
+    [
+      'Travellers',
+      formatTravellers(trip.adults, trip.childAges.length) +
+        (trip.childAges.length
+          ? ` (${trip.childAges.length === 1 ? 'age' : 'ages'} ${trip.childAges.join(', ')})`
+          : ''),
+    ],
+    ['Hotel', HOTEL_CATEGORY_LABELS[trip.hotelCategory]],
+  ];
+  return (
+    <Card style={{ gap: space.md }}>
+      <Text style={type.h3}>Your trip</Text>
+      {rows.map(([label, value]) => (
+        <View key={label} style={{ flexDirection: 'row', gap: space.md }}>
+          <Text style={[type.small, { width: 96 }]}>{label}</Text>
+          <Text style={[type.body, { flex: 1, color: colors.ink }]}>{value}</Text>
+        </View>
+      ))}
+    </Card>
   );
 }

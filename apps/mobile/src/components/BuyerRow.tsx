@@ -1,5 +1,7 @@
 import {
   PURCHASE_TIMELINE_LABELS,
+  formatTrip,
+  type HolidayTripDto,
   type IntentLevel,
   type PublicUserDto,
   type PurchaseTimeline,
@@ -18,11 +20,14 @@ export function BuyerRow({
   user,
   purchaseTimeline,
   intentLevel,
+  trip,
   action,
 }: {
   user: PublicUserDto;
   purchaseTimeline: PurchaseTimeline;
   intentLevel: IntentLevel;
+  /** Holiday packages: when they travel, for how long, who and which hotels. */
+  trip?: HolidayTripDto | null;
   action?: ReactNode;
 }) {
   return (
@@ -43,7 +48,14 @@ export function BuyerRow({
             {user.verificationStatus === 'VERIFIED' ? <Verified small /> : null}
           </View>
           {user.city ? <Text style={type.small}>{user.city.name}</Text> : null}
-          <Text style={type.small}>{PURCHASE_TIMELINE_LABELS[purchaseTimeline]}</Text>
+          {trip ? (
+            <Text style={[type.small, { color: colors.text }]}>{formatTrip(trip)}</Text>
+          ) : null}
+          <Text style={type.small}>
+            {trip
+              ? 'Booking ' + PURCHASE_TIMELINE_LABELS[purchaseTimeline].toLowerCase()
+              : PURCHASE_TIMELINE_LABELS[purchaseTimeline]}
+          </Text>
         </View>
       </Pressable>
       <View style={{ alignItems: 'flex-end', gap: 8 }}>

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PURCHASE_TIMELINE_LABELS, type BuyingIntentDto } from '@zuund/shared';
+import { PURCHASE_TIMELINE_LABELS, formatTravelDates, type BuyingIntentDto } from '@zuund/shared';
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { colors, space, type } from '@/theme';
@@ -17,7 +17,9 @@ export function PostCard({ intent }: { intent: BuyingIntentDto }) {
             {intent.car.displayName}
           </Text>
           <Text style={type.small}>
-            {intent.city.name}, {PURCHASE_TIMELINE_LABELS[intent.purchaseTimeline].toLowerCase()}
+            {intent.holiday
+              ? `From ${intent.city.name}, ${formatTravelDates(intent.holiday.travelMonth, intent.holiday.travelWeek)}`
+              : `${intent.city.name}, ${PURCHASE_TIMELINE_LABELS[intent.purchaseTimeline].toLowerCase()}`}
           </Text>
           {intent.status !== 'ACTIVE' ? (
             <StatusBadge

@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   ACTIVITY_TYPES,
   BUYER_FILTERS,
+  HOLIDAY_LIMITS,
+  HOTEL_CATEGORIES,
   INTENT_LEVELS,
   PARTICIPANT_STATUSES,
   PRODUCT_CATEGORIES,
@@ -109,11 +111,27 @@ export const citiesQuerySchema = z.object({
 export type CitiesQuery = z.infer<typeof citiesQuerySchema>;
 
 // ── Buying intents ──
+/** Holiday packages: the trip. The server also checks the month is one on offer. */
+export const holidayDetailsSchema = z.object({
+  travelMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Choose a travel month'),
+  travelWeek: z.number().int().min(1, 'Choose a week').max(4, 'Choose a week'),
+  adults: z.number().int().min(1, 'At least one adult').max(HOLIDAY_LIMITS.maxAdults),
+  childAges: z
+    .array(z.number().int().min(0).max(HOLIDAY_LIMITS.maxChildAge, 'Children are 0–17 years'))
+    .max(HOLIDAY_LIMITS.maxChildren)
+    .default([]),
+  nights: z.number().int().min(1).max(HOLIDAY_LIMITS.maxNights),
+  hotelCategory: z.enum(HOTEL_CATEGORIES),
+});
+export type HolidayDetails = z.infer<typeof holidayDetailsSchema>;
+
 export const createBuyingIntentRequestSchema = z.object({
   carId: uuid,
   cityId: uuid,
   purchaseTimeline: z.enum(PURCHASE_TIMELINES),
   intentLevel: z.enum(INTENT_LEVELS).default('INTERESTED'),
+  /** Required for holiday packages, refused for anything else. */
+  holiday: holidayDetailsSchema.optional(),
 });
 export type CreateBuyingIntentRequest = z.infer<typeof createBuyingIntentRequestSchema>;
 

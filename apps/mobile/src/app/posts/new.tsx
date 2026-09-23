@@ -13,6 +13,12 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { CityPicker } from '@/components/CityPicker';
+import {
+  EMPTY_TRIP,
+  HolidayTripForm,
+  tripProblem,
+  type HolidayTripDraft,
+} from '@/components/HolidayTripForm';
 import { INTENT_HELP, Option } from '@/components/Option';
 import { Button, Card, ErrorText, Header, ProductArt, Screen } from '@/components/ui';
 import { geoGuess } from '@/lib/geo';
@@ -38,12 +44,16 @@ export default function NewPost() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [timeline, setTimeline] = useState<PurchaseTimeline | null>(null);
+  const holiday = p.category === 'HOLIDAY';
+  const [trip, setTrip] = useState<HolidayTripDraft>(EMPTY_TRIP);
   const [level, setLevel] = useState<IntentLevel>('INTERESTED');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function create() {
     if (!city || !timeline) return setErr('Choose a city and a buying timeline');
+    const problem = holiday ? tripProblem(trip) : null;
+    if (problem) return setErr(problem);
     setBusy(true);
     setErr(null);
     try {
@@ -52,6 +62,18 @@ export default function NewPost() {
         cityId: city.id,
         purchaseTimeline: timeline,
         intentLevel: level,
+        ...(holiday
+          ? {
+              holiday: {
+                travelMonth: trip.travelMonth!,
+                travelWeek: trip.travelWeek!,
+                adults: trip.adults,
+                childAges: trip.childAges.map(Number),
+                nights: trip.nights,
+                hotelCategory: trip.hotelCategory!,
+              },
+            }
+          : {}),
       });
       router.dismissTo('/');
       router.push(`/posts/${post.id}/buyers`);
@@ -108,8 +130,12 @@ export default function NewPost() {
         onChange={setCity}
       />
 
+      {holiday ? <HolidayTripForm value={trip} onChange={setTrip} /> : null}
+
       <View style={{ gap: space.sm }}>
-        <Text style={type.h3}>When do you expect to buy?</Text>
+        <Text style={type.h3}>
+          {holiday ? 'When do you plan to book?' : 'When do you expect to buy?'}
+        </Text>
         <View style={s.grid}>
           {PURCHASE_TIMELINES.map((t) => (
             <Option

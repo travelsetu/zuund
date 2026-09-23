@@ -26,6 +26,15 @@ export const E = {
     ),
   POST_NOT_ACTIVE: () => new DomainException('POST_NOT_ACTIVE', 'This buying post is not active'),
   INVALID_TRANSITION: (m: string) => new DomainException('INVALID_TRANSITION', m),
+  HOLIDAY_DETAILS_REQUIRED: () =>
+    new DomainException(
+      'HOLIDAY_DETAILS_REQUIRED',
+      'Add the travel month, travellers, nights and hotel category',
+    ),
+  TRAVEL_WEEK_PAST: () =>
+    new DomainException('TRAVEL_WEEK_PAST', 'That week has already passed. Choose a later one.'),
+  TRAVEL_MONTH_OUT_OF_RANGE: () =>
+    new DomainException('TRAVEL_MONTH_OUT_OF_RANGE', 'Choose this month or one of the next three'),
   // connections
   ALREADY_CONNECTED: () => new DomainException('ALREADY_CONNECTED', 'You are already connected'),
   REQUEST_ALREADY_SENT: () =>

@@ -4,6 +4,7 @@ import type {
   ActivityType,
   BuyingIntentStatus,
   BuyingPassStatus,
+  HotelCategory,
   CollectiveStatus,
   ConnectionStatus,
   ConversationType,
@@ -106,6 +107,28 @@ export interface BuyingPassDto {
   createdAt: string;
 }
 
+/** A holiday Buying Post's trip, as its owner sees it. */
+export interface HolidayDetailsDto {
+  /** "2026-12" */
+  travelMonth: string;
+  /** 1–4: days 1–7, 8–14, 15–21, 22 to the end of the month. */
+  travelWeek: number;
+  adults: number;
+  childAges: number[];
+  nights: number;
+  hotelCategory: HotelCategory;
+}
+
+/** The same trip as other buyers see it: how many children, not their ages. */
+export interface HolidayTripDto {
+  travelMonth: string;
+  travelWeek: number;
+  adults: number;
+  children: number;
+  nights: number;
+  hotelCategory: HotelCategory;
+}
+
 export interface BuyingIntentDto {
   id: string;
   userId: string;
@@ -118,6 +141,8 @@ export interface BuyingIntentDto {
   updatedAt: string;
   closedAt: string | null;
   pausedAt: string | null;
+  /** Holiday packages only. */
+  holiday: HolidayDetailsDto | null;
   /** The ACTIVE pass if there is one, otherwise the most recent, otherwise null. */
   pass: BuyingPassDto | null;
   /** Live membership for this intent, if any. */
@@ -141,6 +166,8 @@ export interface BuyerDto {
   purchaseTimeline: PurchaseTimeline;
   intentLevel: IntentLevel;
   createdAt: string;
+  /** Holiday packages only. */
+  holiday: HolidayTripDto | null;
   /** The viewer's relationship with this buyer, if any. */
   connection: { id: string; status: ConnectionStatus; requesterId: string } | null;
 }

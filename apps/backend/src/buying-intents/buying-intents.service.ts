@@ -17,8 +17,16 @@ import type {
   Page,
   PageQuery,
 } from '@zuund/shared';
+import { isTravelWeekOpen, travelMonthOptions } from '@zuund/shared';
 import { CatalogService } from '../catalog/catalog.service';
-import { intentInclude, toCar, toCity, toIntent, toPublicUser } from '../common/mappers';
+import {
+  intentInclude,
+  toCar,
+  toCity,
+  toHolidayTrip,
+  toIntent,
+  toPublicUser,
+} from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { BuyingIntentStatus, Prisma } from '../generated/prisma/client';
 import { AuditService } from '../common/audit.service';
@@ -39,8 +47,17 @@ export class BuyingIntentsService {
    * friendlier message.
    */
   async create(userId: string, input: CreateBuyingIntentRequest): Promise<BuyingIntentDto> {
-    await this.catalog.requireActiveCar(input.carId);
+    const car = await this.catalog.requireActiveCar(input.carId);
     await this.catalog.requireActiveCity(input.cityId);
+    // Holiday packages carry the trip; nothing else does.
+    const holiday = input.holiday;
+    if (car.category === 'HOLIDAY') {
+      if (!holiday) throw E.HOLIDAY_DETAILS_REQUIRED();
+      if (!travelMonthOptions().includes(holiday.travelMonth)) throw E.TRAVEL_MONTH_OUT_OF_RANGE();
+      if (!isTravelWeekOpen(holiday.travelMonth, holiday.travelWeek)) throw E.TRAVEL_WEEK_PAST();
+    } else if (holiday) {
+      throw new BadRequestException('Trip details are only for holiday packages');
+    }
     const dup = await this.prisma.buyingIntent.findFirst({
       where: { userId, carId: input.carId, cityId: input.cityId, status: 'ACTIVE' },
       select: { id: true },
@@ -54,6 +71,16 @@ export class BuyingIntentsService {
         cityId: input.cityId,
         purchaseTimeline: input.purchaseTimeline,
         intentLevel: input.intentLevel,
+        ...(holiday
+          ? {
+              travelMonth: holiday.travelMonth,
+              travelWeek: holiday.travelWeek,
+              adults: holiday.adults,
+              childAges: holiday.childAges,
+              nights: holiday.nights,
+              hotelCategory: holiday.hotelCategory,
+            }
+          : {}),
         history: {
           create: { previousLevel: null, newLevel: input.intentLevel, changedById: userId },
         },
@@ -71,6 +98,7 @@ export class BuyingIntentsService {
         cityId: input.cityId,
         purchaseTimeline: input.purchaseTimeline,
         intentLevel: input.intentLevel,
+        ...(holiday ? { holiday } : {}),
       },
     });
     return toIntent(row);
@@ -285,6 +313,7 @@ export class BuyingIntentsService {
         purchaseTimeline: r.purchaseTimeline,
         intentLevel: r.intentLevel,
         createdAt: r.createdAt.toISOString(),
+        holiday: toHolidayTrip(r),
         connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
       };
     });

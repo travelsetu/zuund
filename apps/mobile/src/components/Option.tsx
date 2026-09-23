@@ -15,23 +15,28 @@ export function Option({
   title,
   body,
   half,
+  disabled,
 }: {
   on: boolean;
   onPress: () => void;
   title: string;
   body?: string;
   half?: boolean;
+  /** Shown but not choosable (e.g. a week that has passed). */
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={[
         s.option,
         half && { width: '48%' },
         on && { borderColor: colors.brand, backgroundColor: colors.brandSoft },
+        disabled && { opacity: 0.4 },
       ]}
       accessibilityRole="radio"
-      accessibilityState={{ checked: on }}
+      accessibilityState={{ checked: on, disabled: !!disabled }}
     >
       <View style={[s.radio, on && { borderColor: colors.brand }]}>
         {on ? <View style={s.radioDot} /> : null}

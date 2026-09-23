@@ -214,6 +214,13 @@ enum BuyingIntentStatus {
 /// A Buying Post. One user cannot hold two ACTIVE intents for the same car and
 /// city: enforced by a partial unique index in the migration (Prisma has no
 /// syntax for it) — see migrations/*_phase1/migration.sql.
+enum HotelCategory {
+  BUDGET
+  THREE_STAR
+  FOUR_STAR
+  FIVE_STAR
+}
+
 model BuyingIntent {
   id               String             @id @default(uuid())
   userId           String             @map("user_id")
@@ -226,6 +233,17 @@ model BuyingIntent {
   updatedAt        DateTime           @updatedAt @map("updated_at")
   closedAt         DateTime?          @map("closed_at")
   pausedAt         DateTime?          @map("paused_at")
+
+  /// Holiday packages only (null for cars and solar): the trip being planned.
+  /// "2026-12": within the current month and the next 3 when the post is made.
+  travelMonth   String?        @map("travel_month") @db.VarChar(7)
+  /// Week of that month: 1 = days 1–7, 2 = 8–14, 3 = 15–21, 4 = 22 to the month's end.
+  travelWeek    Int?           @map("travel_week")
+  adults        Int?
+  /// One entry per child, their age in years (0–17).
+  childAges     Int[]          @default([]) @map("child_ages")
+  nights        Int?
+  hotelCategory HotelCategory? @map("hotel_category")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   car  Car  @relation(fields: [carId], references: [id])

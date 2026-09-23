@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import type { AdminIntentDetailDto } from '@zuund/shared';
+import {
+  HOTEL_CATEGORY_LABELS,
+  formatTravelDates,
+  formatTravellers,
+  type AdminIntentDetailDto,
+} from '@zuund/shared';
 import {
   Badge,
   ConfirmDialog,
@@ -69,6 +74,22 @@ export function BuyingPostDetailPage() {
           <Badge value={intent.intentLevel} />
         </Def>
         <Def label="Buying timeline">{humanize(intent.purchaseTimeline)}</Def>
+        {intent.holiday ? (
+          <>
+            <Def label="Travel dates">
+              Week {intent.holiday.travelWeek}:{' '}
+              {formatTravelDates(intent.holiday.travelMonth, intent.holiday.travelWeek)}
+            </Def>
+            <Def label="Nights">{intent.holiday.nights}</Def>
+            <Def label="Travellers">
+              {formatTravellers(intent.holiday.adults, intent.holiday.childAges.length)}
+              {intent.holiday.childAges.length
+                ? ` (ages ${intent.holiday.childAges.join(', ')})`
+                : ''}
+            </Def>
+            <Def label="Hotel">{HOTEL_CATEGORY_LABELS[intent.holiday.hotelCategory]}</Def>
+          </>
+        ) : null}
         <Def label="Created">{fmtDate(intent.createdAt)}</Def>
         <Def label="Paused">{fmtDate(intent.pausedAt)}</Def>
         <Def label="Closed">{fmtDate(intent.closedAt)}</Def>

@@ -5,15 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo } from '@/components/Logo';
 import { HeroSlider } from '@/components/HeroSlider';
 import { PostCard } from '@/components/PostCard';
-import {
-  Card,
-  Hero,
-  IconButton,
-  Loading,
-  ProductArt,
-  Screen,
-  Section,
-} from '@/components/ui';
+import { Card, Hero, IconButton, Loading, ProductArt, Screen, Section } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';

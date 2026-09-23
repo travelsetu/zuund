@@ -4,6 +4,8 @@ import type {
   CarDto,
   CityDto,
   FileDto,
+  HolidayDetailsDto,
+  HolidayTripDto,
   MeDto,
   PaymentDto,
   PublicUserDto,
@@ -136,7 +138,34 @@ export function toIntent(i: IntentWithRelations): BuyingIntentDto {
     updatedAt: i.updatedAt.toISOString(),
     closedAt: iso(i.closedAt),
     pausedAt: iso(i.pausedAt),
+    holiday: toHolidayDetails(i),
     pass: pass ? toPass(pass) : null,
     membership: m ? { id: m.id, collectiveId: m.collectiveId, status: m.status } : null,
   };
+}
+
+type HolidayColumns = Pick<
+  BuyingIntent,
+  'travelMonth' | 'travelWeek' | 'adults' | 'childAges' | 'nights' | 'hotelCategory'
+>;
+
+/** A holiday post's trip, for its owner (and admins). Null for cars and solar. */
+export function toHolidayDetails(i: HolidayColumns): HolidayDetailsDto | null {
+  if (!i.travelMonth || !i.travelWeek || !i.adults || !i.nights || !i.hotelCategory) return null;
+  return {
+    travelMonth: i.travelMonth,
+    travelWeek: i.travelWeek,
+    adults: i.adults,
+    childAges: i.childAges,
+    nights: i.nights,
+    hotelCategory: i.hotelCategory,
+  };
+}
+
+/** The same trip for other buyers: how many children travel, not how old they are. */
+export function toHolidayTrip(i: HolidayColumns): HolidayTripDto | null {
+  const d = toHolidayDetails(i);
+  if (!d) return null;
+  const { childAges, ...rest } = d;
+  return { ...rest, children: childAges.length };
 }
