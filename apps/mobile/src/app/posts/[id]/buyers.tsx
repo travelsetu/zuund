@@ -92,8 +92,8 @@ export default function Buyers() {
         footer={
           <Button
             variant="green"
-            title="Pay for Buying Pass"
-            onPress={() => router.replace(`/posts/${id}/pay`)}
+            title="View the Collective"
+            onPress={() => router.replace(`/posts/${id}/collective`)}
           />
         }
       >
@@ -101,7 +101,7 @@ export default function Buyers() {
         <Empty
           icon="lock-closed-outline"
           title="Join the collective to see other buyers"
-          body="Once your Buying Post has joined, you can see who else is buying, connect and message them."
+          body="Join with your Buying Post to see who else is buying, connect and message them. The first members join free; after that it's a ₹500 Buying Pass."
         />
       </Screen>
     );

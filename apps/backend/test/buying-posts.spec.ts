@@ -24,7 +24,7 @@ describe('buying posts', () => {
     await teardownAll();
   });
 
-  it('creates a post with car, city and timeline, and joins its collective', async () => {
+  it('creates a post with car, city and timeline; creation is free', async () => {
     const res = await rahul.agent
       .post('/api/buying-intents')
       .send({ carId: ctx.creta.id, cityId: ctx.ahmedabad.id, purchaseTimeline: 'WITHIN_30_DAYS' });
@@ -36,8 +36,7 @@ describe('buying posts', () => {
       car: { displayName: 'Hyundai Creta' },
       city: { name: 'Ahmedabad' },
       pass: null,
-      // No free places in this spec: the Buying Pass is due next.
-      membership: { status: 'PENDING_PAYMENT', collectiveId: expect.any(String) },
+      membership: null,
     });
     expect(res.body).not.toHaveProperty('budget');
   });

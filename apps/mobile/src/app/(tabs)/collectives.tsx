@@ -34,7 +34,7 @@ export default function Collectives() {
         <Empty
           icon="people-outline"
           title="No collectives yet"
-          body="Create a Buying Post: it joins the collective for that item and your city."
+          body="Create a Buying Post, meet other buyers, then join the collective for that post."
           action={
             <Button small title="Create a Buying Post" onPress={() => router.push('/search')} />
           }

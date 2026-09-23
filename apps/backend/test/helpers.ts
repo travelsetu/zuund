@@ -303,10 +303,23 @@ export async function upload(agent: Agent, buffer: Buffer, filename: string, con
 export const DAY_MS = 86_400_000;
 
 /**
- * Tests have no free places, so a new post waits for payment. This stands in for the
- * payment: the user's pending memberships become ACTIVE, i.e. they have joined.
+ * Joins the collective for each of the user's active posts, then stands in for the
+ * payment (tests have no free places): the memberships become ACTIVE.
  */
-export async function activateMemberships(user: { id: string }): Promise<void> {
+export async function activateMemberships(user: TestUser): Promise<void> {
+  const posts = await db.buyingIntent.findMany({
+    where: {
+      userId: user.id,
+      status: 'ACTIVE',
+      memberships: { none: { status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } } },
+    },
+    select: { id: true },
+  });
+  for (const p of posts) {
+    const res = await user.agent.post('/api/collectives').send({ buyingIntentId: p.id });
+    if (res.status !== 201)
+      throw new Error(`join failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
   const { count } = await db.collectiveMembership.updateMany({
     where: { userId: user.id, status: 'PENDING_PAYMENT' },
     data: { status: 'ACTIVE', joinedAt: new Date() },

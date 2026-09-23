@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createPost,
   db,
+  joinCollective,
   payFor,
   registerUser,
   setup,
@@ -20,21 +21,12 @@ describe('first 5 members join free', () => {
   const posts: string[] = [];
   let collectiveId: string;
 
-  // Creating a post joins the collective straight away (the free places go in order).
-  const memberships: string[] = [];
   beforeAll(async () => {
     ctx = await setup();
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const u = await registerUser(ctx, `Free${i}`, ctx.ahmedabad.id);
       users.push(u);
-      const post = await u.agent.post('/api/buying-intents').send({
-        carId: ctx.creta.id,
-        cityId: ctx.ahmedabad.id,
-        purchaseTimeline: 'WITHIN_30_DAYS',
-      });
-      posts.push(post.body.id);
-      memberships.push(post.body.membership.status);
-      collectiveId = post.body.membership.collectiveId;
+      posts.push((await createPost(u.agent, ctx.creta, ctx.ahmedabad)).id);
     }
   });
   afterAll(async () => {
@@ -42,18 +34,19 @@ describe('first 5 members join free', () => {
     await teardownAll();
   });
 
-  it('creating a post joins; the first five are active at once, with a ₹0 pass and no payment', async () => {
-    expect(memberships).toEqual([
-      'ACTIVE',
-      'ACTIVE',
-      'ACTIVE',
-      'ACTIVE',
-      'ACTIVE',
-      'PENDING_PAYMENT',
-    ]);
-    const col = await users[0]!.agent.get(`/api/collectives/${collectiveId}`);
-    expect(col.body.freePlacesLeft).toBe(0);
-    expect(col.body.conversationId).not.toBeNull();
+  it('the creator and the next four are active at once, with a ₹0 pass and no payment', async () => {
+    const first = await joinCollective(users[0]!.agent, posts[0]!);
+    collectiveId = first.id;
+    expect(first.membership?.status).toBe('ACTIVE');
+    expect(first.conversationId).not.toBeNull();
+    for (let i = 1; i < 5; i++) {
+      const res = await users[i]!.agent.post(`/api/collectives/${collectiveId}/join`).send({
+        buyingIntentId: posts[i],
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.membership.status).toBe('ACTIVE');
+      expect(res.body.freePlacesLeft).toBe(4 - i);
+    }
     const passes = await db.buyingPass.findMany({
       where: { buyingIntentId: { in: posts.slice(0, 5) } },
     });
@@ -74,6 +67,11 @@ describe('first 5 members join free', () => {
   });
 
   it('the sixth member pays ₹500', async () => {
+    const res = await users[5]!.agent
+      .post(`/api/collectives/${collectiveId}/join`)
+      .send({ buyingIntentId: posts[5] });
+    expect(res.body.membership.status).toBe('PENDING_PAYMENT');
+    expect(res.body.freePlacesLeft).toBe(0);
     const { payment } = await payFor(users[5]!.agent, posts[5]!, collectiveId);
     expect(payment.status).toBe('SUCCESS');
     const pass = await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: posts[5] } });
@@ -82,32 +80,38 @@ describe('first 5 members join free', () => {
 
   it('places never refill when a free member leaves', async () => {
     await users[2]!.agent.post(`/api/collectives/${collectiveId}/leave`).expect(204);
-    const late = await registerUser(ctx, 'Late', ctx.ahmedabad.id);
-    const p = await createPost(late.agent, ctx.creta, ctx.ahmedabad);
-    expect((await late.agent.get(`/api/buying-intents/${p.id}`)).body.membership.status).toBe(
-      'PENDING_PAYMENT',
-    );
-    const col = await late.agent.get(`/api/collectives/${collectiveId}`);
-    expect(col.body.freePlacesLeft).toBe(0);
+    const res = await users[6]!.agent
+      .post(`/api/collectives/${collectiveId}/join`)
+      .send({ buyingIntentId: posts[6] });
+    expect(res.body.membership.status).toBe('PENDING_PAYMENT');
+    expect(res.body.freePlacesLeft).toBe(0);
   });
 
   it('two people racing for the last free place: only one gets it', async () => {
-    const post = async (name: string) => {
-      const u = await registerUser(ctx, name, ctx.surat.id);
-      return u.agent.post('/api/buying-intents').send({
-        carId: ctx.venue.id,
-        cityId: ctx.surat.id,
-        purchaseTimeline: 'WITHIN_30_DAYS',
+    const racers: TestUser[] = [];
+    const racerPosts: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const u = await registerUser(ctx, `Race${i}`, ctx.surat.id);
+      racers.push(u);
+      racerPosts.push((await createPost(u.agent, ctx.venue, ctx.surat)).id);
+    }
+    const col = await joinCollective(racers[0]!.agent, racerPosts[0]!);
+    for (let i = 1; i < 4; i++) {
+      await racers[i]!.agent.post(`/api/collectives/${col.id}/join`).send({
+        buyingIntentId: racerPosts[i],
       });
-    };
-    for (let i = 0; i < 4; i++) await post(`Race${i}`);
-    const [a, b] = await Promise.all([post('Race4'), post('Race5')]);
-    const statuses = [a.body.membership.status, b.body.membership.status].sort();
+    }
+    const [a, b] = await Promise.all(
+      [4, 5].map((i) =>
+        racers[i]!.agent.post(`/api/collectives/${col.id}/join`).send({
+          buyingIntentId: racerPosts[i],
+        }),
+      ),
+    );
+    const statuses = [a!.body.membership.status, b!.body.membership.status].sort();
     expect(statuses).toEqual(['ACTIVE', 'PENDING_PAYMENT']);
     expect(
-      await db.collectiveMembership.count({
-        where: { collectiveId: a.body.membership.collectiveId, status: 'ACTIVE' },
-      }),
+      await db.collectiveMembership.count({ where: { collectiveId: col.id, status: 'ACTIVE' } }),
     ).toBe(5);
   });
 });
