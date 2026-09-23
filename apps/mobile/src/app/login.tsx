@@ -1,5 +1,5 @@
-import { toE164 } from '@zuund/shared';
-import { router } from 'expo-router';
+import { splitE164, toE164 } from '@zuund/shared';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -16,15 +16,20 @@ import { space, type } from '@/theme';
 export default function Login() {
   const { loginWithOtp } = useAuth();
   const otp = useOtpSender();
-  const [country, setCountry] = useState('IN');
-  const [phone, setPhone] = useState('');
+  // Sent here from sign-up with a number that already has an account.
+  const given = useLocalSearchParams<{ phone?: string }>().phone;
+  const split = given ? splitE164(given) : null;
+  const [country, setCountry] = useState(split?.country ?? 'IN');
+  const [phone, setPhone] = useState(split?.national ?? '');
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (split) return;
     void geoGuess().then((g) => g.country && setCountry(g.country.code));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function sendCode() {

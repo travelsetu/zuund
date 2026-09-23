@@ -45,6 +45,7 @@ export default function Register() {
   }, []);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [takenPhone, setTakenPhone] = useState<string | null>(null);
 
   function changeNumber() {
     otp.reset();
@@ -65,10 +66,16 @@ export default function Register() {
     });
     if (!parsed.success) return setErr(parsed.error.issues[0]?.message ?? 'Check your details');
     setErr(null);
+    setTakenPhone(null);
     try {
-      await otp.send(e164);
+      await otp.send(e164, 'signup');
       setCode('');
     } catch (e) {
+      // Already has an account: say so now, instead of after a code.
+      if (e instanceof ApiRequestError && e.body?.error?.code === 'PHONE_TAKEN') {
+        setTakenPhone(e164);
+        return setErr('This WhatsApp number already has an account.');
+      }
       setErr(errorMessage(e));
     }
   }
@@ -115,6 +122,7 @@ export default function Register() {
         </View>
         <Field
           label="Full name"
+          placeholder="e.g. Priya Sharma"
           value={name}
           onChangeText={setName}
           autoComplete="name"
@@ -153,6 +161,13 @@ export default function Register() {
           />
         ) : null}
         <ErrorText>{err}</ErrorText>
+        {takenPhone ? (
+          <Button
+            variant="outline"
+            title="Sign in instead"
+            onPress={() => router.replace({ pathname: '/login', params: { phone: takenPhone } })}
+          />
+        ) : null}
         {otp.sentTo ? (
           <Button title="Create account" onPress={() => void create()} loading={busy} />
         ) : (

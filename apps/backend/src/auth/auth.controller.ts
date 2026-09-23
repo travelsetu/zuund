@@ -15,6 +15,7 @@ import {
   type OtpSentResponse,
   type RegisterRequest,
 } from '@zuund/shared';
+import { E } from '../common/domain.exception';
 import { OtpService } from '../otp/otp.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { REFRESH_COOKIE, type RequestUser } from './auth.constants';
@@ -31,13 +32,17 @@ export class AuthController {
     private readonly otp: OtpService,
   ) {}
 
-  /** Sends a sign-in code on WhatsApp. Says nothing about whether the number has an account. */
+  /**
+   * Sends a code on WhatsApp. Signing up (or moving to) a number that already has an
+   * account is refused up front rather than after the code.
+   */
   @Post('otp')
   @HttpCode(200)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
-  sendOtp(
+  async sendOtp(
     @Body(new ZodValidationPipe(otpRequestSchema)) body: OtpRequest,
   ): Promise<OtpSentResponse> {
+    if (body.purpose !== 'login' && (await this.auth.phoneInUse(body.phone))) throw E.PHONE_TAKEN();
     return this.otp.send(body.phone);
   }
 

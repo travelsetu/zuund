@@ -59,6 +59,7 @@ export function toMe(u: UserWithProfile): MeDto {
     email: u.email,
     phone: u.phone,
     phoneVerified: !!u.phoneVerifiedAt,
+    hasPassword: !!u.passwordHash,
     role: u.role,
     status: u.status,
     createdAt: u.createdAt.toISOString(),

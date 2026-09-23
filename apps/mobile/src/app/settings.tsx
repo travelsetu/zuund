@@ -3,12 +3,13 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Card, Header, ListRow, Screen } from '@/components/ui';
-import { useAuth } from '@/lib/auth';
+import { useAuth, useMe } from '@/lib/auth';
 import { SUPPORT_EMAIL } from '@/lib/config';
 
 /** Mockup 14 — settings and account. */
 export default function Settings() {
   const { logout } = useAuth();
+  const me = useMe();
   return (
     <Screen>
       <Header title="Settings" />
@@ -48,11 +49,13 @@ export default function Settings() {
           title="Privacy & Safety"
           onPress={() => router.push('/privacy')}
         />
-        <ListRow
-          icon="key-outline"
-          title="Change Password"
-          onPress={() => router.push('/change-password')}
-        />
+        {me.hasPassword ? (
+          <ListRow
+            icon="key-outline"
+            title="Change Password"
+            onPress={() => router.push('/change-password')}
+          />
+        ) : null}
         <ListRow
           icon="help-circle-outline"
           title="Help & Support"

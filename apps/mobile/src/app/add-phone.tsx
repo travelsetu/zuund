@@ -30,7 +30,7 @@ export default function AddPhone() {
     if (!e164) return;
     setErr(null);
     try {
-      await otp.send(e164);
+      await otp.send(e164, 'change');
       setCode('');
     } catch (e) {
       setErr(errorMessage(e));

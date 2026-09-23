@@ -88,6 +88,8 @@ export interface MeDto extends PublicUserDto {
   /** E.164, e.g. +919876543210. Null only for accounts created before mobile numbers were required. */
   phone: string | null;
   phoneVerified: boolean;
+  /** Only older accounts have one; everyone else signs in with a WhatsApp code. */
+  hasPassword: boolean;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

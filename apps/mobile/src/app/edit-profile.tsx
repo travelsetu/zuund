@@ -51,7 +51,7 @@ export default function EditProfile() {
     if (!e164) return;
     setErr(null);
     try {
-      await otp.send(e164);
+      await otp.send(e164, 'change');
       setCode('');
     } catch (e) {
       setErr(errorMessage(e));

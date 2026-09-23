@@ -130,10 +130,20 @@ describe('sign-up and sign-in with a WhatsApp number and code', () => {
     expect((await register({ phone, code })).status).toBe(201);
   });
 
-  it('allows one account per number, and says so only after the code is proved', async () => {
+  it('allows one account per number, and says so before sending a sign-up code', async () => {
     const taken = '+919123456780';
-    const guess = await register({ phone: taken, code: '123456' });
-    expect(guess.body.error.code).toBe('OTP_INVALID');
+    const early = await request(ctx.server)
+      .post('/api/auth/otp')
+      .send({ phone: taken, purpose: 'signup' });
+    expect(early.status).toBe(409);
+    expect(early.body.error.code).toBe('PHONE_TAKEN');
+    expect(await db.otpChallenge.count({ where: { phone: taken, consumedAt: null } })).toBe(0);
+    // Changing to it is refused the same way; signing in still sends a code.
+    const change = await request(ctx.server)
+      .post('/api/auth/otp')
+      .send({ phone: taken, purpose: 'change' });
+    expect(change.body.error.code).toBe('PHONE_TAKEN');
+    // Registering with a code got some other way is still refused.
     const res = await register({ phone: taken, code: await otpFor(ctx, taken) });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('PHONE_TAKEN');

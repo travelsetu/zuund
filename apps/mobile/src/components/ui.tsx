@@ -7,7 +7,7 @@ import {
 } from '@zuund/shared';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import type { ComponentProps, ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -322,18 +322,40 @@ export function Field({
   error,
   ...props
 }: TextInputProps & { label?: string; error?: string | null }) {
+  // Password boxes get an eye button to show or hide what was typed.
+  const [hidden, setHidden] = useState(true);
+  const secret = !!props.secureTextEntry;
   return (
     <View style={{ gap: 6 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput
-        placeholderTextColor={colors.faint}
-        {...props}
-        style={[
-          styles.input,
-          props.multiline && { minHeight: 96, textAlignVertical: 'top' },
-          props.style,
-        ]}
-      />
+      <View>
+        <TextInput
+          placeholderTextColor={colors.faint}
+          {...props}
+          secureTextEntry={secret && hidden}
+          style={[
+            styles.input,
+            props.multiline && { minHeight: 96, textAlignVertical: 'top' },
+            secret && { paddingRight: 48 },
+            props.style,
+          ]}
+        />
+        {secret ? (
+          <Pressable
+            onPress={() => setHidden((h) => !h)}
+            hitSlop={8}
+            style={styles.eye}
+            accessibilityRole="button"
+            accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
+          >
+            <Ionicons
+              name={hidden ? 'eye-outline' : 'eye-off-outline'}
+              size={20}
+              color={colors.muted}
+            />
+          </Pressable>
+        ) : null}
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -768,6 +790,15 @@ export const styles = StyleSheet.create({
     // Explicit, because iOS reuses text boxes: one from the WhatsApp code field would
     // otherwise keep its wide spacing in the next box's placeholder.
     letterSpacing: 0,
+  },
+  eye: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   search: {
     flexDirection: 'row',

@@ -31,9 +31,17 @@ export const otpCodeSchema = z
   .trim()
   .regex(/^\d{6}$/, 'Enter the 6-digit code');
 
-/** POST /auth/otp: send a code to this number on WhatsApp. */
-export const otpRequestSchema = z.object({ phone: phoneSchema });
+/**
+ * POST /auth/otp: send a code to this number on WhatsApp. For `signup` and `change` a
+ * number that already has an account is refused before anything is sent.
+ */
+export const OTP_PURPOSES = ['login', 'signup', 'change'] as const;
+export const otpRequestSchema = z.object({
+  phone: phoneSchema,
+  purpose: z.enum(OTP_PURPOSES).default('login'),
+});
 export type OtpRequest = z.infer<typeof otpRequestSchema>;
+export type OtpPurpose = (typeof OTP_PURPOSES)[number];
 
 /** POST /auth/otp/login (and /auth/otp/token for the phone apps). */
 export const otpLoginRequestSchema = z.object({ phone: phoneSchema, code: otpCodeSchema });

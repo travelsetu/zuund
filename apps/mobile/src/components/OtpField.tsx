@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { formatPhone } from '@zuund/shared';
+import { formatPhone, type OtpPurpose } from '@zuund/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { api, ApiRequestError } from '@/lib/api';
@@ -21,10 +21,10 @@ export function useOtpSender(alreadySentTo: string | null = null) {
     return () => clearTimeout(t);
   }, [wait]);
 
-  const send = useCallback(async (phone: string) => {
+  const send = useCallback(async (phone: string, purpose: OtpPurpose = 'login') => {
     setSending(true);
     try {
-      const r = await api.auth.sendOtp({ phone });
+      const r = await api.auth.sendOtp({ phone, purpose });
       setSentTo(phone);
       setWait(r.resendInSeconds);
     } catch (e) {

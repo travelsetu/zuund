@@ -45,6 +45,10 @@ export class AuthService {
     private readonly otp: OtpService,
   ) {}
 
+  async phoneInUse(phone: string): Promise<boolean> {
+    return !!(await this.prisma.user.findUnique({ where: { phone }, select: { id: true } }));
+  }
+
   /**
    * Sign in with the WhatsApp code. For a number with no account the code is left
    * unused, so the app can go straight on to sign-up with it.
