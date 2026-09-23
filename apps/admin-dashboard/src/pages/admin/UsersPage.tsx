@@ -65,6 +65,7 @@ export function UsersPage() {
             render: (u) => <Link to={`/users/${u.id}`}>{u.name ?? '(no name)'}</Link>,
           },
           { key: 'email', header: 'Email', render: (u) => u.email },
+          { key: 'phone', header: 'Mobile', render: (u) => u.phone ?? '—' },
           { key: 'city', header: 'City', render: (u) => u.city?.name ?? '—' },
           { key: 'role', header: 'Role', render: (u) => <Badge value={u.role} /> },
           { key: 'status', header: 'Status', render: (u) => <Badge value={u.status} /> },

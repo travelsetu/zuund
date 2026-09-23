@@ -48,7 +48,7 @@ export function AdminLayout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          zuund <span className="muted">admin</span>
+          ZUUND <span className="muted">admin</span>
         </div>
         <nav>
           {NAV.map((n) => (

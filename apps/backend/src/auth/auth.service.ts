@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { E } from '../common/domain.exception';
+import { isUniqueViolation } from '../common/prisma-errors';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -60,10 +61,12 @@ export class AuthService {
     name: string;
     email: string;
     password: string;
+    phone: string;
     cityId?: string;
   }): Promise<AuthResult> {
     const existing = await this.users.findByEmail(input.email);
     if (existing) throw E.EMAIL_TAKEN();
+    if (await this.prisma.user.findUnique({ where: { phone: input.phone } })) throw E.PHONE_TAKEN();
     if (input.cityId) {
       const city = await this.prisma.city.findFirst({
         where: { id: input.cityId, status: 'ACTIVE' },
@@ -71,15 +74,23 @@ export class AuthService {
       if (!city) throw new BadRequestException('Unknown city');
     }
     const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
-    const user = await this.prisma.user.create({
-      data: {
-        email: input.email.trim().toLowerCase(),
-        name: input.name,
-        passwordHash,
-        role: 'USER',
-        profile: { create: { cityId: input.cityId ?? null } },
-      },
-    });
+    const user = await this.prisma.user
+      .create({
+        data: {
+          email: input.email.trim().toLowerCase(),
+          phone: input.phone,
+          name: input.name,
+          passwordHash,
+          role: 'USER',
+          profile: { create: { cityId: input.cityId ?? null } },
+        },
+      })
+      .catch((e: unknown) => {
+        // Two sign-ups racing for the same email or number: report which one lost.
+        if (isUniqueViolation(e, 'phone')) throw E.PHONE_TAKEN();
+        if (isUniqueViolation(e, 'email')) throw E.EMAIL_TAKEN();
+        throw e;
+      });
     return this.issueSession(user);
   }
 

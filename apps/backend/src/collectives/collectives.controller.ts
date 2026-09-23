@@ -68,11 +68,12 @@ export class CollectivesController {
   }
 
   @Post('collectives')
-  create(
+  async create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createCollectiveRequestSchema)) body: CreateCollectiveRequest,
   ): Promise<CollectiveDto> {
-    return this.collectives.create(user.userId, body.buyingIntentId, body.name);
+    const dto = await this.collectives.create(user.userId, body.buyingIntentId, body.name);
+    return this.withFreePlace(user.userId, dto);
   }
 
   @Get('collectives/:id')
@@ -84,12 +85,20 @@ export class CollectivesController {
   }
 
   @Post('collectives/:id/join')
-  join(
+  async join(
     @CurrentUser() user: RequestUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(joinCollectiveRequestSchema)) body: JoinCollectiveRequest,
   ): Promise<CollectiveDto> {
-    return this.collectives.join(user.userId, id, body.buyingIntentId);
+    const dto = await this.collectives.join(user.userId, id, body.buyingIntentId);
+    return this.withFreePlace(user.userId, dto);
+  }
+
+  /** Joining while a free place is open activates the membership at once, with no payment. */
+  private async withFreePlace(userId: string, dto: CollectiveDto): Promise<CollectiveDto> {
+    if (dto.membership?.status !== 'PENDING_PAYMENT') return dto;
+    const claimed = await this.payments.claimFreePlace(userId, dto.membership.id);
+    return claimed ? this.collectives.get(userId, dto.id) : dto;
   }
 
   @Post('collectives/:id/leave')

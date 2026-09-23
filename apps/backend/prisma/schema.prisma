@@ -29,6 +29,11 @@ enum VerificationStatus {
 model User {
   id                 String             @id @default(uuid())
   email              String             @unique
+  /// E.164 mobile number (+919876543210). Required at sign-up; never shown to other users.
+  /// Null only for accounts created before it was required; the app asks them for it.
+  phone              String?            @unique
+  /// Set once the number is confirmed by SMS code (OTP comes later).
+  phoneVerifiedAt    DateTime?          @map("phone_verified_at")
   passwordHash       String             @map("password_hash")
   name               String?
   role               UserRole           @default(USER)
@@ -110,37 +115,72 @@ enum CatalogStatus {
   INACTIVE
 }
 
-model City {
-  id        String        @id @default(uuid())
+/// ISO 3166-1 alpha-2 countries (GeoNames countryInfo). Cities are listed per country.
+model Country {
+  code      String        @id @db.VarChar(2)
   name      String
-  state     String
-  slug      String        @unique
+  continent String        @db.VarChar(2)
   status    CatalogStatus @default(ACTIVE)
   createdAt DateTime      @default(now()) @map("created_at")
   updatedAt DateTime      @updatedAt @map("updated_at")
 
+  cities City[]
+
+  @@map("countries")
+}
+
+/// Cities of 15,000+ people from GeoNames. geonameId is also the id GeoLite2 returns for an
+/// IP lookup, so a detected location maps straight onto a row here.
+model City {
+  id          String        @id @default(uuid())
+  name        String
+  state       String
+  slug        String        @unique
+  countryCode String        @default("IN") @map("country_code") @db.VarChar(2)
+  geonameId   Int?          @unique @map("geoname_id")
+  population  Int           @default(0)
+  latitude    Float?
+  longitude   Float?
+  status      CatalogStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  country       Country        @relation(fields: [countryCode], references: [code])
   profiles      UserProfile[]
   buyingIntents BuyingIntent[]
   collectives   Collective[]
 
   @@index([status])
+  @@index([countryCode, status, population])
   @@map("cities")
 }
 
+/// What a catalog item is. The table is still called "cars" (Phase 1 started cars-only);
+/// every buying post, collective and discovery query works per catalog item, so a new
+/// category only needs a value here and catalog rows.
+enum ProductCategory {
+  CAR
+  SOLAR
+}
+
 model Car {
-  id          String        @id @default(uuid())
+  id          String          @id @default(uuid())
+  category    ProductCategory @default(CAR)
   brand       String
   model       String
-  displayName String        @map("display_name")
-  slug        String        @unique
-  imageUrl    String?       @map("image_url")
-  status      CatalogStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  /// Short descriptor shown under the name: "SUV", "Sedan", "On-grid rooftop".
+  segment     String?
+  displayName String          @map("display_name")
+  slug        String          @unique
+  imageUrl    String?         @map("image_url")
+  status      CatalogStatus   @default(ACTIVE)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   buyingIntents BuyingIntent[]
   collectives   Collective[]
 
+  @@index([category, status])
   @@index([brand])
   @@index([status])
   @@map("cars")
@@ -780,11 +820,11 @@ model AuditLog {
   actorId    String    @map("actor_id")
   actorType  ActorType @default(ADMIN) @map("actor_type")
   action     String
-  targetType String   @map("target_type")
-  targetId   String?  @map("target_id")
+  targetType String    @map("target_type")
+  targetId   String?   @map("target_id")
   metadata   Json?
-  ipAddress  String?  @map("ip_address")
-  createdAt  DateTime @default(now()) @map("created_at")
+  ipAddress  String?   @map("ip_address")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   actor User @relation(fields: [actorId], references: [id])
 

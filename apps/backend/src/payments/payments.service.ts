@@ -44,6 +44,7 @@ export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly amount: number;
   private readonly validityDays: number;
+  private readonly freeMembers: number;
 
   constructor(
     private readonly audit: AuditService,
@@ -54,6 +55,7 @@ export class PaymentsService {
   ) {
     this.amount = config.get('BUYING_PASS_AMOUNT', { infer: true });
     this.validityDays = config.get('BUYING_PASS_VALIDITY_DAYS', { infer: true });
+    this.freeMembers = config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true });
   }
 
   // ── Create ──
@@ -90,6 +92,8 @@ export class PaymentsService {
     });
     if (!membership) throw E.JOIN_FIRST();
     if (membership.status === 'ACTIVE') throw E.PASS_ALREADY_ACTIVE();
+    // A free place may still be open (e.g. a stale pay screen): never charge for it.
+    if (await this.claimFreePlace(userId, membership.id)) throw E.PASS_ALREADY_ACTIVE();
 
     const activePass = await this.prisma.buyingPass.findFirst({
       where: { buyingIntentId: intent.id, status: 'ACTIVE' },
@@ -418,6 +422,123 @@ export class PaymentsService {
           },
           tx,
         );
+    });
+  }
+
+  // ── Free places ──
+
+  /**
+   * The first FREE_MEMBERS_PER_COLLECTIVE people ever to become members of a
+   * collective (creator included, paid members included) join free. Places
+   * never refill: leaving or expiring keeps joinedAt, so it still counts.
+   * The member gets a ₹0 pass with the normal validity and no Payment row.
+   *
+   * Returns false (and changes nothing) when no place is left, the membership
+   * is not pending, or the post already has a payment in flight — someone
+   * mid-checkout finishes that payment rather than getting a free place.
+   */
+  async claimFreePlace(userId: string, membershipId: string): Promise<boolean> {
+    if (this.freeMembers <= 0) return false;
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.collectiveMembership.findUnique({ where: { id: membershipId } });
+      if (!membership || membership.userId !== userId || membership.status !== 'PENDING_PAYMENT')
+        return false;
+      // Serialise claims per collective so two joins cannot both take the last place.
+      await tx.$queryRaw`SELECT id FROM collectives WHERE id = ${membership.collectiveId} FOR UPDATE`;
+      const everJoined = await tx.collectiveMembership.count({
+        where: { collectiveId: membership.collectiveId, joinedAt: { not: null } },
+      });
+      if (everJoined >= this.freeMembers) return false;
+
+      const intent = await tx.buyingIntent.findUnique({ where: { id: membership.buyingIntentId } });
+      if (!intent || intent.status !== 'ACTIVE') return false;
+      const [activePass, openPayment] = await Promise.all([
+        tx.buyingPass.findFirst({ where: { buyingIntentId: intent.id, status: 'ACTIVE' } }),
+        tx.payment.findFirst({
+          where: { buyingIntentId: intent.id, status: { in: ['INITIATED', 'PENDING'] } },
+        }),
+      ]);
+      if (activePass || openPayment) return false;
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + this.validityDays * 86_400_000);
+      // Reuse a pending ₹500 pass shell if one exists, so the post keeps a single pass.
+      const pending = await tx.buyingPass.findFirst({
+        where: { buyingIntentId: intent.id, status: 'PENDING' },
+      });
+      const pass = pending
+        ? await tx.buyingPass.update({
+            where: { id: pending.id },
+            data: { amount: 0, status: 'ACTIVE', activatedAt: now, expiresAt },
+          })
+        : await tx.buyingPass.create({
+            data: {
+              buyingIntentId: intent.id,
+              userId,
+              amount: 0,
+              currency: 'INR',
+              status: 'ACTIVE',
+              activatedAt: now,
+              expiresAt,
+            },
+          });
+      await tx.collectiveMembership.update({
+        where: { id: membership.id },
+        data: { status: 'ACTIVE', joinedAt: now, buyingPassId: pass.id },
+      });
+      const conv = await tx.conversation.findUnique({
+        where: { collectiveId: membership.collectiveId },
+        select: { id: true },
+      });
+      if (conv) {
+        await tx.conversationMember.upsert({
+          where: { conversationId_userId: { conversationId: conv.id, userId } },
+          create: { conversationId: conv.id, userId },
+          update: { leftAt: null },
+        });
+      }
+      await this.notifications.notify(
+        {
+          userId,
+          type: 'COLLECTIVE_MEMBERSHIP',
+          title: 'You are in, free',
+          body: `You got one of the first ${this.freeMembers} free places. Your Buying Pass is active until ${expiresAt.toDateString()}.`,
+          data: { collectiveId: membership.collectiveId, buyingIntentId: intent.id },
+          dedupeKey: `member:${membership.id}`,
+        },
+        tx,
+      );
+      this.logger.log(
+        `Free place ${everJoined + 1}/${this.freeMembers} in collective ${membership.collectiveId}: pass ${pass.id} ACTIVE until ${expiresAt.toISOString()}`,
+      );
+      await this.audit.log(
+        {
+          actorId: userId,
+          actorType: 'SYSTEM',
+          action: 'BUYING_PASS_ACTIVATED',
+          targetType: 'BuyingPass',
+          targetId: pass.id,
+          metadata: {
+            buyingIntentId: intent.id,
+            free: true,
+            place: everJoined + 1,
+            expiresAt: expiresAt.toISOString(),
+          },
+        },
+        tx,
+      );
+      await this.audit.log(
+        {
+          actorId: userId,
+          actorType: 'SYSTEM',
+          action: 'MEMBERSHIP_ACTIVATED',
+          targetType: 'CollectiveMembership',
+          targetId: membership.id,
+          metadata: { collectiveId: membership.collectiveId, free: true },
+        },
+        tx,
+      );
+      return true;
     });
   }
 

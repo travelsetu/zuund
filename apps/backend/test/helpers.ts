@@ -11,7 +11,7 @@ import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
-import { CARS, CITIES, slugify } from '../prisma/seed-data';
+import { CARS, CITIES, SOLAR, slugify } from '../prisma/seed-data';
 import { AppModule } from '../src/app.module';
 import { PrismaClient } from '../src/generated/prisma/client';
 import type { Car, City } from '../src/generated/prisma/client';
@@ -72,11 +72,23 @@ export async function resetDatabase(): Promise<{ cars: Car[]; cities: City[] }> 
       `TRUNCATE TABLE ${tables.map((t) => `"${t.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`,
     );
   }
+  await db.country.create({ data: { code: 'IN', name: 'India', continent: 'AS' } });
   for (const city of CITIES) await db.city.create({ data: city });
-  for (const car of CARS) {
-    const displayName = `${car.brand} ${car.model}`;
+  const catalog = [
+    ...CARS.map((c) => ({ ...c, category: 'CAR' as const })),
+    ...SOLAR.map((s) => ({ ...s, category: 'SOLAR' as const })),
+  ];
+  for (const item of catalog) {
+    const displayName = 'displayName' in item ? item.displayName : `${item.brand} ${item.model}`;
     await db.car.create({
-      data: { brand: car.brand, model: car.model, displayName, slug: slugify(displayName) },
+      data: {
+        category: item.category,
+        brand: item.brand,
+        model: item.model,
+        segment: item.segment,
+        displayName,
+        slug: ('slug' in item && item.slug) || slugify(displayName),
+      },
     });
   }
   await db.user.create({
@@ -89,7 +101,11 @@ export async function resetDatabase(): Promise<{ cars: Car[]; cities: City[] }> 
       verifiedAt: new Date(),
     },
   });
-  return { cars: await db.car.findMany(), cities: await db.city.findMany() };
+  // ctx.cars stays cars-only: several specs pick fixtures by index.
+  return {
+    cars: await db.car.findMany({ where: { category: 'CAR' } }),
+    cities: await db.city.findMany(),
+  };
 }
 
 export async function setup(): Promise<TestContext> {
@@ -131,6 +147,11 @@ export interface TestUser {
 
 let userSeq = 0;
 
+/** A valid, unique Indian mobile number per test user (the DB is reset per spec file). */
+export function testPhone(n: number): string {
+  return `+9198${String(n).padStart(8, '0')}`;
+}
+
 export async function registerUser(
   ctx: TestContext,
   name: string,
@@ -140,7 +161,7 @@ export async function registerUser(
   const email = `${name.toLowerCase().replace(/[^a-z]/g, '')}${++userSeq}-${randomUUID().slice(0, 6)}@test.zuund`;
   const res = await agent
     .post('/api/auth/register')
-    .send({ name, email, password: USER_PASSWORD, cityId });
+    .send({ name, email, password: USER_PASSWORD, cityId, phone: testPhone(userSeq) });
   if (res.status !== 201)
     throw new Error(`register failed: ${res.status} ${JSON.stringify(res.body)}`);
   return { agent, id: res.body.user.id as string, email, name };

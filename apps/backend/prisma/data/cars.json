@@ -1,0 +1,1478 @@
+{
+  "_about": "New cars on sale in India, one entry per model. Verified 2026-09-23 against CarDekho brand pages, CarWale, Autocar India, V3Cars and manufacturer sites. \"slug\" is pinned where a model was renamed so existing Buying Posts carry over. Models no longer listed here are set INACTIVE by the seed, never deleted.",
+  "asOf": "2026-09-23",
+  "models": [
+    {
+      "brand": "Aston Martin",
+      "model": "DB12",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Aston Martin",
+      "model": "DBX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Aston Martin",
+      "model": "Vanquish",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Aston Martin",
+      "model": "Vantage",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Audi",
+      "model": "A4",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Audi",
+      "model": "A6",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q3",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q3 Sportback",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q5",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q7",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q8",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "RS Q8",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Audi",
+      "model": "S5 Sportback",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Audi",
+      "model": "SQ8",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "2 Series Gran Coupe",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "3 Series",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "5 Series",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "7 Series",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "i4",
+      "segment": "EV"
+    },
+    {
+      "brand": "BMW",
+      "model": "i5",
+      "segment": "EV"
+    },
+    {
+      "brand": "BMW",
+      "model": "i7",
+      "segment": "EV"
+    },
+    {
+      "brand": "BMW",
+      "model": "iX",
+      "segment": "EV"
+    },
+    {
+      "brand": "BMW",
+      "model": "iX1",
+      "segment": "EV"
+    },
+    {
+      "brand": "BMW",
+      "model": "M2",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "BMW",
+      "model": "M340i",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "M4",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "BMW",
+      "model": "M440i",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "BMW",
+      "model": "M5",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "BMW",
+      "model": "X1",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "X3",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "X5",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "X6",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "X7",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "XM",
+      "segment": "SUV"
+    },
+    {
+      "brand": "BMW",
+      "model": "Z4",
+      "segment": "Convertible"
+    },
+    {
+      "brand": "BYD",
+      "model": "Atto 3",
+      "segment": "EV"
+    },
+    {
+      "brand": "BYD",
+      "model": "eMAX 7",
+      "segment": "EV"
+    },
+    {
+      "brand": "BYD",
+      "model": "Seal",
+      "segment": "EV"
+    },
+    {
+      "brand": "BYD",
+      "model": "Sealion 7",
+      "segment": "EV"
+    },
+    {
+      "brand": "Bentley",
+      "model": "Bentayga",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Bentley",
+      "model": "Continental GT",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Bentley",
+      "model": "Flying Spur",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Citroen",
+      "model": "AircrossX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Citroen",
+      "model": "BasaltX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Citroen",
+      "model": "C3X",
+      "segment": "Hatchback",
+      "slug": "citroen-c3"
+    },
+    {
+      "brand": "Citroen",
+      "model": "C5 Aircross",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Citroen",
+      "model": "e-C3X",
+      "segment": "EV"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "296 GTB",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "849 Testarossa",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "Amalfi",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "Purosangue",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Force",
+      "model": "Gurkha",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Force",
+      "model": "Urbania",
+      "segment": "Van"
+    },
+    {
+      "brand": "Honda",
+      "model": "Amaze",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Honda",
+      "model": "City",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Honda",
+      "model": "Elevate",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Honda",
+      "model": "ZR-V",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Alcazar",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Aura",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Creta",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Creta Electric",
+      "segment": "EV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Creta N Line",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Exter",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Grand i10 Nios",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "i20",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "i20 N Line",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "IONIQ 5",
+      "segment": "EV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Venue",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Venue N Line",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Verna",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Isuzu",
+      "model": "Hi-Lander",
+      "segment": "Pickup"
+    },
+    {
+      "brand": "Isuzu",
+      "model": "MU-X",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Isuzu",
+      "model": "V-Cross",
+      "segment": "Pickup"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Compass",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Grand Cherokee",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Meridian",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Jeep",
+      "model": "Wrangler",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Carens",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Carens Clavis",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Carens Clavis EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Carnival",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "EV6",
+      "segment": "EV"
+    },
+    {
+      "brand": "Kia",
+      "model": "EV9",
+      "segment": "EV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Seltos",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Sonet",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Sorento",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Syros",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Kia",
+      "model": "Syros EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Lamborghini",
+      "model": "Revuelto",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Lamborghini",
+      "model": "Temerario",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Lamborghini",
+      "model": "Urus",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Defender",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Discovery",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Discovery Sport",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Range Rover",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Range Rover Evoque",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Range Rover Sport",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Land Rover",
+      "model": "Range Rover Velar",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Lexus",
+      "model": "ES",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Lexus",
+      "model": "LM",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Lexus",
+      "model": "LX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Lexus",
+      "model": "NX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Lexus",
+      "model": "RX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "Astor",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "Comet EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "MG",
+      "model": "Cyberster",
+      "segment": "EV"
+    },
+    {
+      "brand": "MG",
+      "model": "Hector",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "Hector Plus",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "Hector Tomahawk EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "MG",
+      "model": "Hector Tomahawk PHEV",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "M9",
+      "segment": "EV"
+    },
+    {
+      "brand": "MG",
+      "model": "Majestor",
+      "segment": "SUV"
+    },
+    {
+      "brand": "MG",
+      "model": "Windsor EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "MG",
+      "model": "ZS EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "BE 6",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Bolero",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Bolero Neo",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Bolero Neo Plus",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Scorpio Classic",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Scorpio-N",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Thar",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Thar ROXX",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XEV 9e",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XEV 9S",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XUV 3XO",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XUV 3XO EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XUV 7XO",
+      "segment": "SUV",
+      "slug": "mahindra-xuv700"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Alto K10",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Baleno",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Brezza",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Celerio",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Dzire",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "e Vitara",
+      "segment": "EV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Eeco",
+      "segment": "Van"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Ertiga",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Fronx",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Grand Vitara",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Invicto",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Jimny",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "S-Presso",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Swift",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Victoris",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "WagonR",
+      "segment": "Hatchback",
+      "slug": "maruti-suzuki-wagon-r"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "XL6",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Maserati",
+      "model": "GranCabrio",
+      "segment": "Convertible"
+    },
+    {
+      "brand": "Maserati",
+      "model": "GranTurismo",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Maserati",
+      "model": "Grecale",
+      "segment": "SUV"
+    },
+    {
+      "brand": "McLaren",
+      "model": "750S",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG C 43",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG C 63",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG CLE 53",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG E 53",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG EQS",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG GLC 43 Coupe",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG GLE 53 Coupe",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG GT 4-Door Coupe",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG GT Coupe",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG S 63",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "C-Class",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "CLA",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "CLE Cabriolet",
+      "segment": "Convertible"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "E-Class",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "EQS",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "EQS SUV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "G-Class",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "G-Class Electric",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "GLA",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "GLC",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "GLE",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "GLS",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Maybach EQS SUV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Maybach GLS",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Maybach S-Class",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "S-Class",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "V-Class",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Mini",
+      "model": "Cooper Convertible",
+      "segment": "Convertible"
+    },
+    {
+      "brand": "Mini",
+      "model": "Cooper S",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Mini",
+      "model": "Countryman",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Mini",
+      "model": "Countryman Electric",
+      "segment": "EV"
+    },
+    {
+      "brand": "Nissan",
+      "model": "Gravite",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Nissan",
+      "model": "Magnite",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Nissan",
+      "model": "Tekton",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Nissan",
+      "model": "X-Trail",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "911",
+      "segment": "Coupe"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Cayenne",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Cayenne Coupe",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Cayenne Electric",
+      "segment": "EV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Macan",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Macan Electric",
+      "segment": "EV"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Panamera",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Porsche",
+      "model": "Taycan",
+      "segment": "EV"
+    },
+    {
+      "brand": "Renault",
+      "model": "Duster",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Renault",
+      "model": "Kiger",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Renault",
+      "model": "Kwid",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Renault",
+      "model": "Triber",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Rolls-Royce",
+      "model": "Cullinan",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Rolls-Royce",
+      "model": "Ghost",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Rolls-Royce",
+      "model": "Phantom",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Rolls-Royce",
+      "model": "Spectre",
+      "segment": "EV"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Kodiaq",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Kushaq",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Kylaq",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Octavia RS",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Slavia",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Tata",
+      "model": "Altroz",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Tata",
+      "model": "Curvv",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Curvv EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Harrier",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Harrier EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Nexon",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Nexon EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Punch",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Punch EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Safari",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Sierra",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Sierra EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Tiago",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Tata",
+      "model": "Tiago EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tata",
+      "model": "Tigor",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Tata",
+      "model": "Tigor EV",
+      "segment": "EV"
+    },
+    {
+      "brand": "Tesla",
+      "model": "Model Y",
+      "segment": "EV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Camry",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Fortuner",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Fortuner Legender",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Glanza",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Hilux",
+      "segment": "Pickup"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Innova Crysta",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Innova Hycross",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Land Cruiser 300",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Rumion",
+      "segment": "MUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Taisor",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Urban Cruiser Ebella",
+      "segment": "EV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Urban Cruiser Hyryder",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Vellfire",
+      "segment": "MUV"
+    },
+    {
+      "brand": "VinFast",
+      "model": "VF 6",
+      "segment": "EV"
+    },
+    {
+      "brand": "VinFast",
+      "model": "VF 7",
+      "segment": "EV"
+    },
+    {
+      "brand": "VinFast",
+      "model": "VF MPV 7",
+      "segment": "EV"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Golf GTI",
+      "segment": "Hatchback"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Taigun",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Tayron",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Tiguan R-Line",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Virtus",
+      "segment": "Sedan"
+    },
+    {
+      "brand": "Volvo",
+      "model": "EC40",
+      "segment": "EV"
+    },
+    {
+      "brand": "Volvo",
+      "model": "EX30",
+      "segment": "EV"
+    },
+    {
+      "brand": "Volvo",
+      "model": "EX40",
+      "segment": "EV"
+    },
+    {
+      "brand": "Volvo",
+      "model": "XC60",
+      "segment": "SUV"
+    },
+    {
+      "brand": "Volvo",
+      "model": "XC90",
+      "segment": "SUV"
+    }
+  ],
+  "notOnSale": [
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Ciaz",
+      "note": "Production ended ~Mar/Apr 2025 (Autocar India, CarDekho, V3Cars)"
+    },
+    {
+      "brand": "Maruti Suzuki",
+      "model": "Ignis",
+      "note": "Listed as discontinued on CarDekho Maruti page (Sep 2026)"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Tucson",
+      "note": "Delisted in India (Autocar India, CarDekho)"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "XUV700",
+      "note": "Replaced by XUV 7XO (Jan 2026)"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Marazzo",
+      "note": "Discontinued"
+    },
+    {
+      "brand": "MG",
+      "model": "Gloster",
+      "note": "Replaced by Majestor"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "A-Class Limousine",
+      "note": "Discontinued 2026 with EQA, EQB and EQE SUV; stock sold out (Autocar India, CarWale)"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "EQA",
+      "note": "Discontinued 2026"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "EQB",
+      "note": "Discontinued 2026"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "EQE SUV",
+      "note": "Discontinued Apr 2026"
+    },
+    {
+      "brand": "Audi",
+      "model": "A8 L",
+      "note": "Removed from Audi India lineup"
+    },
+    {
+      "brand": "Audi",
+      "model": "RS 5 Sportback",
+      "note": "Removed from Audi India lineup"
+    },
+    {
+      "brand": "BMW",
+      "model": "M8 Coupe Competition",
+      "note": "Discontinued 2026 (global end of 8 Series)"
+    },
+    {
+      "brand": "BMW",
+      "model": "X4",
+      "note": "Discontinued"
+    },
+    {
+      "brand": "Volkswagen",
+      "model": "Tiguan (Allspace/regular)",
+      "note": "Replaced by Tiguan R-Line"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Superb",
+      "note": "Old model discontinued; new Superb due 25 Sep 2026"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Octavia",
+      "note": "Only Octavia RS sold"
+    },
+    {
+      "brand": "Volvo",
+      "model": "S90",
+      "note": "Discontinued"
+    },
+    {
+      "brand": "Volvo",
+      "model": "XC40 (ICE)",
+      "note": "Discontinued"
+    },
+    {
+      "brand": "Nissan",
+      "model": "Kicks",
+      "note": "Discontinued (older)"
+    },
+    {
+      "brand": "Toyota",
+      "model": "Urban Cruiser (Brezza-based)",
+      "note": "Discontinued; replaced by Taisor/Hyryder"
+    },
+    {
+      "brand": "Lexus",
+      "model": "LS",
+      "note": "Discontinued"
+    },
+    {
+      "brand": "Honda",
+      "model": "Jazz / WR-V",
+      "note": "Discontinued (older)"
+    }
+  ],
+  "unconfirmed": [
+    {
+      "brand": "Mahindra",
+      "model": "XUV400",
+      "note": "CarDekho (Sep 2026) still lists it, but Autocar India says XUV 3XO EV replaces it and only a top trim remained at Jan 2026"
+    },
+    {
+      "brand": "Skoda",
+      "model": "Kodiaq RS",
+      "note": "Launched Jun 2026 at Rs 66.99 lakh but limited to 50 CBU units, all sold out in minutes; still listed on CarDekho"
+    },
+    {
+      "brand": "Tata",
+      "model": "Aeris",
+      "note": "Launches 25 Sep 2026 (two days after asOf); replaces Tigor. Add after launch"
+    },
+    {
+      "brand": "Jaguar",
+      "model": "F-Pace",
+      "note": "Only Jaguar in India; CarDekho/CarWale still list at Rs 72.90 lakh, but Autocar India reports global F-Pace production has ended. Likely stock-only"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q8 e-tron",
+      "note": "V3Cars/CarWale list as on sale; CarDekho lists as discontinued; global production ended Feb 2025"
+    },
+    {
+      "brand": "Audi",
+      "model": "Q8 Sportback e-tron",
+      "note": "Same conflict as Q8 e-tron"
+    },
+    {
+      "brand": "Audi",
+      "model": "RS e-tron GT",
+      "note": "V3Cars lists on sale; CarDekho lists discontinued"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG SL 55",
+      "note": "Only CarWale lists it; not on CarDekho"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "Maybach SL 680",
+      "note": "Only CarWale lists it; not on CarDekho"
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "AMG A 45 S / AMG GLA 35",
+      "note": "Only CarWale lists them; A-Class line discontinued in India 2026"
+    },
+    {
+      "brand": "Hyundai",
+      "model": "Prime HB / Prime SD",
+      "note": "On sale but fleet/taxi-only versions of Grand i10 Nios and Aura"
+    },
+    {
+      "brand": "Tata",
+      "model": "Xpres / Xpres-T EV",
+      "note": "On sale but fleet/taxi-only brand"
+    },
+    {
+      "brand": "VinFast",
+      "model": "Limo Green",
+      "note": "Fleet/taxi version of VF MPV 7"
+    },
+    {
+      "brand": "Tata",
+      "model": "Yodha Pickup",
+      "note": "Commercial pickup, not a passenger car"
+    },
+    {
+      "brand": "Mahindra",
+      "model": "Bolero Pik-Up / Bolero Camper",
+      "note": "Commercial pickups, not passenger cars"
+    },
+    {
+      "brand": "Isuzu",
+      "model": "D-Max / S-CAB / S-CAB Z",
+      "note": "Commercial pickups (V-Cross and Hi-Lander are the personal-use pickups)"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "Roma",
+      "note": "CarDekho still lists; replaced globally by Amalfi"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "12Cilindri",
+      "note": "Autocar India has India pricing; CarDekho lists it as upcoming. Conflicting sources"
+    },
+    {
+      "brand": "Ferrari",
+      "model": "SF90 Stradale / F8 Tributo / 812",
+      "note": "CarDekho lists them but F8 and 812 ended production globally; listing looks stale"
+    },
+    {
+      "brand": "Lamborghini",
+      "model": "Huracan EVO",
+      "note": "CarDekho lists; Huracan production ended globally (replaced by Temerario)"
+    },
+    {
+      "brand": "McLaren",
+      "model": "GT",
+      "note": "CarDekho lists; replaced globally by GTS"
+    },
+    {
+      "brand": "Maserati",
+      "model": "Levante / Quattroporte",
+      "note": "CarDekho lists; global production ended 2024-25"
+    },
+    {
+      "brand": "Vayve",
+      "model": "Eva",
+      "note": "Solar micro-EV announced at Rs 3.25 lakh; deliveries were due H2 2026, not confirmed started"
+    }
+  ]
+}

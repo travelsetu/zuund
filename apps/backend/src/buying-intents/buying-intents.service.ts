@@ -22,6 +22,7 @@ import { intentInclude, toCar, toCity, toIntent, toPublicUser } from '../common/
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { BuyingIntentStatus, Prisma } from '../generated/prisma/client';
 import { AuditService } from '../common/audit.service';
+import { connectionsWith } from '../common/connections';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -269,7 +270,8 @@ export class BuyingIntentsService {
       }),
     ]);
 
-    const connections = await this.connectionsWith(
+    const connections = await connectionsWith(
+      this.prisma,
       viewerId,
       rows.map((r) => r.userId),
     );
@@ -332,28 +334,5 @@ export class BuyingIntentsService {
       select: { requesterId: true, recipientId: true },
     });
     return rows.map((r) => (r.requesterId === userId ? r.recipientId : r.requesterId));
-  }
-
-  private async connectionsWith(viewerId: string, otherIds: string[]) {
-    if (otherIds.length === 0)
-      return new Map<
-        string,
-        {
-          id: string;
-          status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'BLOCKED';
-          requesterId: string;
-        }
-      >();
-    const rows = await this.prisma.connection.findMany({
-      where: {
-        OR: [
-          { requesterId: viewerId, recipientId: { in: otherIds } },
-          { recipientId: viewerId, requesterId: { in: otherIds } },
-        ],
-      },
-    });
-    return new Map(
-      rows.map((r) => [r.requesterId === viewerId ? r.recipientId : r.requesterId, r]),
-    );
   }
 }

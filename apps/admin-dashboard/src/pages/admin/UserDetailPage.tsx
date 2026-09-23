@@ -83,6 +83,10 @@ export function UserDetailPage() {
 
       <dl className="defs">
         <Def label="Email">{user.email}</Def>
+        <Def label="Mobile">
+          {user.phone ?? 'Not added yet'}
+          {user.phone && !user.phoneVerified ? ' (not verified)' : ''}
+        </Def>
         <Def label="Role">
           <Badge value={user.role} />
         </Def>

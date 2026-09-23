@@ -23,6 +23,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "libphonenumber-js": "^1.13.13",
     "zod": "^4.6.5"
   },
   "devDependencies": {

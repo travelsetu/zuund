@@ -115,7 +115,8 @@ export const api = {
   },
   catalog: {
     cars: (q: string) => request<CarDto[]>(`/cars${qs({ q, limit: 50 })}`),
-    cities: () => request<CityDto[]>('/cities'),
+    /** Only cities that have buying posts: the full catalog is ~32k cities. */
+    cities: () => request<CityDto[]>('/admin/cities-in-use'),
   },
   admin: {
     stats: () => request<AdminStatsDto>('/admin/stats'),

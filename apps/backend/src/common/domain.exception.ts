@@ -110,6 +110,12 @@ export const E = {
       'Invalid email or password',
       HttpStatus.UNAUTHORIZED,
     ),
+  PHONE_TAKEN: () =>
+    new DomainException(
+      'PHONE_TAKEN',
+      'An account with this mobile number already exists',
+      HttpStatus.CONFLICT,
+    ),
   EMAIL_TAKEN: () =>
     new DomainException(
       'EMAIL_TAKEN',

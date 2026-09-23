@@ -46,6 +46,12 @@ export class AdminController {
     return this.admin.stats();
   }
 
+  /** Cities with at least one buying post, for the list filters (the full catalog is ~32k). */
+  @Get('cities-in-use')
+  citiesInUse() {
+    return this.admin.citiesInUse();
+  }
+
   // Users
   @Get('users')
   users(

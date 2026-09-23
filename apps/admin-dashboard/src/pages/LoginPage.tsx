@@ -47,7 +47,7 @@ export function LoginPage() {
     <div className="centered">
       <form className="card" onSubmit={onSubmit} noValidate>
         <h1>Sign in</h1>
-        <p className="muted">zuund admin dashboard</p>
+        <p className="muted">ZUUND admin dashboard</p>
 
         <label htmlFor="email">Email</label>
         <input

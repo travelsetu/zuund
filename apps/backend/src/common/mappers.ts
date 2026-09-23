@@ -25,12 +25,14 @@ export type UserWithProfile = User & { profile: (UserProfile & { city: City | nu
 export const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
 
 export function toCity(c: City): CityDto {
-  return { id: c.id, name: c.name, state: c.state, slug: c.slug };
+  return { id: c.id, name: c.name, state: c.state, slug: c.slug, countryCode: c.countryCode };
 }
 
 export function toCar(c: Car): CarDto {
   return {
     id: c.id,
+    category: c.category,
+    segment: c.segment,
     brand: c.brand,
     model: c.model,
     displayName: c.displayName,
@@ -55,6 +57,8 @@ export function toMe(u: UserWithProfile): MeDto {
   return {
     ...toPublicUser(u, { about: true }),
     email: u.email,
+    phone: u.phone,
+    phoneVerified: !!u.phoneVerifiedAt,
     role: u.role,
     status: u.status,
     createdAt: u.createdAt.toISOString(),

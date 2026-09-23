@@ -1,4 +1,7 @@
-/** Phase 1 catalog: cars and cities. Slugs are stable identifiers; edit names freely. */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Phase 1 catalog: cars, rooftop solar and cities. Slugs are stable identifiers; edit names freely. */
 
 export const CITIES: Array<{ name: string; state: string; slug: string }> = [
   { name: 'Ahmedabad', state: 'Gujarat', slug: 'ahmedabad' },
@@ -28,59 +31,40 @@ export const CITIES: Array<{ name: string; state: string; slug: string }> = [
   { name: 'Visakhapatnam', state: 'Andhra Pradesh', slug: 'visakhapatnam' },
 ];
 
-export const CARS: Array<{ brand: string; model: string }> = [
-  { brand: 'Maruti Suzuki', model: 'Swift' },
-  { brand: 'Maruti Suzuki', model: 'Baleno' },
-  { brand: 'Maruti Suzuki', model: 'Dzire' },
-  { brand: 'Maruti Suzuki', model: 'Brezza' },
-  { brand: 'Maruti Suzuki', model: 'Grand Vitara' },
-  { brand: 'Maruti Suzuki', model: 'Ertiga' },
-  { brand: 'Maruti Suzuki', model: 'Fronx' },
-  { brand: 'Maruti Suzuki', model: 'Wagon R' },
-  { brand: 'Hyundai', model: 'Creta' },
-  { brand: 'Hyundai', model: 'Venue' },
-  { brand: 'Hyundai', model: 'i20' },
-  { brand: 'Hyundai', model: 'Verna' },
-  { brand: 'Hyundai', model: 'Exter' },
-  { brand: 'Hyundai', model: 'Alcazar' },
-  { brand: 'Tata', model: 'Nexon' },
-  { brand: 'Tata', model: 'Punch' },
-  { brand: 'Tata', model: 'Harrier' },
-  { brand: 'Tata', model: 'Safari' },
-  { brand: 'Tata', model: 'Curvv' },
-  { brand: 'Tata', model: 'Altroz' },
-  { brand: 'Tata', model: 'Tiago' },
-  { brand: 'Mahindra', model: 'Scorpio-N' },
-  { brand: 'Mahindra', model: 'XUV700' },
-  { brand: 'Mahindra', model: 'XUV 3XO' },
-  { brand: 'Mahindra', model: 'Thar' },
-  { brand: 'Mahindra', model: 'Thar Roxx' },
-  { brand: 'Mahindra', model: 'Bolero' },
-  { brand: 'Kia', model: 'Seltos' },
-  { brand: 'Kia', model: 'Sonet' },
-  { brand: 'Kia', model: 'Carens' },
-  { brand: 'Kia', model: 'Syros' },
-  { brand: 'Toyota', model: 'Innova Crysta' },
-  { brand: 'Toyota', model: 'Innova Hycross' },
-  { brand: 'Toyota', model: 'Fortuner' },
-  { brand: 'Toyota', model: 'Urban Cruiser Hyryder' },
-  { brand: 'Toyota', model: 'Glanza' },
-  { brand: 'Honda', model: 'City' },
-  { brand: 'Honda', model: 'Amaze' },
-  { brand: 'Honda', model: 'Elevate' },
-  { brand: 'Skoda', model: 'Kushaq' },
-  { brand: 'Skoda', model: 'Slavia' },
-  { brand: 'Skoda', model: 'Kylaq' },
-  { brand: 'Volkswagen', model: 'Taigun' },
-  { brand: 'Volkswagen', model: 'Virtus' },
-  { brand: 'MG', model: 'Hector' },
-  { brand: 'MG', model: 'Astor' },
-  { brand: 'MG', model: 'Windsor EV' },
-  { brand: 'Renault', model: 'Kiger' },
-  { brand: 'Renault', model: 'Triber' },
-  { brand: 'Nissan', model: 'Magnite' },
-  { brand: 'Citroen', model: 'C3' },
-  { brand: 'Jeep', model: 'Compass' },
+/** Cars: the verified catalogue in prisma/data/cars.json (see its _about). */
+export const CARS: Array<{ brand: string; model: string; segment: string; slug?: string }> = (
+  JSON.parse(readFileSync(join(__dirname, 'data', 'cars.json'), 'utf8')) as {
+    models: Array<{ brand: string; model: string; segment: string; slug?: string }>;
+  }
+).models;
+
+/**
+ * Rooftop solar by system size only — no brands. Buyers of a same-size system in
+ * a city meet; brand is something they can discuss inside the collective.
+ */
+const SOLAR_SIZES_KW = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+export const SOLAR: Array<{
+  brand: string;
+  model: string;
+  displayName: string;
+  segment: string;
+  /** Pinned where the name would clash: "10+ kW" slugifies the same as "10 kW". */
+  slug?: string;
+}> = [
+  ...SOLAR_SIZES_KW.map((kw) => ({
+    brand: 'Rooftop Solar',
+    model: `${kw} kW`,
+    displayName: `${kw} kW Rooftop Solar`,
+    segment: 'On-grid rooftop',
+  })),
+  // Anything bigger than 10 kW.
+  {
+    brand: 'Rooftop Solar',
+    model: '10+ kW',
+    displayName: '10+ kW Rooftop Solar',
+    segment: 'On-grid rooftop',
+    slug: '10-plus-kw-rooftop-solar',
+  },
 ];
 
 export function slugify(input: string): string {

@@ -21,6 +21,9 @@ import type {
 export interface AdminUserDto {
   id: string;
   email: string;
+  /** E.164; admins only. */
+  phone: string | null;
+  phoneVerified: boolean;
   name: string | null;
   role: UserRole;
   status: UserStatus;

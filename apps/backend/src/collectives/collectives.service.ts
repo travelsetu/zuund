@@ -20,6 +20,7 @@ import type { Env } from '../config/env';
 import type { Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
+import { connectionsWith } from '../common/connections';
 import { PrismaService } from '../prisma/prisma.service';
 
 const collectiveInclude = {
@@ -179,6 +180,11 @@ export class CollectivesService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
+    const connections = await connectionsWith(
+      this.prisma,
+      userId,
+      rows.map((m) => m.userId).filter((id) => id !== userId),
+    );
     return toPage(rows, q.limit, (m) => ({
       membershipId: m.id,
       user: toPublicUser(m.user),
@@ -186,6 +192,7 @@ export class CollectivesService {
       purchaseTimeline: m.buyingIntent.purchaseTimeline,
       status: m.status,
       joinedAt: m.joinedAt?.toISOString() ?? null,
+      connection: connections.get(m.userId) ?? null,
     }));
   }
 
@@ -272,8 +279,11 @@ export class CollectivesService {
   }
 
   private async toDto(r: CollectiveRow, viewerId: string): Promise<CollectiveDto> {
-    const [activeMemberCount, m] = await Promise.all([
+    const [activeMemberCount, everJoined, m] = await Promise.all([
       this.prisma.collectiveMembership.count({ where: { collectiveId: r.id, status: 'ACTIVE' } }),
+      this.prisma.collectiveMembership.count({
+        where: { collectiveId: r.id, joinedAt: { not: null } },
+      }),
       this.prisma.collectiveMembership.findFirst({
         where: {
           collectiveId: r.id,
@@ -290,6 +300,10 @@ export class CollectivesService {
       creatorId: r.creatorId,
       status: r.status,
       activeMemberCount,
+      freePlacesLeft: Math.max(
+        0,
+        this.config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true }) - everJoined,
+      ),
       createdAt: r.createdAt.toISOString(),
       closedAt: r.closedAt?.toISOString() ?? null,
       membership: m ? { id: m.id, status: m.status, buyingIntentId: m.buyingIntentId } : null,

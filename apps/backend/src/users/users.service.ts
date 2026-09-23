@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { AuthUser, BuyerProfileDto, MeDto, UpdateProfileRequest } from '@zuund/shared';
+import { E } from '../common/domain.exception';
+import { isUniqueViolation } from '../common/prisma-errors';
 import { toCar, toCity, toMe, toPublicUser } from '../common/mappers';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
@@ -47,6 +49,15 @@ export class UsersService {
       });
       if (!city) throw new BadRequestException('Unknown city');
     }
+    const current = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+    const phoneChanged = input.phone !== undefined && input.phone !== current?.phone;
+    if (phoneChanged) {
+      const holder = await this.prisma.user.findUnique({ where: { phone: input.phone } });
+      if (holder && holder.id !== userId) throw E.PHONE_TAKEN();
+    }
     let photoUrl: string | null | undefined;
     if (input.photoFileId === null) photoUrl = null;
     else if (input.photoFileId) {
@@ -58,27 +69,34 @@ export class UsersService {
         throw new BadRequestException('Profile photo must be an image');
       photoUrl = f.url;
     }
-    const u = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        profile: {
-          upsert: {
-            create: {
-              cityId: input.cityId ?? null,
-              about: input.about ?? null,
-              photoUrl: photoUrl ?? null,
-            },
-            update: {
-              ...(input.cityId !== undefined ? { cityId: input.cityId } : {}),
-              ...(input.about !== undefined ? { about: input.about } : {}),
-              ...(photoUrl !== undefined ? { photoUrl } : {}),
+    const u = await this.prisma.user
+      .update({
+        where: { id: userId },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          // A new number is unverified until confirmed by SMS code.
+          ...(phoneChanged ? { phone: input.phone, phoneVerifiedAt: null } : {}),
+          profile: {
+            upsert: {
+              create: {
+                cityId: input.cityId ?? null,
+                about: input.about ?? null,
+                photoUrl: photoUrl ?? null,
+              },
+              update: {
+                ...(input.cityId !== undefined ? { cityId: input.cityId } : {}),
+                ...(input.about !== undefined ? { about: input.about } : {}),
+                ...(photoUrl !== undefined ? { photoUrl } : {}),
+              },
             },
           },
         },
-      },
-      include: withProfile,
-    });
+        include: withProfile,
+      })
+      .catch((e: unknown) => {
+        if (isUniqueViolation(e, 'phone')) throw E.PHONE_TAKEN();
+        throw e;
+      });
     return toMe(u);
   }
 

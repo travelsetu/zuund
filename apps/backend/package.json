@@ -29,6 +29,7 @@
     "@zuund/shared": "workspace:*",
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
+    "maxmind": "^5.0.7",
     "multer": "^2.4.0",
     "pg": "^8.23.0",
     "reflect-metadata": "^0.2.2",

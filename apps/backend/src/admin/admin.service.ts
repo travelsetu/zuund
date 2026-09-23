@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  CityDto,
   AdminCollectiveDto,
   AdminCollectiveMemberDto,
   AdminIntentDetailDto,
@@ -47,6 +48,14 @@ export class AdminService {
   ) {}
 
   // ── Stats ──
+  async citiesInUse(): Promise<CityDto[]> {
+    const rows = await this.prisma.city.findMany({
+      where: { buyingIntents: { some: {} } },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map(toCity);
+  }
+
   async stats(): Promise<AdminStatsDto> {
     const since30 = new Date(Date.now() - 30 * 86_400_000);
     const [
@@ -191,6 +200,7 @@ export class AdminService {
               OR: [
                 { email: { contains: q.q, mode: 'insensitive' } },
                 { name: { contains: q.q, mode: 'insensitive' } },
+                { phone: { contains: q.q.replace(/[^\d+]/g, '') || q.q } },
               ],
             }
           : {}),
@@ -214,6 +224,8 @@ export class AdminService {
     return toPage(rows, q.limit, (u) => ({
       id: u.id,
       email: u.email,
+      phone: u.phone,
+      phoneVerified: !!u.phoneVerifiedAt,
       name: u.name,
       role: u.role,
       status: u.status,
@@ -247,6 +259,8 @@ export class AdminService {
     return {
       id: u.id,
       email: u.email,
+      phone: u.phone,
+      phoneVerified: !!u.phoneVerifiedAt,
       name: u.name,
       role: u.role,
       status: u.status,

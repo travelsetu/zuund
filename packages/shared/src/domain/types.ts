@@ -15,6 +15,7 @@ import type {
   ParticipantStatus,
   PaymentStatus,
   PollStatus,
+  ProductCategory,
   PurchaseTimeline,
   ReportStatus,
   ReportTargetType,
@@ -30,15 +31,39 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/** A catalog brand with how many active models/systems it has. */
+export interface BrandDto {
+  name: string;
+  count: number;
+}
+
+export interface CountryDto {
+  /** ISO 3166-1 alpha-2, e.g. IN, AE, US. */
+  code: string;
+  name: string;
+}
+
 export interface CityDto {
   id: string;
   name: string;
   state: string;
   slug: string;
+  countryCode: string;
 }
 
+/** Best guess from the request's IP. A suggestion to pre-select, never saved without the user. */
+export interface GeoGuessDto {
+  country: CountryDto | null;
+  /** Null when the IP only resolves to a country, or to a town smaller than our city list. */
+  city: CityDto | null;
+}
+
+/** A catalog item: a car model or a rooftop solar system (see `category`). */
 export interface CarDto {
   id: string;
+  category: ProductCategory;
+  /** "SUV", "Sedan", "On-grid rooftop"… */
+  segment: string | null;
   brand: string;
   model: string;
   displayName: string;
@@ -59,6 +84,9 @@ export interface PublicUserDto {
 /** The signed-in user's own view of themselves. */
 export interface MeDto extends PublicUserDto {
   email: string;
+  /** E.164, e.g. +919876543210. Null only for accounts created before mobile numbers were required. */
+  phone: string | null;
+  phoneVerified: boolean;
   role: UserRole;
   status: UserStatus;
   createdAt: string;
@@ -189,6 +217,8 @@ export interface CollectiveDto {
   creatorId: string;
   status: CollectiveStatus;
   activeMemberCount: number;
+  /** Free places still open (the first members join free; places never refill). 0 = ₹500 Buying Pass. */
+  freePlacesLeft: number;
   createdAt: string;
   closedAt: string | null;
   /** The viewer's live membership, if any. */
@@ -203,6 +233,8 @@ export interface CollectiveMemberDto {
   purchaseTimeline: PurchaseTimeline;
   status: MembershipStatus;
   joinedAt: string | null;
+  /** The viewer's relationship with this member; null for the viewer themselves. */
+  connection: { id: string; status: ConnectionStatus; requesterId: string } | null;
 }
 
 export interface PollOptionDto {

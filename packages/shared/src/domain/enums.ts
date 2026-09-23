@@ -1,5 +1,13 @@
 /** Mirrors the Prisma enums. Kept as string unions so the frontends never import Prisma. */
 
+/** Catalog categories live in Phase 1. The catalog item type is still named Car/CarDto. */
+export const PRODUCT_CATEGORIES = ['CAR', 'SOLAR'] as const;
+export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
+  CAR: 'Cars',
+  SOLAR: 'Solar Panels',
+};
+
 export const USER_ROLES = ['USER', 'ADMIN'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
@@ -136,3 +144,5 @@ export type BuyerFilter = (typeof BUYER_FILTERS)[number];
 export const BUYING_PASS_AMOUNT_PAISE = 50_000;
 export const BUYING_PASS_CURRENCY = 'INR';
 export const BUYING_PASS_VALIDITY_DAYS = 60;
+/** Display fallback before a collective exists; the server's CollectiveDto.freePlacesLeft is authoritative. */
+export const FREE_MEMBERS_PER_COLLECTIVE = 5;

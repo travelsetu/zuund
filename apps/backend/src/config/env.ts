@@ -61,10 +61,22 @@ export const envSchema = z.object({
     .positive()
     .default(10 * 1024 * 1024),
 
+  // ── Location ──
+  /**
+   * MaxMind GeoLite2-City database (scripts/geoip-update.mjs downloads it). Missing file =
+   * location guessing is off and GET /geo answers { country: null, city: null }.
+   */
+  GEOIP_DB_PATH: z.string().default('./data/GeoLite2-City.mmdb'),
+
   // ── Buying pass ──
   /** Paise. ₹500 = 50000. */
   BUYING_PASS_AMOUNT: z.coerce.number().int().positive().default(50_000),
   BUYING_PASS_VALIDITY_DAYS: z.coerce.number().int().positive().max(60).default(60),
+  /**
+   * The first N people ever to become members of a collective (creator included)
+   * join free with a ₹0 pass that still lasts BUYING_PASS_VALIDITY_DAYS. Places never refill.
+   */
+  FREE_MEMBERS_PER_COLLECTIVE: z.coerce.number().int().min(0).default(5),
   /** What happens to the pass/payment when a member leaves a collective. */
   REFUND_ON_LEAVE: z.enum(['NONE', 'FULL']).default('NONE'),
 

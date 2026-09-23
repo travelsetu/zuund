@@ -2,7 +2,8 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { PrismaClient } from '../src/generated/prisma/client';
-import { CARS, CITIES, slugify } from './seed-data';
+import { readCities, readCountries } from './geo-data';
+import { CARS, SOLAR, slugify } from './seed-data';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -47,23 +48,76 @@ async function main() {
     }
 
     // ── Catalog (upsert by slug; safe to re-run) ──
-    for (const city of CITIES) {
-      await prisma.city.upsert({
-        where: { slug: city.slug },
-        update: { name: city.name, state: city.state },
-        create: city,
+    // Countries and cities (GeoNames). Bulk insert; existing rows keep their ids and slugs.
+    const countries = readCountries();
+    for (const c of countries) {
+      await prisma.country.upsert({
+        where: { code: c.code },
+        update: { name: c.name, continent: c.continent },
+        create: c,
       });
     }
-    for (const car of CARS) {
-      const displayName = `${car.brand} ${car.model}`;
-      const slug = slugify(displayName);
+    const cities = readCities();
+    const knownCities = new Map(
+      (await prisma.city.findMany({ select: { slug: true, geonameId: true } })).map((c) => [
+        c.slug,
+        c.geonameId,
+      ]),
+    );
+    // Rows created before GeoNames (the original Indian cities) get their geo data filled in.
+    for (const c of cities.filter(
+      (c) => knownCities.has(c.slug) && knownCities.get(c.slug) === null,
+    )) {
+      await prisma.city.update({
+        where: { slug: c.slug },
+        data: {
+          geonameId: c.geonameId,
+          countryCode: c.countryCode,
+          population: c.population,
+          latitude: c.latitude,
+          longitude: c.longitude,
+        },
+      });
+    }
+    const fresh = cities.filter((c) => !knownCities.has(c.slug));
+    for (let i = 0; i < fresh.length; i += 2000) {
+      await prisma.city.createMany({ data: fresh.slice(i, i + 2000), skipDuplicates: true });
+    }
+    const catalog = [
+      ...CARS.map((c) => ({ ...c, category: 'CAR' as const })),
+      ...SOLAR.map((s) => ({ ...s, category: 'SOLAR' as const })),
+    ];
+    for (const item of catalog) {
+      const displayName = 'displayName' in item ? item.displayName : `${item.brand} ${item.model}`;
+      const slug = ('slug' in item && item.slug) || slugify(displayName);
+      const data = {
+        brand: item.brand,
+        model: item.model,
+        displayName,
+        category: item.category,
+        segment: item.segment,
+      };
       await prisma.car.upsert({
         where: { slug },
-        update: { brand: car.brand, model: car.model, displayName },
-        create: { brand: car.brand, model: car.model, displayName, slug },
+        update: { ...data, status: 'ACTIVE' },
+        create: { ...data, slug },
       });
     }
-    console.log(`Catalog: ${CITIES.length} cities, ${CARS.length} cars upserted.`);
+    // Anything no longer in the catalogue (discontinued cars, the old brand-by-brand solar
+    // list) is retired, never deleted: old Buying Posts still point at it.
+    const activeSlugs = catalog.map(
+      (item) =>
+        ('slug' in item && item.slug) ||
+        slugify('displayName' in item ? item.displayName : `${item.brand} ${item.model}`),
+    );
+    const retired = await prisma.car.updateMany({
+      where: { status: 'ACTIVE', slug: { notIn: activeSlugs } },
+      data: { status: 'INACTIVE' },
+    });
+    if (retired.count) console.log(`Retired ${retired.count} catalog rows no longer on sale.`);
+    console.log(
+      `Catalog: ${countries.length} countries, ${cities.length} cities, ${CARS.length} cars, ${SOLAR.length} solar systems upserted.`,
+    );
   } finally {
     await prisma.$disconnect();
   }

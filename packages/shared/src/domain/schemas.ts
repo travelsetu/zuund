@@ -1,15 +1,27 @@
+import { isValidPhoneNumber, parsePhoneNumberWithError } from 'libphonenumber-js';
 import { z } from 'zod';
 import {
   ACTIVITY_TYPES,
   BUYER_FILTERS,
   INTENT_LEVELS,
   PARTICIPANT_STATUSES,
+  PRODUCT_CATEGORIES,
   PURCHASE_TIMELINES,
   REPORT_TARGET_TYPES,
   SHARED_FILE_TYPES,
 } from './enums.js';
 
 const uuid = z.uuid();
+
+/**
+ * Mobile number in international (E.164) form, e.g. +919876543210. Clients build it from
+ * a country + national number; the server re-validates it with the same rules.
+ */
+export const phoneSchema = z
+  .string()
+  .trim()
+  .refine((v) => isValidPhoneNumber(v), 'Enter a valid mobile number')
+  .transform((v) => parsePhoneNumberWithError(v).number as string);
 const trimmed = (max: number) => z.string().trim().min(1).max(max);
 
 // ── Auth / users ──
@@ -17,6 +29,7 @@ export const registerRequestSchema = z.object({
   name: trimmed(80),
   email: z.email('Enter a valid email address').trim().toLowerCase(),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+  phone: phoneSchema,
   cityId: uuid.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
@@ -26,6 +39,7 @@ export const updateProfileRequestSchema = z.object({
   cityId: uuid.nullable().optional(),
   about: z.string().trim().max(500).nullable().optional(),
   photoFileId: uuid.nullable().optional(),
+  phone: phoneSchema.optional(),
 });
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 
@@ -45,9 +59,29 @@ export type PageQuery = z.infer<typeof pageQuerySchema>;
 // ── Catalog ──
 export const carSearchQuerySchema = z.object({
   q: z.string().trim().max(60).optional(),
+  category: z.enum(PRODUCT_CATEGORIES).optional(),
+  /** Exact brand, e.g. "Hyundai" (case-insensitive). */
+  brand: z.string().trim().min(1).max(60).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 export type CarSearchQuery = z.infer<typeof carSearchQuerySchema>;
+
+export const brandsQuerySchema = z.object({
+  category: z.enum(PRODUCT_CATEGORIES).default('CAR'),
+});
+export type BrandsQuery = z.infer<typeof brandsQuerySchema>;
+
+export const citiesQuerySchema = z.object({
+  country: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{2}$/, 'Use a 2-letter country code')
+    .transform((v) => v.toUpperCase())
+    .default('IN'),
+  q: z.string().trim().max(60).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type CitiesQuery = z.infer<typeof citiesQuerySchema>;
 
 // ── Buying intents ──
 export const createBuyingIntentRequestSchema = z.object({
@@ -121,7 +155,8 @@ export type JoinCollectiveRequest = z.infer<typeof joinCollectiveRequestSchema>;
 export const collectivesQuerySchema = pageQuerySchema.extend({
   carId: uuid.optional(),
   cityId: uuid.optional(),
-  mine: z.coerce.boolean().default(false),
+  // z.coerce.boolean() would read "false" as true.
+  mine: z.stringbool().default(false),
 });
 export type CollectivesQuery = z.infer<typeof collectivesQuerySchema>;
 
