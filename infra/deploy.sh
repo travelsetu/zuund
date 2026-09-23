@@ -13,7 +13,8 @@ set -euo pipefail
 
 ROOT=/srv/zuund
 ADMIN_ROOT=/srv/zuund-admin
-HOSTS=(zuund.com www.zuund.com admin.zuund.com api.zuund.com)
+APP_ROOT=/srv/zuund-app
+HOSTS=(zuund.com www.zuund.com admin.zuund.com app.zuund.com api.zuund.com)
 
 cd "$ROOT"
 sha=$(git rev-parse --short HEAD)
@@ -35,6 +36,11 @@ pnpm --filter @zuund/backend prisma:deploy
 # Idempotent: creates the admin from ADMIN_* only if that email does not exist.
 pnpm --filter @zuund/backend prisma:seed
 
+echo "==> geoip"
+# IP → city database for GET /api/geo; skipped until MAXMIND_* keys are in .env.
+# Lives outside the checkout (set GEOIP_DB_PATH=/srv/zuund-geoip/GeoLite2-City.mmdb).
+node scripts/geoip-update.mjs || echo "    geoip update failed; keeping the previous database"
+
 echo "==> build"
 pnpm build
 
@@ -48,6 +54,17 @@ ln -sfnT "$release" "$ADMIN_ROOT/current"
 ls -1dt "$ADMIN_ROOT"/releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
 echo "    admin -> $release"
 
+echo "==> publish web app (app.zuund.com)"
+# The Expo app exported for browsers; same release/symlink scheme as the admin.
+app_release="$APP_ROOT/releases/$sha"
+pnpm --filter @zuund/mobile build:web
+mkdir -p "$app_release"
+rsync -a --delete apps/mobile/dist-web/ "$app_release/"
+chmod -R a+rX "$APP_ROOT"
+ln -sfnT "$app_release" "$APP_ROOT/current"
+ls -1dt "$APP_ROOT"/releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+echo "    app -> $app_release"
+
 echo "==> nginx + tls"
 # Each site has two files in infra/nginx: <site>.conf (TLS, the real one) and
 # <site>.http.conf (plain HTTP bootstrap). A site gets the TLS file as soon as
@@ -57,7 +74,7 @@ echo "==> nginx + tls"
 # means copying a plain-HTTP file over the live one and reloading, and for the
 # second or two until certbot puts the TLS lines back every HTTPS handshake
 # for that host fails. That is downtime, and it happened on every deploy.
-SITES=("zuund:zuund.com www.zuund.com" "admin.zuund:admin.zuund.com" "api.zuund:api.zuund.com")
+SITES=("zuund:zuund.com www.zuund.com" "admin.zuund:admin.zuund.com" "app.zuund:app.zuund.com" "api.zuund:api.zuund.com")
 
 has_cert() { [ -f "/etc/letsencrypt/live/$1/fullchain.pem" ]; }
 
@@ -139,4 +156,5 @@ check() {
 check api.zuund.com /api/health
 check zuund.com /
 check admin.zuund.com /
+check app.zuund.com /
 [ $ok -eq 0 ] && echo "==> DONE: $sha is live" || { echo "!! a check failed"; exit 1; }

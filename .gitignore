@@ -23,3 +23,6 @@ coverage/
 
 # local uploads
 apps/backend/uploads/
+
+# MaxMind GeoLite2 database (downloaded by scripts/geoip-update.mjs; licence forbids committing it)
+apps/backend/data/*.mmdb

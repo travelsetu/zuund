@@ -1,7 +1,7 @@
 /**
  * The processes behind zuund.com and api.zuund.com, run by pm2 on the VPS.
- * admin.zuund.com is static files served by nginx (see infra/deploy.sh); it
- * has no process here.
+ * admin.zuund.com and app.zuund.com (the Expo app exported for browsers) are
+ * static files served by nginx (see infra/deploy.sh); they have no process here.
  *
  * Ports sit clear of what the other projects on this box already hold
  * (3000/3101/3102/3110/3111/3200/4000/4100). Pinned here rather than read from
