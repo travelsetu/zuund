@@ -3,7 +3,7 @@ import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from '@zuund/shared';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo } from '@/components/Logo';
-import { VehicleArt } from '@/components/VehicleArt';
+import { HeroSlider } from '@/components/HeroSlider';
 import { PostCard } from '@/components/PostCard';
 import {
   Card,
@@ -12,7 +12,6 @@ import {
   Loading,
   ProductArt,
   Screen,
-  SearchBox,
   Section,
 } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -71,24 +70,13 @@ export default function Home() {
             />
           </View>
         )}
-        <View style={desktop ? s.heroRow : undefined}>
-          <View style={{ gap: space.sm, marginTop: space.sm, flex: desktop ? 1 : undefined }}>
-            <Text style={[type.display, { color: colors.white }]}>
-              What are you{'\n'}looking to buy?
-            </Text>
-            <Text style={[type.body, { color: colors.onNavyMuted }]}>
-              Same car. More buyers. Decide together.
-            </Text>
-          </View>
-          <View
-            style={s.carStage}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            <VehicleArt segment="SUV" hero width={250} />
-          </View>
-        </View>
-        <SearchBox placeholder="Search e.g. Hyundai Creta" onPress={() => router.push('/search')} />
+        <Text style={[type.display, { color: colors.white, marginTop: space.sm }]}>
+          What are you{'\n'}looking to buy?
+        </Text>
+        <HeroSlider
+          desktop={desktop}
+          onSearch={(category) => router.push({ pathname: '/search', params: { category } })}
+        />
       </Hero>
 
       <View style={s.grid}>
@@ -166,8 +154,6 @@ function Stat({
 }
 
 const s = StyleSheet.create({
-  heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: space.lg },
-  carStage: { alignItems: 'flex-end', marginTop: -space.md, marginBottom: -space.sm },
   top: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   city: {
     flexDirection: 'row',
