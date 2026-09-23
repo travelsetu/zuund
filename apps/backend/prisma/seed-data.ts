@@ -68,12 +68,15 @@ export const SOLAR: Array<{
 ];
 
 /**
- * Holiday packages from India: popular destinations by trip type (the item's brand)
+ * Holiday packages from India: popular destinations by trip type — whole-state tours
+ * ("Kerala", "Rajasthan") first in each region, then places (the item's brand)
  * and region (its segment, used for the filter chips). Named the way Indian travel
  * agents sell them ("Shimla & Manali", "Europe Multi-country").
  */
 const DOMESTIC: Record<string, string[]> = {
   'North India': [
+    'Himachal',
+    'Uttarakhand',
     'Kashmir',
     'Ladakh',
     'Shimla & Manali',
@@ -89,6 +92,8 @@ const DOMESTIC: Record<string, string[]> = {
     'Varanasi',
   ],
   'West India': [
+    'Rajasthan',
+    'Gujarat',
     'Goa',
     'Jaipur',
     'Udaipur',
@@ -99,6 +104,8 @@ const DOMESTIC: Record<string, string[]> = {
     'Mahabaleshwar',
   ],
   'South India': [
+    'South India',
+    'Kerala',
     'Kerala Backwaters',
     'Munnar',
     'Wayanad',

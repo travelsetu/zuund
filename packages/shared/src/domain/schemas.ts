@@ -86,7 +86,8 @@ export const carSearchQuerySchema = z.object({
   category: z.enum(PRODUCT_CATEGORIES).optional(),
   /** Exact brand, e.g. "Hyundai" (case-insensitive). */
   brand: z.string().trim().min(1).max(60).optional(),
-  limit: z.coerce.number().int().min(1).max(50).default(20),
+  // A whole brand or trip type fits in one page (Domestic holidays are over 50).
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type CarSearchQuery = z.infer<typeof carSearchQuerySchema>;
 

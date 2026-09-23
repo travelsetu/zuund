@@ -230,7 +230,7 @@ export const api = {
   },
   catalog: {
     search: (q: string, category?: ProductCategory, brand?: string) =>
-      request<CarDto[]>(`/cars${qs({ q, category, brand, limit: 50 })}`, { auth: false }),
+      request<CarDto[]>(`/cars${qs({ q, category, brand, limit: 100 })}`, { auth: false }),
     brands: (category: ProductCategory) =>
       request<BrandDto[]>(`/cars/brands${qs({ category })}`, { auth: false }),
     countries: () => request<CountryDto[]>('/countries', { auth: false }),

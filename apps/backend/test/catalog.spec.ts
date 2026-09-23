@@ -114,10 +114,25 @@ describe('catalog categories', () => {
     const types = await request(ctx.server).get('/api/cars/brands?category=HOLIDAY');
     expect(types.body.map((b: { name: string }) => b.name)).toEqual(['Domestic', 'International']);
     const domestic = await request(ctx.server).get(
-      '/api/cars?category=HOLIDAY&brand=Domestic&limit=50',
+      '/api/cars?category=HOLIDAY&brand=Domestic&limit=100',
     );
     const names = domestic.body.map((c: { model: string }) => c.model);
-    expect(names).toEqual(expect.arrayContaining(['Goa', 'Kashmir', 'Kerala Backwaters']));
+    // Over 50 of them, so the whole list must fit one request.
+    expect(names.length).toBeGreaterThan(50);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Goa',
+        'Kashmir',
+        'Kerala Backwaters',
+        // Whole-state tours
+        'Himachal',
+        'Uttarakhand',
+        'Kerala',
+        'Rajasthan',
+        'South India',
+        'Gujarat',
+      ]),
+    );
     expect(names).not.toContain('Dubai');
     expect(domestic.body[0]).toMatchObject({ category: 'HOLIDAY', brand: 'Domestic' });
     // A search stays inside the chosen trip type.
