@@ -25,6 +25,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { initials } from '@/lib/format';
+import { markPress, useMinimumLoading } from '@/lib/minDuration';
 import { Preloader } from './Preloader';
 import { VehicleArt } from './VehicleArt';
 import { CONTENT_MAX_WIDTH, useIsDesktop } from '@/lib/layout';
@@ -241,10 +242,15 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const v = buttonVariants[variant];
-  const off = disabled || loading;
+  // A quick request still shows the spinner for a moment instead of a flash.
+  const busy = useMinimumLoading(!!loading);
+  const off = disabled || busy;
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        markPress();
+        onPress();
+      }}
       disabled={off}
       accessibilityRole="button"
       style={({ pressed }) => [
@@ -256,7 +262,7 @@ export function Button({
         style,
       ]}
     >
-      {loading ? (
+      {busy ? (
         <ActivityIndicator color={v.fg} />
       ) : (
         <>

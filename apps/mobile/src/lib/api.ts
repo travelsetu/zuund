@@ -45,6 +45,7 @@ import type {
 } from '@zuund/shared';
 import { Platform } from 'react-native';
 import { API_URL } from './config';
+import { holdForPress } from './minDuration';
 import { tokens } from './tokens';
 
 const BASE = `${API_URL}/api`;
@@ -130,7 +131,12 @@ interface Options {
   retry?: boolean;
 }
 
-async function request<T>(path: string, opts: Options = {}): Promise<T> {
+/** Every API call; one started by a button tap is held with the button's spinner. */
+function request<T>(path: string, opts: Options = {}): Promise<T> {
+  return holdForPress(send<T>(path, opts));
+}
+
+async function send<T>(path: string, opts: Options = {}): Promise<T> {
   const { method = 'GET', body, formData, auth = true, retry = true } = opts;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -142,7 +148,7 @@ async function request<T>(path: string, opts: Options = {}): Promise<T> {
     body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
   });
   if (res.status === 401 && auth && retry) {
-    if (await refresh()) return request<T>(path, { ...opts, retry: false });
+    if (await refresh()) return send<T>(path, { ...opts, retry: false });
     await tokens.clear();
     onSignedOut();
   }
