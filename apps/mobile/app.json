@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "ZUUND",
+    "slug": "zuund",
+    "scheme": "zuund",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.zuund.app"
+    },
+    "android": {
+      "package": "com.zuund.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "name": "ZUUND",
+      "shortName": "ZUUND",
+      "themeColor": "#0A1E4F",
+      "backgroundColor": "#F4F6FA",
+      "description": "Meet other people buying the same car or solar system in your city."
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image-picker",
+      "expo-document-picker",
+      "expo-font",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {}
+    }
+  }
+}
