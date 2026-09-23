@@ -46,12 +46,14 @@ export default function NewPost() {
   const [timeline, setTimeline] = useState<PurchaseTimeline | null>(null);
   const holiday = p.category === 'HOLIDAY';
   const [trip, setTrip] = useState<HolidayTripDraft>(EMPTY_TRIP);
-  const [level, setLevel] = useState<IntentLevel>('INTERESTED');
+  // Nothing pre-selected: the buyer chooses both the timeline and how sure they are.
+  const [level, setLevel] = useState<IntentLevel | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function create() {
     if (!city || !timeline) return setErr('Choose a city and a buying timeline');
+    if (!level) return setErr('Choose how sure you are');
     const problem = holiday ? tripProblem(trip) : null;
     if (problem) return setErr(problem);
     setBusy(true);
@@ -108,7 +110,7 @@ export default function NewPost() {
           title="Create Buying Post"
           onPress={create}
           loading={busy}
-          disabled={!city || !timeline}
+          disabled={!city || !timeline || !level}
         />
       }
     >
