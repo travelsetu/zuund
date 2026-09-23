@@ -93,7 +93,7 @@ export default function HomePage() {
               <div>
                 <h3>Cars</h3>
                 <p className="muted small">
-                  52 popular models, from hatchbacks to SUVs. Find people buying the same model in
+                  Over 240 models, from hatchbacks to SUVs. Find people buying the same model in
                   your city.
                 </p>
               </div>
@@ -105,6 +105,16 @@ export default function HomePage() {
                 <p className="muted small">
                   1 kW to 10 kW and above. Meet neighbours installing the same size and compare
                   notes.
+                </p>
+              </div>
+            </a>
+            <a href={appLink('/search?category=HOLIDAY')} className="cat">
+              <ProductArt car={{ category: 'HOLIDAY', imageUrl: null }} size="md" />
+              <div>
+                <h3>Holiday packages</h3>
+                <p className="muted small">
+                  Domestic or international, from India. Plan the same trip with people from your
+                  city.
                 </p>
               </div>
             </a>

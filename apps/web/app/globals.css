@@ -15,6 +15,8 @@
   --green-soft: #e4f5ec;
   --orange: #d9720a;
   --orange-soft: #fdf1e4;
+  --purple: #6d4aff;
+  --purple-soft: #f0ecff;
   --radius: 20px;
   color-scheme: light;
 }
@@ -228,7 +230,7 @@ img {
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 32px;
 }
 .step-n {
@@ -253,7 +255,7 @@ img {
 /* Categories */
 .cats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 .cat {
@@ -265,6 +267,10 @@ img {
   border-radius: var(--radius);
   background: var(--bg);
   color: inherit;
+}
+/* Two a row; an odd one out takes the full last row. */
+.cat:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 .cat:hover {
   text-decoration: none;
@@ -281,6 +287,10 @@ img {
 .product-art.solar {
   background: var(--orange-soft);
   color: var(--orange);
+}
+.product-art.holiday {
+  background: var(--purple-soft);
+  color: var(--purple);
 }
 .product-art.sm {
   width: 64px;

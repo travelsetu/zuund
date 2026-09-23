@@ -91,7 +91,10 @@ export default function NewPost() {
     >
       <Header title="Create Buying Post" />
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-        <ProductArt car={{ category: p.category, imageUrl: null }} size="sm" />
+        <ProductArt
+          car={{ category: p.category, imageUrl: null, segment: p.segment || null }}
+          size="sm"
+        />
         <View style={{ flex: 1 }}>
           <Text style={type.small}>Looking to buy</Text>
           <Text style={type.h2}>{p.name}</Text>
@@ -99,7 +102,11 @@ export default function NewPost() {
         </View>
       </Card>
 
-      <CityPicker label="City" value={city} onChange={setCity} />
+      <CityPicker
+        label={p.category === 'HOLIDAY' ? 'Travelling from' : 'City'}
+        value={city}
+        onChange={setCity}
+      />
 
       <View style={{ gap: space.sm }}>
         <Text style={type.h3}>When do you expect to buy?</Text>

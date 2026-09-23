@@ -3,7 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { readCities, readCountries } from './geo-data';
-import { CARS, SOLAR, slugify } from './seed-data';
+import { CARS, HOLIDAYS, SOLAR, slugify } from './seed-data';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -86,6 +86,7 @@ async function main() {
     const catalog = [
       ...CARS.map((c) => ({ ...c, category: 'CAR' as const })),
       ...SOLAR.map((s) => ({ ...s, category: 'SOLAR' as const })),
+      ...HOLIDAYS.map((h) => ({ ...h, category: 'HOLIDAY' as const })),
     ];
     for (const item of catalog) {
       const displayName = 'displayName' in item ? item.displayName : `${item.brand} ${item.model}`;
@@ -116,7 +117,7 @@ async function main() {
     });
     if (retired.count) console.log(`Retired ${retired.count} catalog rows no longer on sale.`);
     console.log(
-      `Catalog: ${countries.length} countries, ${cities.length} cities, ${CARS.length} cars, ${SOLAR.length} solar systems upserted.`,
+      `Catalog: ${countries.length} countries, ${cities.length} cities, ${CARS.length} cars, ${SOLAR.length} solar systems, ${HOLIDAYS.length} holiday destinations upserted.`,
     );
   } finally {
     await prisma.$disconnect();

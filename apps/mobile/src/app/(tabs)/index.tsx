@@ -25,9 +25,10 @@ import { colors, radius, space, type, fonts } from '@/theme';
 const CATEGORIES: Array<{ key: ProductCategory; hint: string }> = [
   { key: 'CAR', hint: 'New cars' },
   { key: 'SOLAR', hint: 'Rooftop systems' },
+  { key: 'HOLIDAY', hint: 'Domestic & international' },
 ];
 
-/** Mockup 2 — Home: search, the two live categories, and the user's own activity. */
+/** Mockup 2 — Home: search, the live categories, and the user's own activity. */
 export default function Home() {
   const me = useMe();
   const desktop = useIsDesktop();
@@ -177,9 +178,11 @@ const s = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  grid: { flexDirection: 'row', gap: space.md },
+  // Two tiles a row on phones; the third takes a row of its own.
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   tile: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '40%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,

@@ -11,7 +11,7 @@ import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
-import { CARS, CITIES, SOLAR, slugify } from '../prisma/seed-data';
+import { CARS, CITIES, HOLIDAYS, SOLAR, slugify } from '../prisma/seed-data';
 import { AppModule } from '../src/app.module';
 import { PrismaClient } from '../src/generated/prisma/client';
 import type { Car, City } from '../src/generated/prisma/client';
@@ -77,6 +77,7 @@ export async function resetDatabase(): Promise<{ cars: Car[]; cities: City[] }> 
   const catalog = [
     ...CARS.map((c) => ({ ...c, category: 'CAR' as const })),
     ...SOLAR.map((s) => ({ ...s, category: 'SOLAR' as const })),
+    ...HOLIDAYS.map((h) => ({ ...h, category: 'HOLIDAY' as const })),
   ];
   for (const item of catalog) {
     const displayName = 'displayName' in item ? item.displayName : `${item.brand} ${item.model}`;

@@ -510,6 +510,16 @@ export function StatusBadge({
   );
 }
 
+/** Regions of Domestic holiday destinations (catalog seed), to tell them from trips abroad. */
+const DOMESTIC_REGIONS = new Set([
+  'North India',
+  'South India',
+  'West India',
+  'East & North-East',
+  'Central India',
+  'Islands',
+]);
+
 /**
  * Catalog art. We don't hold licensed product photography, so unless the
  * catalog row has an image we draw a category illustration.
@@ -539,6 +549,29 @@ export function ProductArt({
     );
   }
   const solar = car.category === 'SOLAR';
+  if (car.category === 'HOLIDAY') {
+    // Destinations abroad get a plane; trips within India a map.
+    const abroad = car.segment ? !DOMESTIC_REGIONS.has(car.segment) : true;
+    return (
+      <View
+        style={[
+          styles.center,
+          {
+            width: dim.w,
+            height: dim.h,
+            borderRadius: size === 'sm' ? radius.md : radius.lg,
+            backgroundColor: onDark ? 'rgba(255,255,255,0.07)' : colors.purpleSoft,
+          },
+        ]}
+      >
+        <Ionicons
+          name={abroad ? 'airplane' : 'map'}
+          size={dim.i * 0.8}
+          color={onDark ? colors.white : colors.purple}
+        />
+      </View>
+    );
+  }
   return (
     <View
       style={[

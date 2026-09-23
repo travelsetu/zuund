@@ -109,4 +109,38 @@ describe('catalog categories', () => {
     expect(res.body.totalActiveBuyers).toBe(1);
     expect(res.body.car.category).toBe('SOLAR');
   });
+
+  it('splits holiday packages into Domestic and International', async () => {
+    const types = await request(ctx.server).get('/api/cars/brands?category=HOLIDAY');
+    expect(types.body.map((b: { name: string }) => b.name)).toEqual(['Domestic', 'International']);
+    const domestic = await request(ctx.server).get(
+      '/api/cars?category=HOLIDAY&brand=Domestic&limit=50',
+    );
+    const names = domestic.body.map((c: { model: string }) => c.model);
+    expect(names).toEqual(expect.arrayContaining(['Goa', 'Kashmir', 'Kerala Backwaters']));
+    expect(names).not.toContain('Dubai');
+    expect(domestic.body[0]).toMatchObject({ category: 'HOLIDAY', brand: 'Domestic' });
+    // A search stays inside the chosen trip type.
+    const abroad = await request(ctx.server).get(
+      '/api/cars?category=HOLIDAY&brand=International&q=bali',
+    );
+    expect(abroad.body).toEqual([
+      expect.objectContaining({ displayName: 'Bali Holiday Package', segment: 'Southeast Asia' }),
+    ]);
+    const wrongType = await request(ctx.server).get(
+      '/api/cars?category=HOLIDAY&brand=Domestic&q=bali',
+    );
+    expect(wrongType.body).toEqual([]);
+  });
+
+  it('a holiday destination works as a buying post', async () => {
+    const goa = await db.car.findUniqueOrThrow({ where: { slug: 'goa-holiday-package' } });
+    const a = await registerUser(ctx, 'TripA', ctx.surat.id);
+    const b = await registerUser(ctx, 'TripB', ctx.surat.id);
+    await createPost(a.agent, goa, ctx.surat);
+    await createPost(b.agent, goa, ctx.surat);
+    const res = await a.agent.get(`/api/buyers?carId=${goa.id}&cityId=${ctx.surat.id}`);
+    expect(res.body.totalActiveBuyers).toBe(1);
+    expect(res.body.car.category).toBe('HOLIDAY');
+  });
 });

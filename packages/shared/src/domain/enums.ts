@@ -1,12 +1,20 @@
 /** Mirrors the Prisma enums. Kept as string unions so the frontends never import Prisma. */
 
 /** Catalog categories live in Phase 1. The catalog item type is still named Car/CarDto. */
-export const PRODUCT_CATEGORIES = ['CAR', 'SOLAR'] as const;
+export const PRODUCT_CATEGORIES = ['CAR', 'SOLAR', 'HOLIDAY'] as const;
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 export const PRODUCT_CATEGORY_LABELS: Record<ProductCategory, string> = {
   CAR: 'Cars',
   SOLAR: 'Solar Panels',
+  HOLIDAY: 'Holiday Packages',
 };
+
+/**
+ * Holiday packages (trips from India) are split by trip type, stored as the catalog
+ * item's `brand`; the destination is its `model` and the region its `segment`.
+ */
+export const HOLIDAY_TRIP_TYPES = ['Domestic', 'International'] as const;
+export type HolidayTripType = (typeof HOLIDAY_TRIP_TYPES)[number];
 
 export const USER_ROLES = ['USER', 'ADMIN'] as const;
 export type UserRole = (typeof USER_ROLES)[number];

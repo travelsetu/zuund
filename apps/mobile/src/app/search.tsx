@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
+  HOLIDAY_TRIP_TYPES,
+  PRODUCT_CATEGORIES,
   PRODUCT_CATEGORY_LABELS,
   type BrandDto,
+  type HolidayTripType,
   type CarDto,
   type ProductCategory,
 } from '@zuund/shared';
@@ -27,14 +30,50 @@ import { colors, fonts, radius, space, type } from '@/theme';
 /** The brands most Indian buyers start from, shown first. */
 const POPULAR_BRANDS = ['Maruti Suzuki', 'Hyundai', 'Tata', 'Mahindra', 'Kia', 'Toyota'];
 
-/** Body types in the order people usually think of them; anything else follows alphabetically. */
-const SEGMENT_ORDER = ['SUV', 'Hatchback', 'Sedan', 'MUV', 'EV'];
+/**
+ * Filter chips in the order people usually think of them (car body types, holiday
+ * regions nearest first); anything else follows alphabetically.
+ */
+const SEGMENT_ORDER = [
+  'SUV',
+  'Hatchback',
+  'Sedan',
+  'MUV',
+  'EV',
+  'North India',
+  'South India',
+  'West India',
+  'East & North-East',
+  'Central India',
+  'Islands',
+  'Southeast Asia',
+  'Middle East',
+  'Indian Ocean',
+  'South Asia',
+  'East Asia',
+  'Europe',
+];
+
+/** Holidays start from India: the trip type must be chosen before any destination. */
+const TRIP_TYPES: Record<
+  HolidayTripType,
+  { title: string; body: string; icon: 'map' | 'airplane' }
+> = {
+  Domestic: { title: 'Domestic', body: 'Popular destinations across India', icon: 'map' },
+  International: {
+    title: 'International',
+    body: 'Popular destinations abroad, from India',
+    icon: 'airplane',
+  },
+};
 
 /**
  * Mockup 3 — choose what you are buying.
  * Cars: pick a brand, then a model (filterable by body type). Typing searches
  * all models directly, so "Creta" still jumps straight to Hyundai Creta.
  * Solar: a short list of systems.
+ * Holidays: pick Domestic or International first (required), then a destination,
+ * filterable by region.
  */
 export default function Search() {
   const params = useLocalSearchParams<{ category?: ProductCategory }>();
@@ -51,6 +90,8 @@ export default function Search() {
   const brandColumns = desktop ? 3 : 1;
   const typing = q.trim().length > 0;
   const showBrands = category === 'CAR' && !brand && !typing;
+  const holiday = category === 'HOLIDAY';
+  const chooseTripType = holiday && !brand;
 
   useEffect(() => {
     if (category !== 'CAR') return;
@@ -61,9 +102,11 @@ export default function Search() {
   }, [category]);
 
   useEffect(() => {
-    if (showBrands) return;
+    if (showBrands || chooseTripType) return;
     const t = setTimeout(() => {
-      const request = api.catalog.search(q, category, typing ? undefined : (brand ?? undefined));
+      // Typing searches every car brand, but a holiday search stays within its trip type.
+      const scope = typing && !holiday ? undefined : (brand ?? undefined);
+      const request = api.catalog.search(q, category, scope);
       // Only an empty list (first load, new brand or category) shows the preloader, so only it waits.
       (resultsEmpty.current ? atLeast(request) : request)
         .then((r) => {
@@ -73,7 +116,7 @@ export default function Search() {
         .catch(() => setResults([]));
     }, 150);
     return () => clearTimeout(t);
-  }, [q, category, brand, typing, showBrands]);
+  }, [q, category, brand, typing, showBrands, chooseTripType, holiday]);
 
   // Body-type chips come from the models on screen, so only real options appear.
   const segments = useMemo(() => {
@@ -101,17 +144,27 @@ export default function Search() {
   function openBrand(name: string) {
     Keyboard.dismiss();
     setBrand(name);
+    setPicked(null);
     setSegment(null);
     setResults(null);
     resultsEmpty.current = true;
   }
 
-  const title = category === 'SOLAR' ? 'Choose a solar system' : 'Choose a car';
-  const placeholder = brand
-    ? `Search ${brand} models`
-    : category === 'SOLAR'
-      ? 'e.g. 3 kW'
-      : 'Search a model, e.g. Creta';
+  const title =
+    category === 'SOLAR'
+      ? 'Choose a solar system'
+      : holiday
+        ? 'Choose a holiday'
+        : 'Choose a car';
+  const placeholder = holiday
+    ? brand === 'International'
+      ? 'Search a destination, e.g. Bali'
+      : 'Search a destination, e.g. Goa'
+    : brand
+      ? `Search ${brand} models`
+      : category === 'SOLAR'
+        ? 'e.g. 3 kW'
+        : 'Search a model, e.g. Creta';
 
   return (
     <Screen
@@ -139,7 +192,7 @@ export default function Search() {
       <Header title={title} />
       <View style={{ gap: space.md, paddingBottom: space.md }}>
         <ChipRow>
-          {(['CAR', 'SOLAR'] as const).map((c) => (
+          {PRODUCT_CATEGORIES.map((c) => (
             <Chip
               key={c}
               label={PRODUCT_CATEGORY_LABELS[c]}
@@ -148,25 +201,33 @@ export default function Search() {
             />
           ))}
         </ChipRow>
-        <SearchBox value={q} onChangeText={setQ} placeholder={placeholder} />
-        {brand && !typing ? (
+        {chooseTripType ? null : (
+          <SearchBox value={q} onChangeText={setQ} placeholder={placeholder} />
+        )}
+        {brand && (!typing || holiday) ? (
           <Pressable
             onPress={() => {
               setBrand(null);
               setSegment(null);
+              setPicked(null);
+              setQ('');
             }}
             style={s.crumb}
             accessibilityRole="button"
-            accessibilityLabel="Back to all brands"
+            accessibilityLabel={holiday ? 'Change trip type' : 'Back to all brands'}
           >
             <Ionicons name="chevron-back" size={16} color={colors.brand} />
-            <Text style={s.crumbText}>All brands</Text>
+            <Text style={s.crumbText}>{holiday ? 'Trip type' : 'All brands'}</Text>
             <Text style={[type.h3, { marginLeft: space.sm }]}>{brand}</Text>
           </Pressable>
         ) : null}
-        {!showBrands && segments.length > 1 ? (
+        {!showBrands && !chooseTripType && segments.length > 1 ? (
           <ChipRow>
-            <Chip label="All types" active={!segment} onPress={() => setSegment(null)} />
+            <Chip
+              label={holiday ? 'All regions' : 'All types'}
+              active={!segment}
+              onPress={() => setSegment(null)}
+            />
             {segments.map((seg) => (
               <Chip
                 key={seg}
@@ -179,7 +240,32 @@ export default function Search() {
         ) : null}
       </View>
 
-      {showBrands ? (
+      {chooseTripType ? (
+        <View style={{ gap: space.md, paddingBottom: space.lg }}>
+          <View>
+            <Text style={type.h3}>Domestic or international?</Text>
+            <Text style={type.small}>Holiday packages from India.</Text>
+          </View>
+          {HOLIDAY_TRIP_TYPES.map((t) => (
+            <Pressable
+              key={t}
+              style={({ pressed }) => [s.trip, pressed && { opacity: 0.85 }]}
+              onPress={() => openBrand(t)}
+              accessibilityRole="button"
+              accessibilityLabel={`${TRIP_TYPES[t].title}: ${TRIP_TYPES[t].body}`}
+            >
+              <View style={s.tripIcon}>
+                <Ionicons name={TRIP_TYPES[t].icon} size={26} color={colors.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={type.h2}>{TRIP_TYPES[t].title}</Text>
+                <Text style={type.small}>{TRIP_TYPES[t].body}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.faint} />
+            </Pressable>
+          ))}
+        </View>
+      ) : showBrands ? (
         <FlatList
           // One brand per row on phones; a grid when a desktop browser has the room.
           key={`brands-${brandColumns}`}
@@ -257,7 +343,9 @@ export default function Search() {
                 body={
                   category === 'SOLAR'
                     ? 'Try a size, like “3 kW”.'
-                    : 'Try the brand or model name, like “Creta”.'
+                    : holiday
+                      ? 'Try another destination, or switch between Domestic and International.'
+                      : 'Try the brand or model name, like “Creta”.'
                 }
               />
             )
@@ -280,7 +368,9 @@ export default function Search() {
               >
                 <ProductArt car={item} size="sm" />
                 <View style={{ flex: 1 }}>
-                  <Text style={type.h3}>{brand && !typing ? item.model : item.displayName}</Text>
+                  <Text style={type.h3}>
+                    {holiday || (brand && !typing) ? item.model : item.displayName}
+                  </Text>
                   <Text style={type.small}>
                     {item.segment ?? PRODUCT_CATEGORY_LABELS[item.category]}
                   </Text>
@@ -344,4 +434,22 @@ const s = StyleSheet.create({
     borderColor: colors.line,
   },
   crumbText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.brand },
+  trip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.lg,
+    padding: space.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.line,
+  },
+  tripIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.purpleSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

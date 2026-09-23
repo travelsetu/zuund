@@ -58,7 +58,7 @@ export interface GeoGuessDto {
   city: CityDto | null;
 }
 
-/** A catalog item: a car model or a rooftop solar system (see `category`). */
+/** A catalog item: a car model, a rooftop solar system or a holiday destination (see `category`). */
 export interface CarDto {
   id: string;
   category: ProductCategory;

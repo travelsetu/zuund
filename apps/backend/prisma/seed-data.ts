@@ -67,6 +67,101 @@ export const SOLAR: Array<{
   },
 ];
 
+/**
+ * Holiday packages from India: popular destinations by trip type (the item's brand)
+ * and region (its segment, used for the filter chips). Named the way Indian travel
+ * agents sell them ("Shimla & Manali", "Europe Multi-country").
+ */
+const DOMESTIC: Record<string, string[]> = {
+  'North India': [
+    'Kashmir',
+    'Ladakh',
+    'Shimla & Manali',
+    'Spiti Valley',
+    'Dharamshala & McLeod Ganj',
+    'Rishikesh & Haridwar',
+    'Char Dham',
+    'Nainital',
+    'Mussoorie',
+    'Jim Corbett',
+    'Amritsar',
+    'Agra',
+    'Varanasi',
+  ],
+  'West India': [
+    'Goa',
+    'Jaipur',
+    'Udaipur',
+    'Jodhpur',
+    'Jaisalmer',
+    'Mount Abu',
+    'Rann of Kutch',
+    'Mahabaleshwar',
+  ],
+  'South India': [
+    'Kerala Backwaters',
+    'Munnar',
+    'Wayanad',
+    'Kovalam',
+    'Ooty',
+    'Kodaikanal',
+    'Coorg',
+    'Mysuru',
+    'Hampi',
+    'Gokarna',
+    'Puducherry',
+    'Madurai & Rameswaram',
+    'Tirupati',
+  ],
+  'East & North-East': ['Darjeeling', 'Sikkim', 'Meghalaya', 'Kaziranga', 'Tawang', 'Puri'],
+  'Central India': ['Khajuraho', 'Kanha & Bandhavgarh', 'Pachmarhi'],
+  Islands: ['Andaman Islands', 'Lakshadweep'],
+};
+const INTERNATIONAL: Record<string, string[]> = {
+  'Southeast Asia': [
+    'Thailand',
+    'Bali',
+    'Singapore',
+    'Malaysia',
+    'Vietnam',
+    'Cambodia',
+    'Philippines',
+  ],
+  'Middle East': ['Dubai', 'Abu Dhabi', 'Oman', 'Qatar'],
+  'Indian Ocean': ['Maldives', 'Mauritius', 'Seychelles'],
+  'South Asia': ['Sri Lanka', 'Nepal', 'Bhutan'],
+  'East Asia': ['Japan', 'South Korea', 'Hong Kong'],
+  Europe: [
+    'Europe Multi-country',
+    'Switzerland',
+    'France',
+    'Italy',
+    'United Kingdom',
+    'Spain',
+    'Greece',
+    'Turkey',
+  ],
+  'Central Asia & Caucasus': ['Georgia', 'Azerbaijan', 'Kazakhstan', 'Uzbekistan'],
+  Africa: ['Kenya', 'South Africa', 'Egypt'],
+  Americas: ['USA', 'Canada'],
+  Oceania: ['Australia', 'New Zealand'],
+};
+export const HOLIDAYS: Array<{
+  brand: string;
+  model: string;
+  displayName: string;
+  segment: string;
+}> = (
+  [
+    ['Domestic', DOMESTIC],
+    ['International', INTERNATIONAL],
+  ] as const
+).flatMap(([brand, regions]) =>
+  Object.entries(regions).flatMap(([segment, places]) =>
+    places.map((model) => ({ brand, model, displayName: `${model} Holiday Package`, segment })),
+  ),
+);
+
 export function slugify(input: string): string {
   return input
     .toLowerCase()
