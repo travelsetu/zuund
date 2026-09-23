@@ -247,7 +247,7 @@ export interface CollectiveDto {
   creatorId: string;
   status: CollectiveStatus;
   activeMemberCount: number;
-  /** Free places still open (the first members join free; places never refill). 0 = ₹500 Buying Pass. */
+  /** Free places open now (a place frees up when a free member leaves). 0 = ₹500 Buying Pass. */
   freePlacesLeft: number;
   createdAt: string;
   closedAt: string | null;

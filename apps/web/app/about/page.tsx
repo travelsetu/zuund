@@ -27,9 +27,10 @@ export default function AboutPage() {
         </p>
         <h2>How it is paid for</h2>
         <p>
-          Creating a Buying Post, discovering buyers and connecting are free. The first 5 members of
-          each collective join free. After that, joining costs a one-time ₹500 Buying Pass for that
-          Buying Post, valid for up to 60 days. It never renews on its own.
+          Creating a Buying Post is free. Seeing and contacting the other buyers happens once you
+          join the collective. Each collective has 5 free places; when they are taken, joining costs
+          a one-time ₹500 Buying Pass for that Buying Post, valid for up to 60 days. It never renews
+          on its own.
         </p>
         <h2>Privacy</h2>
         <p>

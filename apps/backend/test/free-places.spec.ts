@@ -78,13 +78,21 @@ describe('first 5 members join free', () => {
     expect(pass.amount).toBe(50_000);
   });
 
-  it('places never refill when a free member leaves', async () => {
+  it('a free member leaving opens their place for the next person', async () => {
     await users[2]!.agent.post(`/api/collectives/${collectiveId}/leave`).expect(204);
+    const col = await users[0]!.agent.get(`/api/collectives/${collectiveId}`);
+    expect(col.body.freePlacesLeft).toBe(1);
     const res = await users[6]!.agent
       .post(`/api/collectives/${collectiveId}/join`)
       .send({ buyingIntentId: posts[6] });
-    expect(res.body.membership.status).toBe('PENDING_PAYMENT');
+    expect(res.body.membership.status).toBe('ACTIVE');
     expect(res.body.freePlacesLeft).toBe(0);
+    // A paid member leaving opens nothing: they never held a free place.
+    await users[5]!.agent.post(`/api/collectives/${collectiveId}/leave`).expect(204);
+    const after = await users[7]!.agent
+      .post(`/api/collectives/${collectiveId}/join`)
+      .send({ buyingIntentId: posts[7] });
+    expect(after.body.membership.status).toBe('PENDING_PAYMENT');
   });
 
   it('two people racing for the last free place: only one gets it', async () => {

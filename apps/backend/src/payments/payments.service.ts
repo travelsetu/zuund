@@ -24,6 +24,7 @@ import type { Env } from '../config/env';
 import type { CollectiveMembership, Payment, Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
+import { freePlaceHolders } from '../common/free-places';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PAYMENT_PROVIDER,
@@ -428,10 +429,10 @@ export class PaymentsService {
   // ── Free places ──
 
   /**
-   * The first FREE_MEMBERS_PER_COLLECTIVE people ever to become members of a
-   * collective (creator included, paid members included) join free. Places
-   * never refill: leaving or expiring keeps joinedAt, so it still counts.
-   * The member gets a ₹0 pass with the normal validity and no Payment row.
+   * Each collective has FREE_MEMBERS_PER_COLLECTIVE free places, held by current
+   * members who joined free. When one leaves (or their pass expires) the place opens
+   * again for the next person to join. The member gets a ₹0 pass with the normal
+   * validity and no Payment row.
    *
    * Returns false (and changes nothing) when no place is left, the membership
    * is not pending, or the post already has a payment in flight — someone
@@ -445,10 +446,10 @@ export class PaymentsService {
         return false;
       // Serialise claims per collective so two joins cannot both take the last place.
       await tx.$queryRaw`SELECT id FROM collectives WHERE id = ${membership.collectiveId} FOR UPDATE`;
-      const everJoined = await tx.collectiveMembership.count({
-        where: { collectiveId: membership.collectiveId, joinedAt: { not: null } },
+      const taken = await tx.collectiveMembership.count({
+        where: freePlaceHolders(membership.collectiveId),
       });
-      if (everJoined >= this.freeMembers) return false;
+      if (taken >= this.freeMembers) return false;
 
       const intent = await tx.buyingIntent.findUnique({ where: { id: membership.buyingIntentId } });
       if (!intent || intent.status !== 'ACTIVE') return false;
@@ -502,14 +503,14 @@ export class PaymentsService {
           userId,
           type: 'COLLECTIVE_MEMBERSHIP',
           title: 'You are in, free',
-          body: `You got one of the first ${this.freeMembers} free places. Your Buying Pass is active until ${expiresAt.toDateString()}.`,
+          body: `You got one of the collective's ${this.freeMembers} free places. Your Buying Pass is active until ${expiresAt.toDateString()}.`,
           data: { collectiveId: membership.collectiveId, buyingIntentId: intent.id },
           dedupeKey: `member:${membership.id}`,
         },
         tx,
       );
       this.logger.log(
-        `Free place ${everJoined + 1}/${this.freeMembers} in collective ${membership.collectiveId}: pass ${pass.id} ACTIVE until ${expiresAt.toISOString()}`,
+        `Free place ${taken + 1}/${this.freeMembers} in collective ${membership.collectiveId}: pass ${pass.id} ACTIVE until ${expiresAt.toISOString()}`,
       );
       await this.audit.log(
         {
@@ -521,7 +522,7 @@ export class PaymentsService {
           metadata: {
             buyingIntentId: intent.id,
             free: true,
-            place: everJoined + 1,
+            place: taken + 1,
             expiresAt: expiresAt.toISOString(),
           },
         },

@@ -21,6 +21,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
 import { connectionsWith } from '../common/connections';
+import { freePlaceHolders } from '../common/free-places';
 import { PrismaService } from '../prisma/prisma.service';
 
 const collectiveInclude = {
@@ -279,11 +280,9 @@ export class CollectivesService {
   }
 
   private async toDto(r: CollectiveRow, viewerId: string): Promise<CollectiveDto> {
-    const [activeMemberCount, everJoined, m] = await Promise.all([
+    const [activeMemberCount, freeTaken, m] = await Promise.all([
       this.prisma.collectiveMembership.count({ where: { collectiveId: r.id, status: 'ACTIVE' } }),
-      this.prisma.collectiveMembership.count({
-        where: { collectiveId: r.id, joinedAt: { not: null } },
-      }),
+      this.prisma.collectiveMembership.count({ where: freePlaceHolders(r.id) }),
       this.prisma.collectiveMembership.findFirst({
         where: {
           collectiveId: r.id,
@@ -302,7 +301,7 @@ export class CollectivesService {
       activeMemberCount,
       freePlacesLeft: Math.max(
         0,
-        this.config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true }) - everJoined,
+        this.config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true }) - freeTaken,
       ),
       createdAt: r.createdAt.toISOString(),
       closedAt: r.closedAt?.toISOString() ?? null,

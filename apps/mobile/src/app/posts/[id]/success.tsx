@@ -121,8 +121,8 @@ export default function PaymentSuccess() {
           </Text>
           {isFree ? (
             <Text style={[type.small, { textAlign: 'center' }]}>
-              You're one of the first {FREE_MEMBERS_PER_COLLECTIVE} members, so there's nothing to
-              pay.
+              You took one of the collective's {FREE_MEMBERS_PER_COLLECTIVE} free places, so there's
+              nothing to pay.
             </Text>
           ) : null}
           <Text style={[type.body, { textAlign: 'center' }]}>

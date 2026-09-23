@@ -86,8 +86,8 @@ export const envSchema = z.object({
   BUYING_PASS_AMOUNT: z.coerce.number().int().positive().default(50_000),
   BUYING_PASS_VALIDITY_DAYS: z.coerce.number().int().positive().max(60).default(60),
   /**
-   * The first N people ever to become members of a collective (creator included)
-   * join free with a ₹0 pass that still lasts BUYING_PASS_VALIDITY_DAYS. Places never refill.
+   * Free places per collective: up to N current members join free with a ₹0 pass that
+   * still lasts BUYING_PASS_VALIDITY_DAYS. A place opens again when its member leaves.
    */
   FREE_MEMBERS_PER_COLLECTIVE: z.coerce.number().int().min(0).default(5),
   /** What happens to the pass/payment when a member leaves a collective. */

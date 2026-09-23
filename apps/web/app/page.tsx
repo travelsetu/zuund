@@ -15,7 +15,7 @@ const STEPS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Decide together in a collective',
-    body: `Discuss, run polls and share what you find. The first ${FREE_MEMBERS_PER_COLLECTIVE} members of each collective join free; after that it is a ₹500 Buying Pass for that post, valid 60 days.`,
+    body: `Discuss, run polls and share what you find. Each collective has ${FREE_MEMBERS_PER_COLLECTIVE} free places; when they are taken, joining is a ₹500 Buying Pass for that post, valid 60 days.`,
   },
 ];
 

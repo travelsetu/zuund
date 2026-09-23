@@ -36,8 +36,8 @@ export function PassPanel({ intent }: { intent: BuyingIntentDto }) {
           ) : (
             <Text style={type.small}>
               Unlocks the collective's discussion, polls, shared information and activities for up
-              to 60 days. The first {FREE_MEMBERS_PER_COLLECTIVE} members of each collective join
-              free; after that it's ₹500 for this Buying Post only.
+              to 60 days. Each collective has {FREE_MEMBERS_PER_COLLECTIVE} free places; when
+              they're taken, it's ₹500 for this Buying Post only.
             </Text>
           )}
           {intent.status !== 'ACTIVE' ? null : intent.membership?.status === 'PENDING_PAYMENT' ? (
