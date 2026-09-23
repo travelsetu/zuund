@@ -67,16 +67,8 @@ export function HolidayTripForm({
               half
               on={value.travelMonth === m}
               title={formatTravelMonth(m)}
-              onPress={() =>
-                set({
-                  travelMonth: m,
-                  // Keep the week only if it is still open in the new month.
-                  travelWeek:
-                    value.travelWeek && isTravelWeekOpen(m, value.travelWeek)
-                      ? value.travelWeek
-                      : null,
-                })
-              }
+              // A new month means choosing the week again.
+              onPress={() => m !== value.travelMonth && set({ travelMonth: m, travelWeek: null })}
             />
           ))}
         </View>
