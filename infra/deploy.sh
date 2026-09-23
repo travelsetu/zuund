@@ -37,8 +37,8 @@ pnpm --filter @zuund/backend prisma:deploy
 pnpm --filter @zuund/backend prisma:seed
 
 echo "==> geoip"
-# IP → city database for GET /api/geo; skipped until MAXMIND_* keys are in .env.
-# Lives outside the checkout (set GEOIP_DB_PATH=/srv/zuund-geoip/GeoLite2-City.mmdb).
+# IP → city database for GET /api/geo (DB-IP City Lite, refreshed when older than a week).
+# Lives outside the checkout (GEOIP_DB_PATH=/srv/zuund-geoip/dbip-city-lite.mmdb).
 node scripts/geoip-update.mjs || echo "    geoip update failed; keeping the previous database"
 
 echo "==> build"

@@ -37,15 +37,15 @@ export function Preloader({
       accessibilityLabel={label ?? 'Loading'}
     >
       <View style={{ flexDirection: 'row', gap: size * 0.12, alignItems: 'flex-end' }}>
-        <Figure color="blue" size={size} delay={0} />
-        <Figure color="green" size={size} delay={220} />
+        <Figure color="dark" size={size} delay={0} />
+        <Figure color="light" size={size} delay={220} />
       </View>
       {label ? <Text style={[type.small, { marginTop: space.md }]}>{label}</Text> : null}
     </View>
   );
 }
 
-function Figure({ color, size, delay }: { color: 'blue' | 'green'; size: number; delay: number }) {
+function Figure({ color, size, delay }: { color: 'dark' | 'light'; size: number; delay: number }) {
   const reduce = useReducedMotion();
   const y = useSharedValue(0);
   useEffect(() => {
@@ -65,8 +65,9 @@ function Figure({ color, size, delay }: { color: 'blue' | 'green'; size: number;
   }, [reduce, size, delay, y]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
 
+  // Grayscale, so the loader stays quiet and doesn't compete with the page's brand colours.
   const [top, bottom, head] =
-    color === 'blue' ? ['#48A8F7', '#2D5EE6', '#3F8CF1'] : ['#6CCD60', '#3BA048', '#5DBE59'];
+    color === 'dark' ? ['#A9B0BE', '#7C8597', '#959DAD'] : ['#CDD2DB', '#A7AEBC', '#BEC4CF'];
   const id = `pre-${color}`;
   const w = size * 0.62;
   return (

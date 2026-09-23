@@ -63,10 +63,11 @@ export const envSchema = z.object({
 
   // ── Location ──
   /**
-   * MaxMind GeoLite2-City database (scripts/geoip-update.mjs downloads it). Missing file =
+   * IP → city database in MaxMind format: DB-IP "IP to City Lite", which
+   * scripts/geoip-update.mjs downloads monthly (a GeoLite2-City file works too). Missing file =
    * location guessing is off and GET /geo answers { country: null, city: null }.
    */
-  GEOIP_DB_PATH: z.string().default('./data/GeoLite2-City.mmdb'),
+  GEOIP_DB_PATH: z.string().default('./data/dbip-city-lite.mmdb'),
 
   // ── Buying pass ──
   /** Paise. ₹500 = 50000. */

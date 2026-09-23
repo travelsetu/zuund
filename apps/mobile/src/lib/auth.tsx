@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api, COOKIE_AUTH, setSignedOutHandler } from './api';
+import { atLeast } from './minDuration';
 import { tokens } from './tokens';
 
 interface AuthState {
@@ -33,13 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSignedOutHandler(() => setMe(null));
     (async () => {
       // Web: the session lives in httpOnly cookies we can't see, so just ask the API.
-      const { refresh } = await tokens.load();
-      if (!refresh && !COOKIE_AUTH) return setMe(null);
-      try {
-        setMe(await api.users.me());
-      } catch {
-        setMe(null);
-      }
+      // App start: the preloader shows for at least MIN_LOADER_MS either way.
+      const restored = await atLeast(
+        (async () => {
+          const { refresh } = await tokens.load();
+          if (!refresh && !COOKIE_AUTH) return null;
+          return api.users.me().catch(() => null);
+        })(),
+      );
+      setMe(restored);
     })();
   }, []);
 

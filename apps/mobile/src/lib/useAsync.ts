@@ -1,6 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { errorMessage } from './api';
+import { atLeast } from './minDuration';
 
 /**
  * Loads data when the screen gains focus (so going back shows fresh state) and
@@ -13,9 +14,15 @@ export function useFocusData<T>(load: () => Promise<T>, deps: unknown[] = []) {
   const loadRef = useRef(load);
   loadRef.current = load;
 
+  // Only the first load waits for the preloader's minimum time; later reloads
+  // (focus, pull to refresh) keep showing the current data, so they never wait.
+  const loaded = useRef(false);
+
   const reload = useCallback(async () => {
     try {
-      setData(await loadRef.current());
+      const next = loaded.current ? await loadRef.current() : await atLeast(loadRef.current());
+      loaded.current = true;
+      setData(next);
       setError(null);
     } catch (e) {
       setError(errorMessage(e));

@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Alert } from '@/lib/alert';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { atLeast } from '@/lib/minDuration';
 import { openFile, pickDocument, pickImage } from '@/lib/files';
 import { clockTime } from '@/lib/format';
 import { tokens } from '@/lib/tokens';
@@ -58,6 +59,7 @@ export function MessageThread({
   const [err, setErr] = useState<string | null>(null);
   const loadingOlder = useRef(false);
   const [loaded, setLoaded] = useState(false);
+  const firstPoll = useRef(true);
 
   const merge = useCallback((incoming: MessageDto[], older = false) => {
     setItems((prev) => {
@@ -70,7 +72,9 @@ export function MessageThread({
 
   const poll = useCallback(async () => {
     try {
-      const page = await api.conversations.messages(conversationId);
+      const request = api.conversations.messages(conversationId);
+      const page = firstPoll.current ? await atLeast(request) : await request;
+      firstPoll.current = false;
       merge(page.items);
       setLoaded(true);
       setCursor((c) => c ?? page.nextCursor);

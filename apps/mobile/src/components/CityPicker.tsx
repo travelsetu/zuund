@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { CityDto, CountryDto } from '@zuund/shared';
-import { useEffect, useMemo, useState } from 'react';
-import { Keyboard, FlatList, Modal, Pressable, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, FlatList, Linking, Modal, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/lib/api';
+import { atLeast } from '@/lib/minDuration';
 import { geoGuess } from '@/lib/geo';
 import { colors, fonts, space, type } from '@/theme';
 import { Preloader } from './Preloader';
@@ -34,6 +35,7 @@ export function CityPicker({
   const [choosingCountry, setChoosingCountry] = useState(false);
   const [q, setQ] = useState('');
   const [results, setResults] = useState<CityDto[] | null>(null);
+  const resultsEmpty = useRef(true);
 
   useEffect(() => {
     if (value) return;
@@ -43,14 +45,17 @@ export function CityPicker({
   useEffect(() => {
     if (!open) return;
     if (!countries.length)
-      api.catalog
-        .countries()
+      atLeast(api.catalog.countries())
         .then(setCountries)
         .catch(() => {});
     const t = setTimeout(() => {
-      api.catalog
-        .cities(country, q)
-        .then(setResults)
+      const request = api.catalog.cities(country, q);
+      // An empty list shows the preloader, so hold it for the minimum; refinements don't wait.
+      (resultsEmpty.current ? atLeast(request) : request)
+        .then((r) => {
+          resultsEmpty.current = false;
+          setResults(r);
+        })
         .catch(() => setResults([]));
     }, 150);
     return () => clearTimeout(t);
@@ -106,6 +111,7 @@ export function CityPicker({
                   setCountry(code);
                   setQ('');
                   setResults(null);
+                  resultsEmpty.current = true;
                   setChoosingCountry(false);
                 }}
               />
@@ -165,6 +171,22 @@ export function CityPicker({
                       ) : null}
                     </Pressable>
                   )}
+                  ListFooterComponent={
+                    results?.length ? (
+                      // Licence credits: GeoNames (city list) and DB-IP (location suggestion), both CC BY 4.0.
+                      <Text style={[type.tiny, { paddingVertical: space.lg, color: colors.faint }]}>
+                        City data from GeoNames.{' '}
+                        <Text
+                          style={{ textDecorationLine: 'underline' }}
+                          onPress={() => void Linking.openURL('https://db-ip.com')}
+                          accessibilityRole="link"
+                        >
+                          IP Geolocation by DB-IP
+                        </Text>
+                        .
+                      </Text>
+                    ) : null
+                  }
                 />
               </>
             )}

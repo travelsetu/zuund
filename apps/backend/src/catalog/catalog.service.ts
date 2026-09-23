@@ -109,6 +109,40 @@ export class CatalogService {
     return c ? toCity(c) : null;
   }
 
+  /**
+   * The city an IP database's coordinates point at, for databases without GeoNames ids
+   * (DB-IP). A city with the same name within 60 km wins ("Bengaluru"); otherwise the
+   * nearest one within 40 km, so a suburb resolves to its city and a rural hit to nothing.
+   */
+  async findNearestCity(
+    countryCode: string,
+    latitude: number,
+    longitude: number,
+    name?: string,
+  ): Promise<CityDto | null> {
+    const box = 0.6; // degrees; ~65 km north–south, enough for both radii
+    const rows = await this.prisma.city.findMany({
+      where: {
+        status: 'ACTIVE',
+        countryCode,
+        latitude: { gte: latitude - box, lte: latitude + box },
+        longitude: { gte: longitude - box * 2, lte: longitude + box * 2 },
+      },
+    });
+    const scored = rows
+      .filter((c) => c.latitude !== null && c.longitude !== null)
+      .map((c) => ({ c, km: distanceKm(latitude, longitude, c.latitude!, c.longitude!) }))
+      .sort((a, b) => a.km - b.km);
+    // DB-IP adds a locality in brackets: "Navi Mumbai (Ghansoli)".
+    const wanted = name
+      ?.replace(/\(.*?\)/g, '')
+      .trim()
+      .toLowerCase();
+    const named = wanted && scored.find((x) => x.km <= 60 && x.c.name.toLowerCase() === wanted);
+    const hit = named || (scored[0] && scored[0].km <= 40 ? scored[0] : null);
+    return hit ? toCity(hit.c) : null;
+  }
+
   async requireActiveCar(id: string) {
     const car = await this.prisma.car.findFirst({ where: { id, status: 'ACTIVE' } });
     if (!car) throw new NotFoundException('Car not found');
@@ -120,4 +154,13 @@ export class CatalogService {
     if (!city) throw new NotFoundException('City not found');
     return city;
   }
+}
+
+/** Great-circle distance (haversine). */
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lon2 - lon1) * rad) / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(a));
 }

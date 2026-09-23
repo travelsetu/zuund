@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { CatalogService } from '../src/catalog/catalog.service';
 import { db, setup, teardown, teardownAll, type TestContext } from './helpers';
 
 describe('countries, cities and IP location', () => {
@@ -21,6 +22,8 @@ describe('countries, cities and IP location', () => {
         countryCode: 'GB',
         geonameId: 2643743,
         population: 8961989,
+        latitude: 51.50853,
+        longitude: -0.12574,
       },
     });
     await db.city.update({ where: { slug: 'surat' }, data: { population: 4591246 } });
@@ -73,5 +76,31 @@ describe('countries, cities and IP location', () => {
       const res = await request(ctx.server).get('/api/geo').set('X-Forwarded-For', ip);
       expect(res.body).toEqual({ country: null, city: null });
     }
+  });
+
+  it('finds the city from coordinates when the database has no GeoNames id (DB-IP)', async () => {
+    const catalog = ctx.app.get(CatalogService);
+    await db.city.create({
+      data: {
+        name: 'Croydon',
+        state: 'England',
+        slug: 'croydon-gb',
+        countryCode: 'GB',
+        population: 192064,
+        latitude: 51.38333,
+        longitude: -0.1,
+      },
+    });
+    // Same name nearby wins, even with DB-IP's bracketed locality.
+    expect(await catalog.findNearestCity('GB', 51.45, -0.11, 'London (Brixton)')).toMatchObject({
+      name: 'London',
+    });
+    // No name match: the nearest city within 40 km.
+    expect(await catalog.findNearestCity('GB', 51.39, -0.09, 'Thornton Heath')).toMatchObject({
+      name: 'Croydon',
+    });
+    // Too far from any listed city, or another country: no guess.
+    expect(await catalog.findNearestCity('GB', 52.2, 0.12, 'Cambridge')).toBeNull();
+    expect(await catalog.findNearestCity('IN', 51.5, -0.12, 'London')).toBeNull();
   });
 });

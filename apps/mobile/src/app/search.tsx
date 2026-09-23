@@ -6,7 +6,7 @@ import {
   type ProductCategory,
 } from '@zuund/shared';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   Button,
@@ -20,6 +20,7 @@ import {
   SearchBox,
 } from '@/components/ui';
 import { api } from '@/lib/api';
+import { atLeast } from '@/lib/minDuration';
 import { useIsDesktop } from '@/lib/layout';
 import { colors, fonts, radius, space, type } from '@/theme';
 
@@ -44,6 +45,7 @@ export default function Search() {
   const [brands, setBrands] = useState<BrandDto[] | null>(null);
   const [results, setResults] = useState<CarDto[] | null>(null);
   const [picked, setPicked] = useState<CarDto | null>(null);
+  const resultsEmpty = useRef(true);
 
   const desktop = useIsDesktop();
   const brandColumns = desktop ? 3 : 1;
@@ -53,8 +55,7 @@ export default function Search() {
   useEffect(() => {
     if (category !== 'CAR') return;
     setBrands(null);
-    api.catalog
-      .brands('CAR')
+    atLeast(api.catalog.brands('CAR'))
       .then(setBrands)
       .catch(() => setBrands([]));
   }, [category]);
@@ -62,9 +63,13 @@ export default function Search() {
   useEffect(() => {
     if (showBrands) return;
     const t = setTimeout(() => {
-      api.catalog
-        .search(q, category, typing ? undefined : (brand ?? undefined))
-        .then(setResults)
+      const request = api.catalog.search(q, category, typing ? undefined : (brand ?? undefined));
+      // Only an empty list (first load, new brand or category) shows the preloader, so only it waits.
+      (resultsEmpty.current ? atLeast(request) : request)
+        .then((r) => {
+          resultsEmpty.current = false;
+          setResults(r);
+        })
         .catch(() => setResults([]));
     }, 150);
     return () => clearTimeout(t);
@@ -90,6 +95,7 @@ export default function Search() {
     setSegment(null);
     setPicked(null);
     setResults(null);
+    resultsEmpty.current = true;
   }
 
   function openBrand(name: string) {
@@ -97,6 +103,7 @@ export default function Search() {
     setBrand(name);
     setSegment(null);
     setResults(null);
+    resultsEmpty.current = true;
   }
 
   const title = category === 'SOLAR' ? 'Choose a solar system' : 'Choose a car';

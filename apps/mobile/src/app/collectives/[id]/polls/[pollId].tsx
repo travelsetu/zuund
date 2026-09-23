@@ -6,6 +6,7 @@ import { Alert } from '@/lib/alert';
 import { Button, Header, Loading, Screen, StatusBadge } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { atLeast } from '@/lib/minDuration';
 import { daysLeft, formatDate } from '@/lib/format';
 import { colors, radius, space, type, fonts } from '@/theme';
 
@@ -34,7 +35,7 @@ export default function PollDetail() {
   }, [id, pollId]);
 
   useEffect(() => {
-    load().catch(() => {});
+    atLeast(load()).catch(() => {});
   }, [load]);
 
   async function refresh() {

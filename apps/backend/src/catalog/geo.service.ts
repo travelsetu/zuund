@@ -8,8 +8,9 @@ import type { Env } from '../config/env';
 import { CatalogService } from './catalog.service';
 
 /**
- * IP → country/city using a local GeoLite2 database, so visitors' IPs never
- * leave ZUUND. The answer is only a suggestion for pre-selecting a city.
+ * IP → country/city using a local MaxMind-format database (DB-IP "IP to City
+ * Lite" in production, CC BY 4.0), so visitors' IPs never leave ZUUND. The
+ * answer is only a suggestion for pre-selecting a city.
  */
 @Injectable()
 export class GeoService implements OnModuleInit {
@@ -24,28 +25,62 @@ export class GeoService implements OnModuleInit {
   async onModuleInit() {
     const path = this.config.get('GEOIP_DB_PATH', { infer: true });
     if (!existsSync(path)) {
-      this.logger.warn(`No GeoLite2 database at ${path}; location guessing is off.`);
+      this.logger.warn(`No IP location database at ${path}; location guessing is off.`);
       return;
     }
-    // maxmind watches the file, so a weekly refresh is picked up without a restart.
+    // maxmind watches the file, so a monthly refresh is picked up without a restart.
     this.reader = await open<CityResponse>(path, { watchForUpdates: true });
-    this.logger.log(`GeoLite2 database loaded from ${path}`);
+    this.logger.log(`IP location database loaded from ${path}`);
   }
 
   async guess(ip: string | undefined): Promise<GeoGuessDto> {
     const none: GeoGuessDto = { country: null, city: null };
-    const addr = ip?.replace(/^::ffff:/, '');
-    if (!this.reader || !addr || !isIP(addr) || isPrivate(addr)) return none;
+    let addr = ip?.replace(/^::ffff:/, '');
+    if (!this.reader || !addr || !isIP(addr)) return none;
+    if (isPrivate(addr)) {
+      // A phone on the office Wi-Fi reaches a dev API from 192.168.x.x; guess from this
+      // machine's own public IP instead. Production always sees the visitor's real IP.
+      if (this.config.get('NODE_ENV', { infer: true }) !== 'development') return none;
+      addr = await ownPublicIp();
+      if (!addr) return none;
+    }
     const hit = this.reader.get(addr);
     const code = hit?.country?.iso_code;
     if (!code) return none;
     const [country, city] = await Promise.all([
       this.catalog.findCountry(code),
-      hit.city?.geoname_id ? this.catalog.findCityByGeonameId(hit.city.geoname_id) : null,
+      this.city(hit, code),
     ]);
     // Only trust the city when it sits in the detected country.
     return { country, city: city && city.countryCode === code ? city : null };
   }
+
+  /**
+   * MaxMind records carry GeoNames ids; DB-IP only a name and coordinates. Towns too
+   * small for our city list also fall back to the nearest city.
+   */
+  private async city(hit: CityResponse, code: string) {
+    const byId = hit.city?.geoname_id
+      ? await this.catalog.findCityByGeonameId(hit.city.geoname_id)
+      : null;
+    if (byId) return byId;
+    const loc = hit.location;
+    if (loc?.latitude === undefined || loc.longitude === undefined) return null;
+    return this.catalog.findNearestCity(code, loc.latitude, loc.longitude, hit.city?.names?.en);
+  }
+}
+
+let publicIp: Promise<string | undefined> | undefined;
+/** Development only: this machine's public IP, looked up once. */
+function ownPublicIp(): Promise<string | undefined> {
+  publicIp ??= fetch('https://api.ipify.org', { signal: AbortSignal.timeout(3000) })
+    .then((r) => (r.ok ? r.text() : undefined))
+    .then((t) => (t && isIP(t.trim()) ? t.trim() : undefined))
+    .catch(() => {
+      publicIp = undefined; // try again next time
+      return undefined;
+    });
+  return publicIp;
 }
 
 function isPrivate(ip: string): boolean {

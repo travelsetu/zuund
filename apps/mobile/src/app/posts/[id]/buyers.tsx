@@ -5,7 +5,7 @@ import {
   type BuyerFilter,
 } from '@zuund/shared';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BuyerRow } from '@/components/BuyerRow';
 import { ConnectButton } from '@/components/ConnectButton';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { atLeast } from '@/lib/minDuration';
 import { useLightStatusBar } from '@/lib/statusBar';
 import { colors, space, type, fonts } from '@/theme';
 
@@ -49,17 +50,23 @@ export default function Buyers() {
   const [err, setErr] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const firstLoad = useRef(true);
 
   const load = useCallback(
     async (cursor?: string) => {
       try {
-        const intent = await api.intents.get(id);
-        const res = await api.buyers.discover({
-          carId: intent.car.id,
-          cityId: intent.city.id,
-          filter,
-          cursor,
-        });
+        const fetchPage = async () => {
+          const intent = await api.intents.get(id);
+          return api.buyers.discover({
+            carId: intent.car.id,
+            cityId: intent.city.id,
+            filter,
+            cursor,
+          });
+        };
+        // The first load holds the preloader for its minimum time; later pages don't.
+        const res = firstLoad.current ? await atLeast(fetchPage()) : await fetchPage();
+        firstLoad.current = false;
         setPage(res);
         setItems((prev) => (cursor ? [...prev, ...res.items] : res.items));
         setErr(null);

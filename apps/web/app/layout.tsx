@@ -62,7 +62,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
           <div className="wrap small muted" style={{ marginTop: 32 }}>
-            © {new Date().getFullYear()} ZUUND. City data from GeoNames (CC BY 4.0).
+            © {new Date().getFullYear()} ZUUND. City data from GeoNames (CC BY 4.0).{' '}
+            <a href="https://db-ip.com">IP Geolocation by DB-IP</a> (CC BY 4.0).
           </div>
         </footer>
       </body>
