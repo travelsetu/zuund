@@ -8,6 +8,7 @@ import {
   Card,
   Header,
   IconButton,
+  Loading,
   ProductArt,
   Screen,
   Verified,
@@ -56,7 +57,9 @@ export default function Profile() {
         ) : null}
       </View>
 
-      {primary ? (
+      {!data ? (
+        <Loading />
+      ) : primary ? (
         <Card style={{ gap: space.md }}>
           <Pressable style={s.line} onPress={() => router.push(`/posts/${primary.id}`)}>
             <ProductArt car={primary.car} size="sm" />
@@ -103,16 +106,18 @@ export default function Profile() {
         </Text>
       </Card>
 
-      <View style={{ flexDirection: 'row', gap: space.md }}>
-        <Card style={s.count}>
-          <Text style={type.h2}>{data?.connectionCount ?? '–'}</Text>
-          <Text style={type.small}>Connections</Text>
-        </Card>
-        <Card style={s.count}>
-          <Text style={type.h2}>{data?.collectiveCount ?? '–'}</Text>
-          <Text style={type.small}>Collectives</Text>
-        </Card>
-      </View>
+      {data ? (
+        <View style={{ flexDirection: 'row', gap: space.md }}>
+          <Card style={s.count}>
+            <Text style={type.h2}>{data?.connectionCount ?? 0}</Text>
+            <Text style={type.small}>Connections</Text>
+          </Card>
+          <Card style={s.count}>
+            <Text style={type.h2}>{data?.collectiveCount ?? 0}</Text>
+            <Text style={type.small}>Collectives</Text>
+          </Card>
+        </View>
+      ) : null}
 
       <Button variant="outline" title="Edit Profile" onPress={() => router.push('/edit-profile')} />
     </Screen>

@@ -5,7 +5,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo } from '@/components/Logo';
 import { VehicleArt } from '@/components/VehicleArt';
 import { PostCard } from '@/components/PostCard';
-import { Card, Hero, IconButton, ProductArt, Screen, SearchBox, Section } from '@/components/ui';
+import {
+  Card,
+  Hero,
+  IconButton,
+  Loading,
+  ProductArt,
+  Screen,
+  SearchBox,
+  Section,
+} from '@/components/ui';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';
@@ -98,27 +107,30 @@ export default function Home() {
         ))}
       </View>
 
-      <Section title="Your activity">
-        <Card style={s.stats}>
-          <Stat
-            n={active.length}
-            label={active.length === 1 ? 'Buying Post' : 'Buying Posts'}
-            onPress={() => router.push('/my-posts')}
-          />
-          <View style={s.divider} />
-          <Stat
-            n={data?.profile.connectionCount}
-            label="Connections"
-            onPress={() => router.push('/connections')}
-          />
-          <View style={s.divider} />
-          <Stat
-            n={data?.profile.collectiveCount}
-            label="Collectives"
-            onPress={() => router.push('/collectives')}
-          />
-        </Card>
-      </Section>
+      {!data ? <Loading /> : null}
+      {data ? (
+        <Section title="Your activity">
+          <Card style={s.stats}>
+            <Stat
+              n={active.length}
+              label={active.length === 1 ? 'Buying Post' : 'Buying Posts'}
+              onPress={() => router.push('/my-posts')}
+            />
+            <View style={s.divider} />
+            <Stat
+              n={data?.profile.connectionCount}
+              label="Connections"
+              onPress={() => router.push('/connections')}
+            />
+            <View style={s.divider} />
+            <Stat
+              n={data?.profile.collectiveCount}
+              label="Collectives"
+              onPress={() => router.push('/collectives')}
+            />
+          </Card>
+        </Section>
+      ) : null}
 
       {active.length > 0 && (
         <Section title="Your Buying Posts">

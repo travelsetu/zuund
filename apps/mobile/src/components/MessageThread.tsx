@@ -26,6 +26,7 @@ import { openFile, pickDocument, pickImage } from '@/lib/files';
 import { clockTime } from '@/lib/format';
 import { tokens } from '@/lib/tokens';
 import { colors, radius, space, type, fonts } from '@/theme';
+import { Preloader } from './Preloader';
 import { Avatar } from './ui';
 
 const POLL_MS = 5000;
@@ -56,6 +57,7 @@ export function MessageThread({
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const loadingOlder = useRef(false);
+  const [loaded, setLoaded] = useState(false);
 
   const merge = useCallback((incoming: MessageDto[], older = false) => {
     setItems((prev) => {
@@ -70,6 +72,7 @@ export function MessageThread({
     try {
       const page = await api.conversations.messages(conversationId);
       merge(page.items);
+      setLoaded(true);
       setCursor((c) => c ?? page.nextCursor);
       setErr(null);
       await api.conversations.markRead(conversationId);
@@ -190,7 +193,9 @@ export function MessageThread({
   return (
     // Keyboard avoidance lives in <ChatScreen>, around the whole screen.
     <View style={{ flex: 1 }}>
+      {!loaded && !err ? <Preloader fill label="Loading messages…" /> : null}
       <FlatList
+        style={!loaded && !err ? { display: 'none' } : undefined}
         inverted
         data={items}
         keyExtractor={(m) => m.id}

@@ -17,13 +17,13 @@ import { DialogHost } from '@/lib/alert';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';
 import { Sidebar } from '@/components/Sidebar';
-import { Loading } from '@/components/ui';
+import { Preloader } from '@/components/Preloader';
 import { colors } from '@/theme';
 
 function RootStack() {
   const { me } = useAuth();
   const desktop = useIsDesktop();
-  if (me === undefined) return <Loading />;
+  if (me === undefined) return <Preloader fill />;
   const signedIn = !!me;
   // Accounts from before mobile numbers were required must add one first.
   const needsPhone = signedIn && !me.phone;

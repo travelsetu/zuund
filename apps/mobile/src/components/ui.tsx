@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { initials } from '@/lib/format';
+import { Preloader } from './Preloader';
 import { VehicleArt } from './VehicleArt';
 import { CONTENT_MAX_WIDTH, useIsDesktop } from '@/lib/layout';
 import { tokens } from '@/lib/tokens';
@@ -581,12 +582,9 @@ export function Hero({ children, style }: { children: ReactNode; style?: StylePr
 
 // ── Feedback ──
 
-export function Loading() {
-  return (
-    <View style={[styles.center, { paddingVertical: 48 }]}>
-      <ActivityIndicator color={colors.brand} />
-    </View>
-  );
+/** Full-section loading state: the branded preloader. */
+export function Loading({ label }: { label?: string }) {
+  return <Preloader label={label} />;
 }
 
 export function ErrorText({ children }: { children: ReactNode }) {

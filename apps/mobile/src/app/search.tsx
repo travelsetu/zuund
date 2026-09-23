@@ -14,6 +14,7 @@ import {
   ChipRow,
   Empty,
   Header,
+  Loading,
   ProductArt,
   Screen,
   SearchBox,
@@ -181,6 +182,7 @@ export default function Search() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           columnWrapperStyle={brandColumns > 1 ? { gap: space.sm } : undefined}
+          ListEmptyComponent={brands ? null : <Loading />}
           ListHeaderComponent={
             brands?.length ? (
               <View style={{ gap: space.sm, marginBottom: space.sm }}>
@@ -239,7 +241,9 @@ export default function Search() {
           keyboardDismissMode="on-drag"
           contentContainerStyle={{ gap: space.sm, paddingBottom: space.lg }}
           ListEmptyComponent={
-            results ? (
+            !results ? (
+              <Loading />
+            ) : (
               <Empty
                 icon="search"
                 title="Nothing found"
@@ -249,7 +253,7 @@ export default function Search() {
                     : 'Try the brand or model name, like “Creta”.'
                 }
               />
-            ) : null
+            )
           }
           renderItem={({ item }) => {
             const on = picked?.id === item.id;

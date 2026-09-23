@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '@/lib/api';
 import { geoGuess } from '@/lib/geo';
 import { colors, fonts, space, type } from '@/theme';
+import { Preloader } from './Preloader';
 import { Column, Header, SearchBox, styles } from './ui';
 
 /** "IN" → 🇮🇳 */
@@ -136,7 +137,9 @@ export function CityPicker({
                       <Text style={[type.small, { paddingVertical: space.lg }]}>
                         No city matches. Try a nearby larger city.
                       </Text>
-                    ) : null
+                    ) : (
+                      <Preloader size={36} />
+                    )
                   }
                   renderItem={({ item }) => (
                     <Pressable
@@ -194,6 +197,7 @@ export function CountryList({
         keyExtractor={(c) => c.code}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        ListEmptyComponent={countries.length ? null : <Preloader size={36} />}
         renderItem={({ item }) => (
           <Pressable
             style={{
