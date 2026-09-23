@@ -20,16 +20,30 @@ const uuid = z.uuid();
 export const phoneSchema = z
   .string()
   .trim()
-  .refine((v) => isValidPhoneNumber(v), 'Enter a valid mobile number')
+  .refine((v) => isValidPhoneNumber(v), 'Enter a valid WhatsApp number')
   .transform((v) => parsePhoneNumberWithError(v).number as string);
 const trimmed = (max: number) => z.string().trim().min(1).max(max);
 
 // ── Auth / users ──
+/** The 6-digit code sent on WhatsApp. */
+export const otpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Enter the 6-digit code');
+
+/** POST /auth/otp: send a code to this number on WhatsApp. */
+export const otpRequestSchema = z.object({ phone: phoneSchema });
+export type OtpRequest = z.infer<typeof otpRequestSchema>;
+
+/** POST /auth/otp/login (and /auth/otp/token for the phone apps). */
+export const otpLoginRequestSchema = z.object({ phone: phoneSchema, code: otpCodeSchema });
+export type OtpLoginRequest = z.infer<typeof otpLoginRequestSchema>;
+
+/** Sign-up: the WhatsApp number, proved by the code sent there, is the login. No email. */
 export const registerRequestSchema = z.object({
   name: trimmed(80),
-  email: z.email('Enter a valid email address').trim().toLowerCase(),
-  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
   phone: phoneSchema,
+  code: otpCodeSchema,
   cityId: uuid.optional(),
 });
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
@@ -40,6 +54,8 @@ export const updateProfileRequestSchema = z.object({
   about: z.string().trim().max(500).nullable().optional(),
   photoFileId: uuid.nullable().optional(),
   phone: phoneSchema.optional(),
+  /** Required with a new `phone`: the WhatsApp code sent to it. */
+  phoneCode: otpCodeSchema.optional(),
 });
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
 

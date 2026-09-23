@@ -102,7 +102,7 @@ export function CollectiveDetailPage() {
               header: 'Member',
               render: (m) => <Link to={`/users/${m.user.id}`}>{m.user.name ?? m.user.email}</Link>,
             },
-            { key: 'email', header: 'Email', render: (m) => m.user.email },
+            { key: 'email', header: 'Email', render: (m) => m.user.email ?? '—' },
             { key: 'st', header: 'Membership', render: (m) => <Badge value={m.status} /> },
             { key: 'lvl', header: 'Intent', render: (m) => <Badge value={m.intentLevel} /> },
             { key: 'tl', header: 'Timeline', render: (m) => humanize(m.purchaseTimeline) },

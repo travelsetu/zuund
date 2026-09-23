@@ -9,6 +9,7 @@ const THROTTLER_OPTIONS = 'THROTTLER:MODULE_OPTIONS';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
 import cookieParser from 'cookie-parser';
+import { OtpSender } from '../src/otp/otp.sender';
 import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
 import { CARS, CITIES, HOLIDAYS, SOLAR, slugify } from '../prisma/seed-data';
@@ -142,8 +143,19 @@ export async function teardownAll(): Promise<void> {
 export interface TestUser {
   agent: Agent;
   id: string;
-  email: string;
+  phone: string;
   name: string;
+}
+
+/** Asks for a WhatsApp code and returns it (tests use the `log` provider, which keeps it). */
+export async function otpFor(ctx: TestContext, phone: string): Promise<string> {
+  // Skip the resend wait and hourly cap between test steps; phone.spec tests those directly.
+  await db.otpChallenge.deleteMany({ where: { phone } });
+  const res = await request(ctx.server).post('/api/auth/otp').send({ phone });
+  if (res.status !== 200) throw new Error(`otp failed: ${res.status} ${JSON.stringify(res.body)}`);
+  const code = ctx.app.get(OtpSender).sentForTests.get(phone);
+  if (!code) throw new Error(`no code recorded for ${phone}`);
+  return code;
 }
 
 let userSeq = 0;
@@ -159,13 +171,12 @@ export async function registerUser(
   cityId?: string,
 ): Promise<TestUser> {
   const agent = request.agent(ctx.server);
-  const email = `${name.toLowerCase().replace(/[^a-z]/g, '')}${++userSeq}-${randomUUID().slice(0, 6)}@test.zuund`;
-  const res = await agent
-    .post('/api/auth/register')
-    .send({ name, email, password: USER_PASSWORD, cityId, phone: testPhone(userSeq) });
+  const phone = testPhone(++userSeq);
+  const code = await otpFor(ctx, phone);
+  const res = await agent.post('/api/auth/register').send({ name, code, cityId, phone });
   if (res.status !== 201)
     throw new Error(`register failed: ${res.status} ${JSON.stringify(res.body)}`);
-  return { agent, id: res.body.user.id as string, email, name };
+  return { agent, id: res.body.user.id as string, phone, name };
 }
 
 export async function login(

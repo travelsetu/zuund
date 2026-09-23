@@ -379,6 +379,7 @@ const s = StyleSheet.create({
     borderTopColor: colors.line,
   },
   input: {
+    letterSpacing: 0,
     flex: 1,
     maxHeight: 120,
     minHeight: 40,

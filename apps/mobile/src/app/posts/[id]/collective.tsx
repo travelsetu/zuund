@@ -166,7 +166,7 @@ export default function GroupDetails() {
             better-informed decision together. Each member buys individually.
           </Text>
           <Check>Members are buyers with an active Buying Pass</Check>
-          <Check>Private discussion — phone numbers and emails stay hidden</Check>
+          <Check>Private discussion — WhatsApp numbers stay hidden</Check>
           <Check>No dealers or sellers inside the collective</Check>
         </Card>
       ) : tab === 'buyers' ? (

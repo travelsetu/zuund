@@ -25,7 +25,7 @@ export function RazorpaySheet({
   onDismiss,
 }: {
   checkout: PaymentCheckoutDto | null;
-  prefill: { name: string; email: string };
+  prefill: { name: string; email?: string; contact?: string };
   onResult: (r: RazorpayResult) => void;
   onDismiss: () => void;
 }) {

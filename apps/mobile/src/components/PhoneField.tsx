@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { dialCode, formatAsYouType, type CountryDto } from '@zuund/shared';
+import { dialCode, parsePhoneInput, type CountryDto } from '@zuund/shared';
 import { useState } from 'react';
 import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,11 +9,11 @@ import { CountryList, flag } from './CityPicker';
 import { Column, Header, styles } from './ui';
 
 /**
- * Mobile number: country code + national number, formatted as you type.
+ * WhatsApp number: country code + national number, formatted as you type.
  * The caller turns it into E.164 with toE164(); the server validates again.
  */
 export function PhoneField({
-  label = 'Mobile number',
+  label = 'WhatsApp number',
   country,
   onCountryChange,
   value,
@@ -57,8 +57,13 @@ export function PhoneField({
         </Pressable>
         <TextInput
           value={value}
-          onChangeText={(t) => onChange(formatAsYouType(country, t.replace(/[^\d\s-]/g, '')))}
-          placeholder="Mobile number"
+          onChangeText={(t) => {
+            // Autofill may bring the country code along ("+91 99995 59483", "919999559483").
+            const next = parsePhoneInput(country, t);
+            if (next.country !== country) onCountryChange(next.country);
+            onChange(next.national);
+          }}
+          placeholder="WhatsApp number"
           placeholderTextColor={colors.faint}
           keyboardType="phone-pad"
           autoComplete="tel"

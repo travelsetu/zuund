@@ -69,6 +69,18 @@ export const envSchema = z.object({
    */
   GEOIP_DB_PATH: z.string().default('./data/dbip-city-lite.mmdb'),
 
+  // ── WhatsApp sign-in codes (MSG91) ──
+  /**
+   * `msg91` sends codes on WhatsApp; `log` only writes them to the server log (development
+   * and tests). Defaults to msg91 when an auth key is set.
+   */
+  OTP_PROVIDER: z.enum(['msg91', 'log']).optional(),
+  MSG91_AUTH_KEY: z.string().optional(),
+  /** The WhatsApp business number registered on MSG91, digits only. */
+  MSG91_WHATSAPP_NUMBER: z.string().regex(/^\d+$/).default('917948503616'),
+  MSG91_OTP_TEMPLATE: z.string().default('otp_auth'),
+  MSG91_OTP_NAMESPACE: z.string().default('6997b3e9_ca9f_45cb_aefc_d4dc0c2e0b8c'),
+
   // ── Buying pass ──
   /** Paise. ₹500 = 50000. */
   BUYING_PASS_AMOUNT: z.coerce.number().int().positive().default(50_000),
@@ -102,6 +114,9 @@ function checkEnv(env: z.infer<typeof envSchema>): string[] {
   }
   if (env.NODE_ENV === 'production' && env.PAYMENT_PROVIDER === 'mock') {
     problems.push('PAYMENT_PROVIDER: the mock provider cannot be used in production');
+  }
+  if (env.NODE_ENV === 'production' && (env.OTP_PROVIDER === 'log' || !env.MSG91_AUTH_KEY)) {
+    problems.push('MSG91_AUTH_KEY: production must send sign-in codes on WhatsApp');
   }
   return problems;
 }

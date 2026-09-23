@@ -8,6 +8,7 @@ import type { AuthUser, BuyerProfileDto, MeDto, UpdateProfileRequest } from '@zu
 import { E } from '../common/domain.exception';
 import { isUniqueViolation } from '../common/prisma-errors';
 import { toCar, toCity, toMe, toPublicUser } from '../common/mappers';
+import { OtpService } from '../otp/otp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '../generated/prisma/client';
 
@@ -15,7 +16,10 @@ const withProfile = { profile: { include: { city: true } } } as const;
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly otp: OtpService,
+  ) {}
 
   findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
@@ -58,6 +62,13 @@ export class UsersService {
       const holder = await this.prisma.user.findUnique({ where: { phone: input.phone } });
       if (holder && holder.id !== userId) throw E.PHONE_TAKEN();
     }
+    // A new number must be proved with the WhatsApp code sent to it; it is used up only
+    // once everything else in the update checks out (below).
+    let phoneChallenge: string | undefined;
+    if (phoneChanged) {
+      if (!input.phoneCode) throw E.PHONE_CODE_REQUIRED();
+      phoneChallenge = await this.otp.check(input.phone!, input.phoneCode);
+    }
     let photoUrl: string | null | undefined;
     if (input.photoFileId === null) photoUrl = null;
     else if (input.photoFileId) {
@@ -69,13 +80,13 @@ export class UsersService {
         throw new BadRequestException('Profile photo must be an image');
       photoUrl = f.url;
     }
+    if (phoneChallenge) await this.otp.consume(phoneChallenge);
     const u = await this.prisma.user
       .update({
         where: { id: userId },
         data: {
           ...(input.name !== undefined ? { name: input.name } : {}),
-          // A new number is unverified until confirmed by SMS code.
-          ...(phoneChanged ? { phone: input.phone, phoneVerifiedAt: null } : {}),
+          ...(phoneChanged ? { phone: input.phone, phoneVerifiedAt: new Date() } : {}),
           profile: {
             upsert: {
               create: {

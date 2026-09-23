@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { CityPicker } from '@/components/CityPicker';
+import { OtpField, useOtpSender } from '@/components/OtpField';
 import { PhoneField } from '@/components/PhoneField';
 import { Avatar, Button, ErrorText, Field, Header, Screen } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -22,6 +23,12 @@ export default function EditProfile() {
   );
   const [phone, setPhone] = useState(initialPhone?.national ?? '');
   const [phoneErr, setPhoneErr] = useState<string | null>(null);
+  // A new number is confirmed with a WhatsApp code before it is saved.
+  const otp = useOtpSender();
+  const [code, setCode] = useState('');
+  const e164 = toE164(phoneCountry, phone);
+  const phoneChanged = !!e164 && e164 !== me.phone;
+  const needsCode = phoneChanged && otp.sentTo !== e164;
   const [photo, setPhoto] = useState<{ id: string; uri: string } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,15 +47,27 @@ export default function EditProfile() {
     }
   }
 
-  async function save() {
-    const e164 = toE164(phoneCountry, phone);
-    setPhoneErr(e164 ? null : 'Enter a valid mobile number');
+  async function sendCode() {
     if (!e164) return;
+    setErr(null);
+    try {
+      await otp.send(e164);
+      setCode('');
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
+
+  async function save(entered = code) {
+    setPhoneErr(e164 ? null : 'Enter a valid WhatsApp number');
+    if (!e164) return;
+    if (needsCode) return sendCode();
+    if (phoneChanged && entered.length !== 6) return setErr('Enter the 6-digit code');
     setBusy(true);
     setErr(null);
     try {
       await api.users.updateMe({
-        phone: e164,
+        ...(phoneChanged ? { phone: e164, phoneCode: entered } : {}),
         name: name.trim(),
         about: about.trim() || null,
         cityId: city?.id ?? null,
@@ -63,7 +82,15 @@ export default function EditProfile() {
   }
 
   return (
-    <Screen footer={<Button title="Save" loading={busy} onPress={save} />}>
+    <Screen
+      footer={
+        <Button
+          title={needsCode ? 'Send code to new number' : 'Save'}
+          loading={busy || otp.sending}
+          onPress={() => void save()}
+        />
+      }
+    >
       <Header title="Edit Profile" />
       <Pressable
         style={{ alignItems: 'center', gap: space.sm }}
@@ -81,11 +108,23 @@ export default function EditProfile() {
         onChange={setPhone}
         error={phoneErr}
         hint={
-          me.phone && !me.phoneVerified
-            ? 'Not verified yet. Never shown to other buyers.'
-            : 'Never shown to other buyers.'
+          phoneChanged
+            ? 'We send a code on WhatsApp to confirm the new number.'
+            : me.phone && !me.phoneVerified
+              ? 'Not confirmed yet. Never shown to other buyers.'
+              : 'Never shown to other buyers.'
         }
       />
+      {phoneChanged && otp.sentTo === e164 ? (
+        <OtpField
+          phone={e164}
+          value={code}
+          onChange={setCode}
+          onSubmit={(c) => void save(c)}
+          wait={otp.wait}
+          onResend={() => void sendCode()}
+        />
+      ) : null}
       <CityPicker label="City" value={city} onChange={setCity} />
       <Field
         label="About"
@@ -95,10 +134,12 @@ export default function EditProfile() {
         maxLength={500}
         placeholder="Looking to buy a Creta. Open to connecting with serious buyers."
       />
-      <View>
-        <Text style={type.small}>Email: {me.email}</Text>
-        <Text style={type.tiny}>Your email is never shown to other buyers.</Text>
-      </View>
+      {me.email ? (
+        <View>
+          <Text style={type.small}>Email: {me.email}</Text>
+          <Text style={type.tiny}>Your email is never shown to other buyers.</Text>
+        </View>
+      ) : null}
       <ErrorText>{err}</ErrorText>
     </Screen>
   );

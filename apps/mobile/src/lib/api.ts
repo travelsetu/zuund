@@ -24,7 +24,6 @@ import type {
   GeoGuessDto,
   IntentHistoryDto,
   IntentLevel,
-  LoginRequest,
   MeDto,
   MessageDto,
   NotificationDto,
@@ -40,6 +39,9 @@ import type {
   SharedFileDto,
   UpdateProfileRequest,
   VerifyPaymentRequest,
+  OtpLoginRequest,
+  OtpRequest,
+  OtpSentResponse,
 } from '@zuund/shared';
 import { Platform } from 'react-native';
 import { API_URL } from './config';
@@ -171,12 +173,15 @@ export interface LocalFile {
 
 export const api = {
   auth: {
-    async login(data: LoginRequest) {
+    /** Sends a sign-in code to this number on WhatsApp. */
+    sendOtp: (data: OtpRequest) =>
+      request<OtpSentResponse>('/auth/otp', { method: 'POST', body: data, auth: false }),
+    async loginWithOtp(data: OtpLoginRequest) {
       if (COOKIE_AUTH) {
-        await request('/auth/login', { method: 'POST', body: data, auth: false });
+        await request('/auth/otp/login', { method: 'POST', body: data, auth: false });
         return;
       }
-      const r = await request<TokenResponse>('/auth/token', {
+      const r = await request<TokenResponse>('/auth/otp/token', {
         method: 'POST',
         body: data,
         auth: false,

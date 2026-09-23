@@ -367,7 +367,7 @@ export function SearchBox({
           autoFocus={autoFocus}
           autoCorrect={false}
           returnKeyType="search"
-          style={[type.body, { flex: 1, paddingVertical: 0 }]}
+          style={[type.body, { flex: 1, paddingVertical: 0, letterSpacing: 0 }]}
         />
       )}
       {value && onChangeText ? (
@@ -765,6 +765,9 @@ export const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: fonts.regular,
     color: colors.ink,
+    // Explicit, because iOS reuses text boxes: one from the WhatsApp code field would
+    // otherwise keep its wide spacing in the next box's placeholder.
+    letterSpacing: 0,
   },
   search: {
     flexDirection: 'row',

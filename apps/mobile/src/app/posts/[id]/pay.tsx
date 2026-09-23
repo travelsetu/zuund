@@ -228,7 +228,11 @@ export default function Pay() {
 
       <RazorpaySheet
         checkout={sheet ? checkout : null}
-        prefill={{ name: me.name ?? '', email: me.email }}
+        prefill={{
+          name: me.name ?? '',
+          email: me.email ?? undefined,
+          contact: me.phone ?? undefined,
+        }}
         onResult={onRazorpay}
         onDismiss={() => {
           setSheet(false);

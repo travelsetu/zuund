@@ -54,7 +54,7 @@ export function UserDetailPage() {
   const isAdmin = user.role === 'ADMIN';
   return (
     <>
-      <PageHeader title={user.name ?? user.email}>
+      <PageHeader title={user.name ?? user.email ?? user.phone ?? 'User'}>
         {user.verificationStatus === 'VERIFIED' ? (
           <button type="button" className="secondary small" onClick={() => act('UNVERIFY')}>
             Unverify
@@ -82,7 +82,7 @@ export function UserDetailPage() {
       </PageHeader>
 
       <dl className="defs">
-        <Def label="Email">{user.email}</Def>
+        <Def label="Email">{user.email ?? '—'}</Def>
         <Def label="Mobile">
           {user.phone ?? 'Not added yet'}
           {user.phone && !user.phoneVerified ? ' (not verified)' : ''}

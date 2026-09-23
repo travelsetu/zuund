@@ -15,6 +15,7 @@ import type { AuthUser } from '@zuund/shared';
 import type { Env } from '../config/env';
 import type { User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { OtpService } from '../otp/otp.service';
 import { UsersService } from '../users/users.service';
 import type { AccessTokenPayload, RefreshTokenPayload } from './auth.constants';
 
@@ -41,14 +42,35 @@ export class AuthService {
     private readonly users: UsersService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Env, true>,
+    private readonly otp: OtpService,
   ) {}
+
+  /**
+   * Sign in with the WhatsApp code. For a number with no account the code is left
+   * unused, so the app can go straight on to sign-up with it.
+   */
+  async loginWithOtp(phone: string, code: string): Promise<AuthResult> {
+    const challengeId = await this.otp.check(phone, code);
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user) throw E.ACCOUNT_NOT_FOUND();
+    if (user.status !== 'ACTIVE') throw E.ACCOUNT_NOT_ACTIVE();
+    await this.otp.consume(challengeId);
+    const verified = user.phoneVerifiedAt
+      ? user
+      : await this.prisma.user.update({
+          where: { id: user.id },
+          data: { phoneVerifiedAt: new Date() },
+        });
+    return this.issueSession(verified);
+  }
 
   async login(email: string, password: string): Promise<AuthResult> {
     const user = await this.users.findByEmail(email);
     // Always run a hash verification so response time doesn't reveal whether the email exists.
+    // Accounts made with WhatsApp sign-in have no password.
     const hash = user?.passwordHash ?? (await this.dummyHash);
     const ok = await argon2.verify(hash, password).catch(() => false);
-    if (!user || !ok) {
+    if (!user?.passwordHash || !ok) {
       this.logger.warn(`Failed login for ${email}`);
       throw E.INVALID_CREDENTIALS();
     }
@@ -56,16 +78,18 @@ export class AuthService {
     return this.issueSession(user);
   }
 
-  /** Self-service signup for buyers. Admins are only ever created by the seed or another admin. */
+  /**
+   * Self-service signup for buyers: the WhatsApp number, proved by the code sent there, is
+   * the login. Admins are only ever created by the seed or another admin.
+   */
   async register(input: {
     name: string;
-    email: string;
-    password: string;
     phone: string;
+    code: string;
     cityId?: string;
   }): Promise<AuthResult> {
-    const existing = await this.users.findByEmail(input.email);
-    if (existing) throw E.EMAIL_TAKEN();
+    // The code is checked first, so nobody can probe which numbers have accounts.
+    const challengeId = await this.otp.check(input.phone, input.code);
     if (await this.prisma.user.findUnique({ where: { phone: input.phone } })) throw E.PHONE_TAKEN();
     if (input.cityId) {
       const city = await this.prisma.city.findFirst({
@@ -73,14 +97,13 @@ export class AuthService {
       });
       if (!city) throw new BadRequestException('Unknown city');
     }
-    const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+    await this.otp.consume(challengeId);
     const user = await this.prisma.user
       .create({
         data: {
-          email: input.email.trim().toLowerCase(),
           phone: input.phone,
+          phoneVerifiedAt: new Date(),
           name: input.name,
-          passwordHash,
           role: 'USER',
           profile: { create: { cityId: input.cityId ?? null } },
         },
@@ -101,6 +124,7 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user) throw new UnauthorizedException();
+    if (!user.passwordHash) throw new BadRequestException('This account signs in with WhatsApp');
     const ok = await argon2.verify(user.passwordHash, currentPassword).catch(() => false);
     if (!ok) throw new UnauthorizedException('Current password is incorrect');
     const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });

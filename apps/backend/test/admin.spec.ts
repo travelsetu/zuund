@@ -76,7 +76,7 @@ describe('admin', () => {
       payments: { success: 1, revenuePaise: 50000 },
       collectives: { active: 1, activeMemberships: 1 },
     });
-    const users = await admin.get(`/api/admin/users?q=${rahul.email}`);
+    const users = await admin.get(`/api/admin/users?q=${rahul.phone.slice(3)}`);
     expect(users.body.items).toHaveLength(1);
     expect(users.body.items[0]).toMatchObject({
       id: rahul.id,

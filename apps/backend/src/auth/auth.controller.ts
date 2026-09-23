@@ -4,12 +4,18 @@ import type { Request, Response } from 'express';
 import {
   changePasswordRequestSchema,
   loginRequestSchema,
+  otpLoginRequestSchema,
+  otpRequestSchema,
   registerRequestSchema,
   type AuthResponse,
   type ChangePasswordRequest,
   type LoginRequest,
+  type OtpLoginRequest,
+  type OtpRequest,
+  type OtpSentResponse,
   type RegisterRequest,
 } from '@zuund/shared';
+import { OtpService } from '../otp/otp.service';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { REFRESH_COOKIE, type RequestUser } from './auth.constants';
 import { AuthCookies } from './auth.cookies';
@@ -22,8 +28,42 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly cookies: AuthCookies,
+    private readonly otp: OtpService,
   ) {}
 
+  /** Sends a sign-in code on WhatsApp. Says nothing about whether the number has an account. */
+  @Post('otp')
+  @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  sendOtp(
+    @Body(new ZodValidationPipe(otpRequestSchema)) body: OtpRequest,
+  ): Promise<OtpSentResponse> {
+    return this.otp.send(body.phone);
+  }
+
+  /** Sign in with the WhatsApp code (web: session cookies). */
+  @Post('otp/login')
+  @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  async otpLogin(
+    @Body(new ZodValidationPipe(otpLoginRequestSchema)) body: OtpLoginRequest,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponse> {
+    const { user, tokens } = await this.auth.loginWithOtp(body.phone, body.code);
+    this.cookies.set(res, tokens);
+    return { user };
+  }
+
+  /** Sign in with the WhatsApp code, tokens in the body (phone apps). */
+  @Post('otp/token')
+  @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  async otpToken(@Body(new ZodValidationPipe(otpLoginRequestSchema)) body: OtpLoginRequest) {
+    const { user, tokens } = await this.auth.loginWithOtp(body.phone, body.code);
+    return { user, ...tokens };
+  }
+
+  /** Email + password: admins, and accounts made before WhatsApp sign-in. */
   @Post('login')
   @HttpCode(200)
   @Throttle({ default: { ttl: 60_000, limit: 10 } })

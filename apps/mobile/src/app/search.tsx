@@ -151,11 +151,7 @@ export default function Search() {
   }
 
   const title =
-    category === 'SOLAR'
-      ? 'Choose a solar system'
-      : holiday
-        ? 'Choose a holiday'
-        : 'Choose a car';
+    category === 'SOLAR' ? 'Choose a solar system' : holiday ? 'Choose a holiday' : 'Choose a car';
   const placeholder = holiday
     ? brand === 'International'
       ? 'Search a destination, e.g. Bali'

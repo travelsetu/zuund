@@ -28,13 +28,15 @@ enum VerificationStatus {
 
 model User {
   id                 String             @id @default(uuid())
-  email              String             @unique
+  /// Optional since sign-up moved to mobile number + WhatsApp code.
+  email              String?            @unique
   /// E.164 mobile number (+919876543210). Required at sign-up; never shown to other users.
   /// Null only for accounts created before it was required; the app asks them for it.
   phone              String?            @unique
-  /// Set once the number is confirmed by SMS code (OTP comes later).
+  /// Set once the number is confirmed with a WhatsApp code.
   phoneVerifiedAt    DateTime?          @map("phone_verified_at")
-  passwordHash       String             @map("password_hash")
+  /// Only admins and accounts created before WhatsApp sign-in have a password.
+  passwordHash       String?            @map("password_hash")
   name               String?
   role               UserRole           @default(USER)
   status             UserStatus         @default(ACTIVE)
@@ -834,4 +836,20 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+/// A one-time code sent on WhatsApp to prove a mobile number (sign-in, sign-up, number change).
+model OtpChallenge {
+  id         String    @id @default(uuid())
+  /// E.164
+  phone      String
+  /// HMAC of the code; the code itself is never stored.
+  codeHash   String    @map("code_hash")
+  attempts   Int       @default(0)
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, createdAt])
+  @@map("otp_challenges")
 }

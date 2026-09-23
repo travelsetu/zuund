@@ -1,4 +1,4 @@
-import type { LoginRequest, MeDto, RegisterRequest } from '@zuund/shared';
+import type { MeDto, OtpLoginRequest, RegisterRequest } from '@zuund/shared';
 import {
   createContext,
   useCallback,
@@ -15,7 +15,8 @@ import { tokens } from './tokens';
 interface AuthState {
   /** null = signed out; undefined = still restoring the session. */
   me: MeDto | null | undefined;
-  login: (data: LoginRequest) => Promise<void>;
+  /** WhatsApp number + the code sent there. */
+  loginWithOtp: (data: OtpLoginRequest) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
@@ -50,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       me,
       reload,
-      login: async (data) => {
-        await api.auth.login(data);
+      loginWithOtp: async (data) => {
+        await api.auth.loginWithOtp(data);
         await reload();
       },
       register: async (data) => {

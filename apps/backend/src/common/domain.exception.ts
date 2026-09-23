@@ -113,7 +113,7 @@ export const E = {
   PHONE_TAKEN: () =>
     new DomainException(
       'PHONE_TAKEN',
-      'An account with this mobile number already exists',
+      'An account with this WhatsApp number already exists',
       HttpStatus.CONFLICT,
     ),
   EMAIL_TAKEN: () =>
@@ -123,4 +123,37 @@ export const E = {
       HttpStatus.CONFLICT,
     ),
   SELF_ACTION: (m: string) => new DomainException('SELF_ACTION', m),
+  // WhatsApp codes
+  OTP_INVALID: (m = 'That code is wrong or has expired. Check WhatsApp or send a new one.') =>
+    new DomainException('OTP_INVALID', m, HttpStatus.UNAUTHORIZED),
+  OTP_TOO_SOON: (seconds: number) =>
+    new DomainException(
+      'OTP_TOO_SOON',
+      `Please wait ${seconds} seconds before asking for another code`,
+      HttpStatus.TOO_MANY_REQUESTS,
+      { retryAfterSeconds: seconds },
+    ),
+  OTP_LIMIT: () =>
+    new DomainException(
+      'OTP_LIMIT',
+      'Too many codes for this number. Try again in an hour.',
+      HttpStatus.TOO_MANY_REQUESTS,
+    ),
+  OTP_SEND_FAILED: () =>
+    new DomainException(
+      'OTP_SEND_FAILED',
+      'We could not send the code on WhatsApp. Check the number and try again.',
+      HttpStatus.BAD_GATEWAY,
+    ),
+  ACCOUNT_NOT_FOUND: () =>
+    new DomainException(
+      'ACCOUNT_NOT_FOUND',
+      'No account uses this number yet. Create one to continue.',
+      HttpStatus.NOT_FOUND,
+    ),
+  PHONE_CODE_REQUIRED: () =>
+    new DomainException(
+      'PHONE_CODE_REQUIRED',
+      'Confirm the new number with the code sent on WhatsApp',
+    ),
 };

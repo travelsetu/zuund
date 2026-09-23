@@ -25,11 +25,14 @@ export function applyTestEnv(): void {
     // Most specs exercise the paid path; free-places.spec turns the free places on.
     FREE_MEMBERS_PER_COLLECTIVE: process.env.ZUUND_TEST_FREE_MEMBERS ?? '0',
     PAYMENT_PROVIDER: 'mock',
+    // Codes are kept in memory (OtpSender.sentForTests) instead of going to WhatsApp.
+    OTP_PROVIDER: 'log',
     // MaxMind's public test database (fixed sample IPs), so geo lookups run offline.
     GEOIP_DB_PATH: join(__dirname, 'fixtures', 'GeoIP2-City-Test.mmdb'),
   };
   for (const [k, v] of Object.entries(env)) process.env[k] = v;
   // Nothing from a developer's shell may leak into the test run.
+  delete process.env.MSG91_AUTH_KEY;
   delete process.env.RAZORPAY_KEY_ID;
   delete process.env.RAZORPAY_KEY_SECRET;
   delete process.env.RAZORPAY_WEBHOOK_SECRET;

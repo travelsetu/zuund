@@ -83,7 +83,8 @@ export interface PublicUserDto {
 
 /** The signed-in user's own view of themselves. */
 export interface MeDto extends PublicUserDto {
-  email: string;
+  /** Only older accounts and admins have one; sign-up is by WhatsApp number. */
+  email: string | null;
   /** E.164, e.g. +919876543210. Null only for accounts created before mobile numbers were required. */
   phone: string | null;
   phoneVerified: boolean;

@@ -8,7 +8,7 @@ export const REFRESH_COOKIE_PATH = '/api/auth';
 
 export interface AccessTokenPayload {
   sub: string;
-  email: string;
+  email: string | null;
   type: 'access';
 }
 
@@ -22,6 +22,6 @@ export interface RefreshTokenPayload {
 /** Shape attached to `req.user` by JwtAccessGuard. Role and status are read from the DB on every request so a suspension takes effect immediately. */
 export interface RequestUser {
   userId: string;
-  email: string;
+  email: string | null;
   role: UserRole;
 }

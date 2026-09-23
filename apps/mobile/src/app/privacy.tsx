@@ -10,7 +10,7 @@ export default function Privacy() {
     <Screen onRefresh={refresh} refreshing={refreshing}>
       <Header title="Privacy & Safety" />
       <Card style={{ gap: space.md }}>
-        <Check>Your phone number and email are never shown to other buyers.</Check>
+        <Check>Your WhatsApp number is never shown to other buyers.</Check>
         <Check>Other buyers see your name, photo, city and what you are buying.</Check>
         <Check>
           Report a person, message or file from its ••• menu. Our team reviews every report.

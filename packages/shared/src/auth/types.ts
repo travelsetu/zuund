@@ -1,7 +1,7 @@
 /** The authenticated user as exposed to clients. Never includes the password hash. */
 export interface AuthUser {
   id: string;
-  email: string;
+  email: string | null;
   name: string | null;
   createdAt: string;
   role: 'USER' | 'ADMIN';
@@ -23,4 +23,12 @@ export interface ApiError {
     /** For VALIDATION_FAILED: [{ path, message }]. */
     details?: unknown;
   };
+}
+
+/** Response for POST /api/auth/otp */
+export interface OtpSentResponse {
+  /** The code stops working after this many seconds. */
+  expiresInSeconds: number;
+  /** A new code can be requested after this many seconds. */
+  resendInSeconds: number;
 }

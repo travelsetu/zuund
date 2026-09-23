@@ -1,31 +1,60 @@
-import { loginRequestSchema } from '@zuund/shared';
+import { toE164 } from '@zuund/shared';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { Logo } from '@/components/Logo';
-import { Button, ErrorText, Field, Header, Screen } from '@/components/ui';
-import { errorMessage } from '@/lib/api';
+import { OtpField, useOtpSender } from '@/components/OtpField';
+import { PhoneField } from '@/components/PhoneField';
+import { Button, ErrorText, Header, Screen } from '@/components/ui';
+import { ApiRequestError, errorMessage } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { geoGuess } from '@/lib/geo';
 import { space, type } from '@/theme';
 
+/** Sign in with a WhatsApp number and the code sent to it on WhatsApp. */
 export default function Login() {
-  const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { loginWithOtp } = useAuth();
+  const otp = useOtpSender();
+  const [country, setCountry] = useState('IN');
+  const [phone, setPhone] = useState('');
+  const [phoneErr, setPhoneErr] = useState<string | null>(null);
+  const [code, setCode] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit() {
-    const parsed = loginRequestSchema.safeParse({ email, password });
-    if (!parsed.success) return setErr(parsed.error.issues[0]?.message ?? 'Check your details');
+  useEffect(() => {
+    void geoGuess().then((g) => g.country && setCountry(g.country.code));
+  }, []);
+
+  async function sendCode() {
+    const e164 = toE164(country, phone);
+    setPhoneErr(e164 ? null : 'Enter a valid WhatsApp number');
+    if (!e164) return;
+    setErr(null);
+    try {
+      await otp.send(e164);
+      setCode('');
+    } catch (e) {
+      setErr(errorMessage(e));
+    }
+  }
+
+  async function signIn(entered = code) {
+    if (!otp.sentTo || busy) return;
+    if (entered.length !== 6) return setErr('Enter the 6-digit code');
     setBusy(true);
     setErr(null);
     try {
-      await login(parsed.data);
+      await loginWithOtp({ phone: otp.sentTo, code: entered });
     } catch (e) {
-      setErr(errorMessage(e));
       setBusy(false);
+      // A new number: the code is still good, so carry it into sign-up.
+      if (e instanceof ApiRequestError && e.body?.error?.code === 'ACCOUNT_NOT_FOUND') {
+        router.replace({ pathname: '/register', params: { phone: otp.sentTo, code: entered } });
+        return;
+      }
+      setErr(errorMessage(e));
     }
   }
 
@@ -39,28 +68,44 @@ export default function Login() {
         <View style={{ alignItems: 'center', gap: space.sm }}>
           <Logo size={34} />
           <Text style={type.h1}>Welcome back</Text>
-          <Text style={type.small}>Sign in to see your buying posts and collectives.</Text>
+          <Text style={[type.small, { textAlign: 'center' }]}>
+            Sign in with your WhatsApp number. We send you a code on WhatsApp.
+          </Text>
         </View>
-        <Field
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-        />
-        <Field
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="current-password"
-          textContentType="password"
-          onSubmitEditing={submit}
-        />
-        <ErrorText>{err}</ErrorText>
-        <Button title="Sign in" onPress={submit} loading={busy} />
+
+        {otp.sentTo ? (
+          <>
+            <OtpField
+              phone={otp.sentTo}
+              value={code}
+              onChange={setCode}
+              onSubmit={(c) => void signIn(c)}
+              wait={otp.wait}
+              onResend={() => void sendCode()}
+              onChangeNumber={() => {
+                otp.reset();
+                setCode('');
+                setErr(null);
+              }}
+            />
+            <ErrorText>{err}</ErrorText>
+            <Button title="Sign in" onPress={() => void signIn()} loading={busy} />
+          </>
+        ) : (
+          <>
+            <PhoneField
+              country={country}
+              onCountryChange={setCountry}
+              value={phone}
+              onChange={setPhone}
+              error={phoneErr}
+              hint="The number you use on WhatsApp. Never shown to other buyers."
+            />
+            <ErrorText>{err}</ErrorText>
+            <Button title="Send code on WhatsApp" onPress={sendCode} loading={otp.sending} />
+          </>
+        )}
+
         <Button
           variant="ghost"
           title="New to ZUUND? Create an account"

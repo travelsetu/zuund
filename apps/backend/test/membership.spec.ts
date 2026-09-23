@@ -104,7 +104,7 @@ describe('collective membership', () => {
     expect(c.body.conversationId).toBeTruthy();
     const members = await rahul.agent.get(`/api/collectives/${collectiveId}/members`);
     expect(members.body.items.map((m: { user: { id: string } }) => m.user.id)).toEqual([rahul.id]);
-    expect(JSON.stringify(members.body)).not.toContain(rahul.email);
+    expect(JSON.stringify(members.body)).not.toContain(rahul.phone.slice(3));
     // Priya, still pending, sees the collective but not its content.
     const p = await priya.agent.get(`/api/collectives/${collectiveId}`);
     expect(p.body.membership.status).toBe('PENDING_PAYMENT');

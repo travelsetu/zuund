@@ -20,7 +20,7 @@ import type {
 
 export interface AdminUserDto {
   id: string;
-  email: string;
+  email: string | null;
   /** E.164; admins only. */
   phone: string | null;
   phoneVerified: boolean;
@@ -44,7 +44,7 @@ export interface AdminUserDetailDto extends AdminUserDto {
 }
 
 export interface AdminIntentDto extends BuyingIntentDto {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string | null; name: string | null };
 }
 
 export interface AdminIntentDetailDto extends AdminIntentDto {
@@ -58,7 +58,7 @@ export interface AdminCollectiveDto {
   name: string;
   car: CarDto;
   city: CityDto;
-  creator: { id: string; email: string; name: string | null };
+  creator: { id: string; email: string | null; name: string | null };
   status: CollectiveStatus;
   activeMemberCount: number;
   pendingMemberCount: number;
@@ -68,7 +68,7 @@ export interface AdminCollectiveDto {
 
 export interface AdminCollectiveMemberDto {
   membershipId: string;
-  user: PublicUserDto & { email: string };
+  user: PublicUserDto & { email: string | null };
   status: MembershipStatus;
   intentLevel: IntentLevel;
   purchaseTimeline: PurchaseTimeline;
@@ -79,7 +79,7 @@ export interface AdminCollectiveMemberDto {
 }
 
 export interface AdminPaymentDto extends PaymentDto {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string | null; name: string | null };
   car: CarDto;
   city: CityDto;
   idempotencyKey: string;
@@ -89,7 +89,7 @@ export interface AdminPaymentDto extends PaymentDto {
 }
 
 export interface AdminPassDto extends BuyingPassDto {
-  user: { id: string; email: string; name: string | null };
+  user: { id: string; email: string | null; name: string | null };
   car: CarDto;
   city: CityDto;
   paymentId: string | null;
@@ -97,8 +97,8 @@ export interface AdminPassDto extends BuyingPassDto {
 }
 
 export interface AdminReportDto extends ReportDto {
-  reporter: { id: string; email: string; name: string | null };
-  reportedUser: { id: string; email: string; name: string | null } | null;
+  reporter: { id: string; email: string | null; name: string | null };
+  reportedUser: { id: string; email: string | null; name: string | null } | null;
   /** A short human-readable excerpt of the reported thing, when it can be shown. */
   targetPreview: string | null;
   resolvedById: string | null;
@@ -108,7 +108,7 @@ export interface AdminReportDto extends ReportDto {
 
 export interface AuditLogDto {
   id: string;
-  actor: { id: string; email: string; name: string | null };
+  actor: { id: string; email: string | null; name: string | null };
   action: string;
   targetType: string;
   targetId: string | null;
