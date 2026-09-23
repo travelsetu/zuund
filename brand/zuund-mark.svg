@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" role="img" aria-labelledby="t">
+  <title id="t">ZUUND</title>
+  <!-- The mark: the two U's from the wordmark — two people, buying together. -->
+  <defs>
+    <linearGradient id="zm-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#48A8F7"/>
+      <stop offset="1" stop-color="#2D5EE6"/>
+    </linearGradient>
+    <linearGradient id="zm-green" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6CCD60"/>
+      <stop offset="1" stop-color="#3BA048"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(-277.5 -19.5)">
+    <path d="M331 201V271A54 54 0 0 0 439 271V201" fill="none" stroke="url(#zm-blue)" stroke-width="62" stroke-linecap="round"/>
+    <circle cx="385" cy="139" r="36" fill="#3F8CF1"/>
+    <path d="M536 201V271A54 54 0 0 0 644 271V201" fill="none" stroke="url(#zm-green)" stroke-width="62" stroke-linecap="round"/>
+    <circle cx="590" cy="139" r="36" fill="#5DBE59"/>
+  </g>
+</svg>
