@@ -81,6 +81,22 @@ export const envSchema = z.object({
   MSG91_OTP_TEMPLATE: z.string().default('otp_auth'),
   MSG91_OTP_NAMESPACE: z.string().default('6997b3e9_ca9f_45cb_aefc_d4dc0c2e0b8c'),
 
+  // ── Uploads storage ──
+  /** local: files under UPLOAD_DIR (dev, tests). s3: a private bucket served by CloudFront. */
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  /** Folder inside the bucket, e.g. "dev/" on a developer's machine; empty in production. */
+  S3_PREFIX: z.string().default(''),
+  /** The AWS SDK reads AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY itself; listed to validate. */
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  /** e.g. d3vo1sd8v0b7zj.cloudfront.net: serves the bucket, signed URLs only. */
+  CLOUDFRONT_DOMAIN: z.string().optional(),
+  CLOUDFRONT_KEY_PAIR_ID: z.string().optional(),
+  /** The signing key's private PEM, base64-encoded (one line in .env). */
+  CLOUDFRONT_PRIVATE_KEY_B64: z.string().optional(),
+
   // ── Passes ──
   /** Elite Pass price in paise. ₹499 = 49900. */
   ELITE_PASS_AMOUNT: z.coerce.number().int().positive().default(49_900),
@@ -107,6 +123,19 @@ function checkEnv(env: z.infer<typeof envSchema>): string[] {
       'RAZORPAY_WEBHOOK_SECRET',
     ] as const) {
       if (!env[k]) problems.push(`${k}: required when PAYMENT_PROVIDER=razorpay`);
+    }
+  }
+  if (env.STORAGE_DRIVER === 's3') {
+    for (const k of [
+      'S3_BUCKET',
+      'S3_REGION',
+      'AWS_ACCESS_KEY_ID',
+      'AWS_SECRET_ACCESS_KEY',
+      'CLOUDFRONT_DOMAIN',
+      'CLOUDFRONT_KEY_PAIR_ID',
+      'CLOUDFRONT_PRIVATE_KEY_B64',
+    ] as const) {
+      if (!env[k]) problems.push(`${k}: required when STORAGE_DRIVER=s3`);
     }
   }
   if (env.NODE_ENV === 'production' && env.PAYMENT_PROVIDER === 'mock') {

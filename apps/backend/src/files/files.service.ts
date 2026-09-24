@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
 import { extname, join, resolve } from 'node:path';
 import {
   BadRequestException,
@@ -42,15 +44,24 @@ const ALLOWED_EXT = new Set([
 ]);
 
 /**
- * Local-disk storage behind a small interface. Files are written outside the
- * web root and only ever read back through `GET /api/files/:id`, which checks
- * that the caller may see the file. Swapping in S3 later means replacing
- * `store()` and `pathFor()` only.
+ * Where uploads live. Production: a private S3 bucket (zuund-uploads) that only its
+ * CloudFront distribution may read, and CloudFront only serves signed links. Dev and
+ * tests: files under UPLOAD_DIR. Either way a file is only reached through
+ * `GET /api/files/:id`, which checks that the caller may see it; S3 then answers
+ * with a short-lived signed link instead of the bytes.
  */
 @Injectable()
 export class FilesService {
   private readonly dir: string;
   private readonly publicBase: string;
+  private readonly s3: {
+    client: S3Client;
+    bucket: string;
+    prefix: string;
+    domain: string;
+    keyPairId: string;
+    privateKey: string;
+  } | null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -58,6 +69,20 @@ export class FilesService {
   ) {
     this.dir = resolve(config.get('UPLOAD_DIR', { infer: true }));
     this.publicBase = config.get('PUBLIC_API_URL', { infer: true }).replace(/\/$/, '');
+    this.s3 =
+      config.get('STORAGE_DRIVER', { infer: true }) === 's3'
+        ? {
+            client: new S3Client({ region: config.get('S3_REGION', { infer: true })! }),
+            bucket: config.get('S3_BUCKET', { infer: true })!,
+            prefix: config.get('S3_PREFIX', { infer: true }),
+            domain: config.get('CLOUDFRONT_DOMAIN', { infer: true })!,
+            keyPairId: config.get('CLOUDFRONT_KEY_PAIR_ID', { infer: true })!,
+            privateKey: Buffer.from(
+              config.get('CLOUDFRONT_PRIVATE_KEY_B64', { infer: true })!,
+              'base64',
+            ).toString('utf8'),
+          }
+        : null;
   }
 
   async store(uploaderId: string, file: Express.Multer.File): Promise<FileDto> {
@@ -68,9 +93,22 @@ export class FilesService {
       throw new BadRequestException('File content does not match its type');
 
     const id = randomUUID();
-    const key = `${new Date().toISOString().slice(0, 10)}/${id}${ext}`;
-    await mkdir(join(this.dir, key.split('/')[0]!), { recursive: true });
-    await writeFile(join(this.dir, key), file.buffer);
+    const key = `${this.s3?.prefix ?? ''}${new Date().toISOString().slice(0, 10)}/${id}${ext}`;
+    if (this.s3) {
+      await this.s3.client.send(
+        new PutObjectCommand({
+          Bucket: this.s3.bucket,
+          Key: key,
+          Body: file.buffer,
+          ContentType: file.mimetype,
+          ContentDisposition: disposition(file.mimetype, file.originalname),
+          CacheControl: 'private, max-age=86400',
+        }),
+      );
+    } else {
+      await mkdir(join(this.dir, key.split('/')[0]!), { recursive: true });
+      await writeFile(join(this.dir, key), file.buffer);
+    }
     const row = await this.prisma.fileObject.create({
       data: {
         id,
@@ -131,8 +169,25 @@ export class FilesService {
     throw new ForbiddenException('Not allowed');
   }
 
-  pathFor(f: FileObject): string {
-    return join(this.dir, f.storageKey);
+  /** Local storage: the file on disk. Null when files live in S3 (use signedUrl). */
+  pathFor(f: FileObject): string | null {
+    return this.s3 ? null : join(this.dir, f.storageKey);
+  }
+
+  /**
+   * S3 storage: a CloudFront link valid until the end of the next hour. The same link is
+   * handed out for the rest of this hour, so phones and browsers can cache the file.
+   */
+  signedUrl(f: FileObject): string | null {
+    if (!this.s3) return null;
+    const hour = 3_600_000;
+    const until = new Date((Math.floor(Date.now() / hour) + 2) * hour);
+    return getSignedUrl({
+      url: `https://${this.s3.domain}/${f.storageKey.split('/').map(encodeURIComponent).join('/')}`,
+      keyPairId: this.s3.keyPairId,
+      privateKey: this.s3.privateKey,
+      dateLessThan: until.toISOString(),
+    });
   }
 }
 
@@ -161,4 +216,9 @@ function sniffMatches(mime: string, buf: Buffer): boolean {
     default:
       return false;
   }
+}
+
+/** Images render inline; everything else downloads, under its original name. */
+export function disposition(mime: string, name: string): string {
+  return `${mime.startsWith('image/') ? 'inline' : 'attachment'}; filename="${encodeURIComponent(name)}"`;
 }

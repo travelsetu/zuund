@@ -18,6 +18,8 @@ export function applyTestEnv(): void {
     CORS_ORIGIN: 'http://localhost:5173',
     PUBLIC_API_URL: 'http://localhost:3000',
     UPLOAD_DIR: join(tmpdir(), 'zuund-test-uploads'),
+    // Never the real bucket: a developer's .env may point uploads at S3.
+    STORAGE_DRIVER: 'local',
     UPLOAD_MAX_BYTES: String(10 * 1024 * 1024),
     ELITE_PASS_AMOUNT: '49900',
     ELITE_PASS_DAYS: '30',
@@ -34,5 +36,8 @@ export function applyTestEnv(): void {
   delete process.env.MSG91_AUTH_KEY;
   delete process.env.RAZORPAY_KEY_ID;
   delete process.env.RAZORPAY_KEY_SECRET;
+  delete process.env.AWS_ACCESS_KEY_ID;
+  delete process.env.AWS_SECRET_ACCESS_KEY;
+  delete process.env.CLOUDFRONT_PRIVATE_KEY_B64;
   delete process.env.RAZORPAY_WEBHOOK_SECRET;
 }

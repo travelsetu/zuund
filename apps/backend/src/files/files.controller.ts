@@ -20,7 +20,7 @@ import type { RequestUser } from '../auth/auth.constants';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import type { Env } from '../config/env';
-import { FilesService } from './files.service';
+import { FilesService, disposition } from './files.service';
 
 @Controller('files')
 @UseGuards(JwtAccessGuard)
@@ -46,7 +46,11 @@ export class FilesController {
     return this.files.store(user.userId, file);
   }
 
-  /** Streams a file the caller is allowed to see. Images render inline; everything else downloads. */
+  /**
+   * A file the caller is allowed to see. Local storage streams it (images inline,
+   * everything else downloads); S3 storage redirects to a short-lived signed CloudFront
+   * link, which carries the same headers from the object.
+   */
   @Get(':id')
   async read(
     @CurrentUser() user: RequestUser,
@@ -54,14 +58,17 @@ export class FilesController {
     @Res() res: Response,
   ): Promise<void> {
     const f = await this.files.authorizeRead(id, user.userId);
-    const inline = f.mimeType.startsWith('image/');
+    const signed = this.files.signedUrl(f);
+    if (signed) {
+      // Only for this caller, briefly: the link itself is what may be cached.
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.redirect(302, signed);
+      return;
+    }
     res.setHeader('Content-Type', f.mimeType);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `${inline ? 'inline' : 'attachment'}; filename="${encodeURIComponent(f.fileName)}"`,
-    );
-    res.sendFile(this.files.pathFor(f));
+    res.setHeader('Content-Disposition', disposition(f.mimeType, f.fileName));
+    res.sendFile(this.files.pathFor(f)!);
   }
 }
