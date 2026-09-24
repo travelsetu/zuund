@@ -17,7 +17,7 @@ import {
   sentenceCase,
   type IconName,
 } from '@/components/ui';
-import { ELITE_PRICE, PassChip, goUpgrade } from '@/components/Plan';
+import { ELITE_PRICE, PassChip, PulseSummary, goUpgrade } from '@/components/Plan';
 import { api, errorMessage } from '@/lib/api';
 import { daysLeft, formatDate, listTime } from '@/lib/format';
 import { useLightStatusBar } from '@/lib/statusBar';
@@ -25,9 +25,9 @@ import { useFocusData } from '@/lib/useAsync';
 import { colors, radius, space, type, fonts } from '@/theme';
 
 const SECTIONS: Array<{ key: string; label: string; icon: IconName }> = [
+  { key: 'insights', label: 'Insights', icon: 'pulse-outline' },
   { key: 'discussion', label: 'Discussion', icon: 'chatbubbles-outline' },
   { key: 'buyers', label: 'Buyers', icon: 'search-outline' },
-  { key: 'insights', label: 'Insights', icon: 'pulse-outline' },
   { key: 'activities', label: 'Activities', icon: 'calendar-outline' },
   { key: 'members', label: 'Members', icon: 'people-outline' },
   { key: 'polls', label: 'Polls', icon: 'stats-chart-outline' },
@@ -64,7 +64,12 @@ export default function CollectiveDashboard() {
             )
             .catch(() => null),
     ]);
-    return { c, recent, intent };
+    // A little of the room's insight up top (the full thing is the Insights tile).
+    const counts =
+      c.membership?.status === 'ACTIVE'
+        ? await api.buyers.count({ carId: c.car.id, cityId: c.city.id }).catch(() => null)
+        : null;
+    return { c, recent, intent, counts };
   }, [id]);
 
   if (!data)
@@ -74,7 +79,7 @@ export default function CollectiveDashboard() {
         {error ? <Text style={type.small}>{error}</Text> : <Loading />}
       </Screen>
     );
-  const { c, recent, intent } = data;
+  const { c, recent, intent, counts } = data;
   const active = c.membership?.status === 'ACTIVE';
 
   function leave() {
@@ -174,11 +179,17 @@ export default function CollectiveDashboard() {
 
       {active ? (
         <>
+          {counts ? (
+            <PulseSummary
+              pulse={counts.pulse}
+              onPress={() => router.push(`/collectives/${id}/insights`)}
+            />
+          ) : null}
           <View style={s.sections}>
-            {SECTIONS.map((sec) => (
+            {SECTIONS.map((sec, i) => (
               <Pressable
                 key={sec.key}
-                style={s.section}
+                style={[s.section, i % 4 !== 3 && { marginRight: '2%' }]}
                 onPress={() =>
                   // Buyers is the Buying Post's buyer list: details, filters, nearby.
                   sec.key === 'buyers'
@@ -188,7 +199,10 @@ export default function CollectiveDashboard() {
                 accessibilityRole="button"
               >
                 <Ionicons name={sec.icon} size={24} color={colors.brand} />
-                <Text style={[type.tiny, { color: colors.text, fontFamily: fonts.semibold }]}>
+                <Text
+                  style={[type.tiny, { color: colors.text, fontFamily: fonts.semibold }]}
+                  numberOfLines={1}
+                >
                   {sec.label}
                 </Text>
               </Pressable>
@@ -253,10 +267,13 @@ export default function CollectiveDashboard() {
 
 const s = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center', paddingVertical: space.md },
-  sections: { flexDirection: 'row', flexWrap: 'wrap', gap: '2%', rowGap: space.sm },
+  // Four per row. Percentage gaps aren't supported on native, so the space is a margin.
+  sections: { flexDirection: 'row', flexWrap: 'wrap', rowGap: space.sm },
   section: {
     width: '23.5%',
-    aspectRatio: 1,
+    minHeight: 76,
+    paddingVertical: space.md,
+    paddingHorizontal: 4,
     borderRadius: radius.md,
     backgroundColor: colors.white,
     borderWidth: 1,

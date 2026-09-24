@@ -180,6 +180,14 @@ export const buyerDiscoveryQuerySchema = pageQuerySchema.extend({
 });
 export type BuyerDiscoveryQuery = z.infer<typeof buyerDiscoveryQuerySchema>;
 
+/** GET /buyers/matches (Elite): the best-matching buyers for your post, best first. */
+export const buyerMatchesQuerySchema = z.object({
+  carId: uuid,
+  cityId: uuid,
+  limit: z.coerce.number().int().min(1).max(50).default(5),
+});
+export type BuyerMatchesQuery = z.infer<typeof buyerMatchesQuerySchema>;
+
 // ── Connections ──
 export const createConnectionRequestSchema = z.object({ userId: uuid });
 export type CreateConnectionRequest = z.infer<typeof createConnectionRequestSchema>;

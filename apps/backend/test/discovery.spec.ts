@@ -61,7 +61,9 @@ describe('buyer discovery', () => {
       expect(b.city.id).toBe(ctx.ahmedabad.id);
       expect(b.user).not.toHaveProperty('email');
       expect(b).not.toHaveProperty('budget');
-      expect(JSON.stringify(b).toLowerCase()).not.toContain('score');
+      // Elite sees an explainable match against their own post (Free gets null).
+      expect(b.match.score).toBeGreaterThanOrEqual(0);
+      expect(b.match.score).toBeLessThanOrEqual(100);
     }
   });
 
@@ -148,5 +150,33 @@ describe('buyer discovery', () => {
 
   it('requires both car and city', async () => {
     expect((await viewer.agent.get(`/api/buyers?carId=${ctx.creta.id}`)).status).toBe(400);
+  });
+
+  // Runs last: it joins one of the buyers to the collective.
+  it('Elite: best matches first, each with its score and reasons; Free cannot', async () => {
+    const res = await viewer.agent.get(
+      `/api/buyers/matches?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}&limit=5`,
+    );
+    expect(res.status).toBe(200);
+    const scores = res.body.map((b: { match: { score: number } }) => b.match.score);
+    expect(scores).toEqual([...scores].sort((x: number, y: number) => y - x));
+    // Viewer: within 30 days. Ready buyers within 15 days: timeline 0.67×40 + ready 1×30 → 81%.
+    expect(res.body[0].intentLevel).toBe('READY');
+    expect(res.body[0].match).toEqual({
+      score: 81,
+      reasons: ['Ready to buy', 'Similar timeline'],
+    });
+    // Interested ones: 0.67×40 + 0.4×30 → 55%.
+    for (const b of res.body as Array<{ intentLevel: string; match: { score: number } }>)
+      if (b.intentLevel === 'INTERESTED') expect(b.match.score).toBe(55);
+
+    // A buyer on the Free Pass gets no matches.
+    const free = others[0]!;
+    await activateMemberships(free);
+    const denied = await free.agent.get(
+      `/api/buyers/matches?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}`,
+    );
+    expect(denied.status).toBe(403);
+    expect(denied.body.error.code).toBe('ELITE_REQUIRED');
   });
 });

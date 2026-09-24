@@ -8,8 +8,16 @@ import {
 import { E } from '../common/domain.exception';
 import { bandFor, boxAround, distanceKm, roundPoint } from '../common/geo';
 import { GeoService } from '../catalog/geo.service';
-import { activeSince, eliteUserIds, freePassUsed, planFor } from '../common/entitlements';
+import {
+  activeSince,
+  eliteUserIds,
+  freePassUsed,
+  planFor,
+  requireElite,
+} from '../common/entitlements';
+import { matchScore } from './match';
 import type {
+  BuyerMatchesQuery,
   BuyerCountDto,
   BuyerPulseDto,
   NearbyBandDto,
@@ -47,6 +55,13 @@ import { AuditService } from '../common/audit.service';
 import { connectionsWith } from '../common/connections';
 import { requireJoined } from '../common/joined';
 import { PrismaService } from '../prisma/prisma.service';
+
+const buyerInclude = {
+  car: true,
+  city: true,
+  user: { include: { profile: { include: { city: true } } } },
+} as const;
+type BuyerRow = Prisma.BuyingIntentGetPayload<{ include: typeof buyerInclude }>;
 
 @Injectable()
 export class BuyingIntentsService {
@@ -287,13 +302,13 @@ export class BuyingIntentsService {
   // ── Discovery ──
 
   /**
-   * Other people's ACTIVE posts for the same car and city. A plain filtered
-   * list plus a count: no scores, no budget. Blocked users in either
-   * direction are excluded.
+   * Other people's ACTIVE posts for the same car and city: a filtered list plus a
+   * count, no budget. Blocked users in either direction are excluded.
    *
    * Free viewers see "All" only, and who each buyer is (name, photo, city) but not
-   * their details. Elite viewers get every filter, the details and who has been
-   * active in the last 48 hours.
+   * their details. Elite viewers get every filter, the details, who has been active
+   * in the last 48 hours and an explainable match score (match.ts; user decision
+   * 2026-09-24, Elite only, overriding the spec's "never a score").
    */
   async discover(viewerId: string, q: BuyerDiscoveryQuery): Promise<BuyerDiscoveryDto> {
     const [car, city] = await Promise.all([
@@ -336,41 +351,14 @@ export class BuyingIntentsService {
         this.prisma.buyingIntent.count({ where: { ...base, ...activeRecently } }),
         this.prisma.buyingIntent.findMany({
           where: { ...base, ...filter, ...afterCursor(decodeCursor(q.cursor)) },
-          include: {
-            car: true,
-            city: true,
-            user: { include: { profile: { include: { city: true } } } },
-          },
+          include: buyerInclude,
           orderBy: cursorOrder,
           take: q.limit + 1,
         }),
       ]);
 
-    const ids = rows.map((r) => r.userId);
-    const here = elite ? await this.viewerPoint(viewerId, q.carId, q.cityId) : null;
-    const [connections, eliteIds] = await Promise.all([
-      connectionsWith(this.prisma, viewerId, ids),
-      eliteUserIds(this.prisma, ids),
-    ]);
-    const page = toPage(rows, q.limit, (r): BuyerDto => {
-      const c = connections.get(r.userId);
-      return {
-        buyingIntentId: r.id,
-        user: toPublicUser(r.user, { elite: eliteIds }),
-        car: toCar(r.car),
-        city: toCity(r.city),
-        purchaseTimeline: elite ? r.purchaseTimeline : null,
-        intentLevel: elite ? r.intentLevel : null,
-        createdAt: r.createdAt.toISOString(),
-        holiday: elite ? toHolidayTrip(r) : null,
-        connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
-        activeRecently: elite ? !!r.user.lastActiveAt && r.user.lastActiveAt >= activeCutoff : null,
-        withinKm:
-          here && r.latitude !== null && r.longitude !== null
-            ? bandFor(distanceKm(here.latitude, here.longitude, r.latitude, r.longitude))
-            : null,
-      };
-    });
+    const toBuyer = await this.buyerMapper(viewerId, q.carId, q.cityId, elite, rows);
+    const page = toPage(rows, q.limit, toBuyer);
     return {
       ...page,
       car: toCar(car),
@@ -385,6 +373,80 @@ export class BuyingIntentsService {
         ACTIVE_RECENT: active,
       },
       viewerPlan: elite ? 'ELITE' : 'FREE',
+    };
+  }
+
+  /**
+   * Elite: the buyers whose posts line up best with yours, best first, each with its
+   * score and reasons (see match.ts). Same item and city, like discovery.
+   */
+  async matches(viewerId: string, q: BuyerMatchesQuery): Promise<BuyerDto[]> {
+    await requireJoined(this.prisma, viewerId, { carId: q.carId, cityId: q.cityId });
+    await requireElite(this.prisma, viewerId);
+    const rows = await this.prisma.buyingIntent.findMany({
+      where: {
+        carId: q.carId,
+        cityId: q.cityId,
+        status: 'ACTIVE',
+        userId: { not: viewerId, notIn: await this.blockedUserIds(viewerId) },
+        user: { status: 'ACTIVE' },
+      },
+      include: buyerInclude,
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    const toBuyer = await this.buyerMapper(viewerId, q.carId, q.cityId, true, rows);
+    return rows
+      .map(toBuyer)
+      .filter((b) => b.match)
+      .sort((a, b) => b.match!.score - a.match!.score)
+      .slice(0, q.limit);
+  }
+
+  /**
+   * How one discovery row becomes a buyer card for this viewer: Free sees who, Elite also
+   * sees the details, activity, distance band and match against the viewer's own post.
+   */
+  private async buyerMapper(
+    viewerId: string,
+    carId: string,
+    cityId: string,
+    elite: boolean,
+    rows: BuyerRow[],
+  ): Promise<(r: BuyerRow) => BuyerDto> {
+    const ids = rows.map((r) => r.userId);
+    const [connections, eliteIds, mine] = await Promise.all([
+      connectionsWith(this.prisma, viewerId, ids),
+      eliteUserIds(this.prisma, ids),
+      elite
+        ? this.prisma.buyingIntent.findFirst({
+            where: { userId: viewerId, carId, cityId, status: 'ACTIVE' },
+          })
+        : null,
+    ]);
+    const activeCutoff = activeSince();
+    return (r) => {
+      const c = connections.get(r.userId);
+      return {
+        buyingIntentId: r.id,
+        user: toPublicUser(r.user, { elite: eliteIds }),
+        car: toCar(r.car),
+        city: toCity(r.city),
+        purchaseTimeline: elite ? r.purchaseTimeline : null,
+        intentLevel: elite ? r.intentLevel : null,
+        createdAt: r.createdAt.toISOString(),
+        holiday: elite ? toHolidayTrip(r) : null,
+        connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
+        activeRecently: elite ? !!r.user.lastActiveAt && r.user.lastActiveAt >= activeCutoff : null,
+        withinKm:
+          mine?.latitude != null &&
+          mine.longitude != null &&
+          r.latitude !== null &&
+          r.longitude !== null
+            ? bandFor(distanceKm(mine.latitude, mine.longitude, r.latitude, r.longitude))
+            : null,
+        match: mine ? matchScore(mine, r) : null,
+      };
     };
   }
 

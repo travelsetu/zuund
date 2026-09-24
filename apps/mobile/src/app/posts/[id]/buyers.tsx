@@ -39,9 +39,9 @@ const LABEL: Record<BuyerFilter, string> = {
 const ORDER: BuyerFilter[] = ['ALL', 'READY', 'COMMITTED', 'INTERESTED', 'ACTIVE_RECENT', 'RECENT'];
 
 /**
- * Mockup 4 — buyers of the same item in the same city. A count, never a
- * match score; no budget anywhere (spec §14–16). On a Free Pass everyone is listed
- * by name, but details and the filters are Elite: the chips show a lock.
+ * Mockup 4 — buyers of the same item in the same city, with a count; no budget
+ * anywhere (spec §14–16). On a Free Pass everyone is listed by name, but details,
+ * the filters and the match score are Elite: the chips show a lock.
  */
 export default function Buyers() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -144,7 +144,7 @@ export default function Buyers() {
           </View>
           <ProductArt car={page.car} size="md" onDark />
         </View>
-        {/* The screen's one big moment: a plain count of real buyers, never a score. */}
+        {/* The screen's one big moment: a plain count of real buyers. */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.md }}>
           <Text style={s.count}>{total}</Text>
           <Text style={[type.body, { color: colors.white, flex: 1, paddingBottom: 10 }]}>
@@ -203,6 +203,7 @@ export default function Buyers() {
               trip={b.holiday}
               activeRecently={b.activeRecently}
               withinKm={b.withinKm}
+              match={b.match}
               action={
                 <ConnectButton
                   userId={b.user.id}

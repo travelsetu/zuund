@@ -38,6 +38,7 @@ export const ELITE_FEATURES = [
   'Filters: Ready to Buy, Committed, active recently',
   'Live Buyer Pulse: who was active in the last 48 hours',
   'Nearby buyers within 5, 10 and 25 km',
+  'Match score: your best-matching buyers, with the reasons',
   'Elite badge',
 ];
 
@@ -262,6 +263,44 @@ export function BuyerPulse({
   );
 }
 
+/**
+ * A little of the Live Buyer Pulse for the top of a collective: the three demand counts,
+ * who was active in the last 48 hours and (Elite) the Ready buyers among them. Taps
+ * through to the full Insights.
+ */
+export function PulseSummary({ pulse, onPress }: { pulse: BuyerPulseDto; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.summary, pressed && { opacity: 0.8 }]}
+      accessibilityRole="button"
+      accessibilityLabel="Open insights"
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name="pulse" size={16} color={colors.green} />
+        <Text style={[type.h3, { flex: 1 }]}>Buyer Pulse</Text>
+        <Text style={[type.small, { color: colors.brand, fontFamily: fonts.semibold }]}>
+          Insights
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.brand} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <PulseStat icon="people" value={pulse.byIntentLevel.INTERESTED} label="Interested" />
+        <PulseStat icon="flag" value={pulse.byIntentLevel.COMMITTED} label="Committed" />
+        <PulseStat icon="cart" value={pulse.byIntentLevel.READY} label="Ready to Buy" />
+      </View>
+      <PulseLine
+        color={colors.green}
+        text={
+          pulse.elite && pulse.readyActiveRecently !== null
+            ? `${pulse.activeRecently} active in the last 48 hours · ${pulse.readyActiveRecently} Ready`
+            : `${pulse.activeRecently} active in the last 48 hours`
+        }
+      />
+    </Pressable>
+  );
+}
+
 function PulseStat({
   icon,
   value,
@@ -348,6 +387,14 @@ const s = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.md,
     backgroundColor: colors.purpleSoft,
+  },
+  summary: {
+    gap: space.md,
+    padding: space.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.white,
   },
   nearby: {
     gap: space.sm,

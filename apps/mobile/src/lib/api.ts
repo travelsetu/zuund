@@ -4,6 +4,7 @@ import type {
   AuthUser,
   BrandDto,
   BuyerCountDto,
+  BuyerDto,
   BuyerDiscoveryDto,
   BuyerFilter,
   BuyerProfileDto,
@@ -278,6 +279,9 @@ export const api = {
   buyers: {
     discover: (p: { carId: string; cityId: string; filter?: BuyerFilter; cursor?: string }) =>
       request<BuyerDiscoveryDto>(`/buyers${qs({ ...p, limit: 20 })}`),
+    /** Elite: the best-matching buyers for your post, best first. */
+    matches: (p: { carId: string; cityId: string; limit?: number }) =>
+      request<BuyerDto[]>(`/buyers/matches${qs(p)}`),
     /** How many others are buying it, and how the members plan: counts, open to everyone. */
     count: (p: { carId: string; cityId: string }) =>
       request<BuyerCountDto>(`/buyers/count${qs(p)}`),

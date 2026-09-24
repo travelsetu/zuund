@@ -1,21 +1,42 @@
-import { ELITE_PASS_DAYS, FREE_PASS_DAYS, type BuyingIntentDto } from '@zuund/shared';
+import {
+  ELITE_PASS_DAYS,
+  FREE_PASS_DAYS,
+  type BuyerPulseDto,
+  type BuyingIntentDto,
+} from '@zuund/shared';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDate, rupees } from '@/lib/format';
 import { colors, space, type, fonts } from '@/theme';
-import { ELITE_PRICE, PassChip, UsageRow, goUpgrade } from './Plan';
+import { ELITE_PRICE, PassChip, PulseSummary, UsageRow, goUpgrade } from './Plan';
 import { Button, Card, StatusBadge } from './ui';
 
 /**
  * Free or Elite Pass state for one post (spec §37, §73). Status and dates come from
  * the server; the app never works out expiry itself. While it's the pass that sets
- * your limits, it also shows how much of them is used.
+ * your limits, it also shows how much of them is used. An active pass also shows a
+ * little of the room's Buyer Pulse, tapping through to the collective's Insights.
  */
 export function PassPanel({ intent }: { intent: BuyingIntentDto }) {
   const { me } = useAuth();
   const pass = intent.pass;
   const status = pass?.status;
+  const [pulse, setPulse] = useState<BuyerPulseDto | null>(null);
+  const live = status === 'ACTIVE';
+  useEffect(() => {
+    if (!live) return;
+    let alive = true;
+    api.buyers
+      .count({ carId: intent.car.id, cityId: intent.city.id })
+      .then((c) => alive && setPulse(c.pulse))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [live, intent.car.id, intent.city.id]);
   const tone =
     status === 'ACTIVE'
       ? 'green'
@@ -66,6 +87,18 @@ export function PassPanel({ intent }: { intent: BuyingIntentDto }) {
         <View style={{ gap: 6 }}>
           {status === 'ACTIVE' ? (
             <PassChip pass={pass} onUpgrade={() => goUpgrade(intent.id)} />
+          ) : null}
+          {live && pulse ? (
+            <View style={{ marginVertical: space.sm }}>
+              <PulseSummary
+                pulse={pulse}
+                onPress={() =>
+                  intent.membership?.collectiveId
+                    ? router.push(`/collectives/${intent.membership.collectiveId}/insights`)
+                    : router.push(`/posts/${intent.id}/collective`)
+                }
+              />
+            </View>
           ) : null}
           <Row label="Payment" value={pass.amount === 0 ? 'Free' : rupees(pass.amount)} />
           <Row label="Pass activated" value={formatDate(pass.activatedAt)} />

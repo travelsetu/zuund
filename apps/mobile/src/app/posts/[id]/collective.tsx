@@ -10,8 +10,8 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { BuyerRow } from '@/components/BuyerRow';
-import { MemberPlans } from '@/components/MemberPlans';
-import { BuyerPulse, ELITE_PRICE } from '@/components/Plan';
+import { InsightsPanel } from '@/components/InsightsPanel';
+import { ELITE_PRICE } from '@/components/Plan';
 import {
   Button,
   Card,
@@ -31,7 +31,7 @@ import { useLightStatusBar } from '@/lib/statusBar';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, radius, space, type } from '@/theme';
 
-type Tab = 'about' | 'buyers' | 'discussion';
+type Tab = 'insights' | 'about' | 'buyers' | 'discussion';
 
 /**
  * Mockup 5 — the collective for this post's item + city, seen before joining.
@@ -41,7 +41,7 @@ type Tab = 'about' | 'buyers' | 'discussion';
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   useLightStatusBar();
-  const [tab, setTab] = useState<Tab>('about');
+  const [tab, setTab] = useState<Tab>('insights');
   const [joining, setJoining] = useState(false);
   const { data, reload, refresh, refreshing } = useFocusData(async () => {
     const intent = await api.intents.get(id);
@@ -58,8 +58,6 @@ export default function GroupDetails() {
       collective: cols.items[0] ?? null,
       buyers,
       buyerCount: buyers?.totalActiveBuyers ?? count.count,
-      memberPlans: count.members,
-      pulse: count.pulse,
     };
   }, [id]);
 
@@ -70,7 +68,7 @@ export default function GroupDetails() {
         <Loading />
       </Screen>
     );
-  const { intent, collective, buyers, buyerCount, memberPlans, pulse } = data;
+  const { intent, collective, buyers, buyerCount } = data;
   const member = collective?.membership?.status === 'ACTIVE';
   const free = intent.freePassAvailable;
 
@@ -170,17 +168,8 @@ export default function GroupDetails() {
         />
       </View>
 
-      <BuyerPulse pulse={pulse} buyingIntentId={id} />
-
-      {intent.status === 'ACTIVE' ? (
-        <MemberPlans
-          plans={memberPlans}
-          holiday={intent.car.category === 'HOLIDAY'}
-          buyingIntentId={id}
-        />
-      ) : null}
-
       <ChipRow>
+        <Chip label="Insights" active={tab === 'insights'} onPress={() => setTab('insights')} />
         <Chip label="About" active={tab === 'about'} onPress={() => setTab('about')} />
         <Chip
           label={`Buyers (${buyerCount})`}
@@ -194,7 +183,14 @@ export default function GroupDetails() {
         />
       </ChipRow>
 
-      {tab === 'about' ? (
+      {tab === 'insights' ? (
+        <InsightsPanel
+          car={intent.car}
+          cityId={intent.city.id}
+          buyingIntentId={id}
+          joined={!!member}
+        />
+      ) : tab === 'about' ? (
         <Card style={{ gap: space.md }}>
           <Text style={type.body}>
             A group for people planning to buy {intent.car.displayName} in {intent.city.name}. Join
@@ -227,6 +223,7 @@ export default function GroupDetails() {
                 trip={b.holiday}
                 activeRecently={b.activeRecently}
                 withinKm={b.withinKm}
+                match={b.match}
               />
             ))}
             {buyers.nextCursor ? (

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   buyerDiscoveryQuerySchema,
+  buyerMatchesQuerySchema,
   buyingIntentStatusActionSchema,
   changeIntentLevelRequestSchema,
   createBuyingIntentRequestSchema,
@@ -19,6 +20,8 @@ import {
   updateBuyingIntentRequestSchema,
   type BuyerCountDto,
   type BuyerDiscoveryDto,
+  type BuyerDto,
+  type BuyerMatchesQuery,
   type BuyerDiscoveryQuery,
   type BuyingIntentDto,
   type BuyingIntentStatusAction,
@@ -113,6 +116,15 @@ export class BuyingIntentsController {
     @Query(new ZodValidationPipe(buyerDiscoveryQuerySchema)) q: BuyerDiscoveryQuery,
   ): Promise<BuyerDiscoveryDto> {
     return this.intents.discover(user.userId, q);
+  }
+
+  /** Elite: the best-matching buyers for your post, with scores and reasons. */
+  @Get('buyers/matches')
+  matches(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(buyerMatchesQuerySchema)) q: BuyerMatchesQuery,
+  ): Promise<BuyerDto[]> {
+    return this.intents.matches(user.userId, q);
   }
 
   @Get('buyers/count')

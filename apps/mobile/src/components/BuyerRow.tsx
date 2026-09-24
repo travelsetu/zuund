@@ -1,6 +1,7 @@
 import {
   PURCHASE_TIMELINE_LABELS,
   formatTrip,
+  type BuyerMatchDto,
   type HolidayTripDto,
   type IntentLevel,
   type PublicUserDto,
@@ -10,7 +11,7 @@ import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, space, type } from '@/theme';
+import { colors, fonts, space, type } from '@/theme';
 import { EliteBadge } from './Plan';
 import { Avatar, IntentBadge, Verified } from './ui';
 
@@ -26,6 +27,7 @@ export function BuyerRow({
   trip,
   activeRecently,
   withinKm,
+  match,
   action,
 }: {
   user: PublicUserDto;
@@ -37,6 +39,8 @@ export function BuyerRow({
   activeRecently?: boolean | null;
   /** Elite viewers only: the nearby band this buyer is within. */
   withinKm?: number | null;
+  /** Elite viewers only: how well they line up with your post, and why. */
+  match?: BuyerMatchDto | null;
   action?: ReactNode;
 }) {
   const locked = !intentLevel;
@@ -81,6 +85,11 @@ export function BuyerRow({
               <Text style={[type.tiny, { color: colors.purple }]}>Details with Elite</Text>
             </View>
           ) : null}
+          {match?.reasons.length ? (
+            <Text style={[type.tiny, { color: colors.text }]} numberOfLines={1}>
+              {match.reasons.join(' · ')}
+            </Text>
+          ) : null}
           {activeRecently ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
               <View style={s.live} />
@@ -90,6 +99,11 @@ export function BuyerRow({
         </View>
       </Pressable>
       <View style={{ alignItems: 'flex-end', gap: 8 }}>
+        {match ? (
+          <View style={s.match} accessibilityLabel={`${match.score} percent match`}>
+            <Text style={s.matchText}>{match.score}% match</Text>
+          </View>
+        ) : null}
         {intentLevel ? <IntentBadge level={intentLevel} /> : null}
         {action}
       </View>
@@ -98,6 +112,13 @@ export function BuyerRow({
 }
 
 const s = StyleSheet.create({
+  match: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: colors.greenSoft,
+  },
+  matchText: { color: colors.green, fontSize: 12, fontFamily: fonts.bold },
   live: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green },
   who: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md },
   row: {

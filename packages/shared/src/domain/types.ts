@@ -201,14 +201,25 @@ export interface BuyerDto {
   activeRecently: boolean | null;
   /** Elite viewers only: the smallest band (5/10/25 km) this buyer is within. Never a distance. */
   withinKm: NearbyBandKm | null;
+  /** Elite viewers only: how well this buyer's post lines up with yours, with the reasons. */
+  match: BuyerMatchDto | null;
+}
+
+/**
+ * An explainable match (Elite): 0–100 from timeline, how sure they are, distance and, for
+ * holidays, the trip. `reasons` are the strongest parts, e.g. "Same timeline".
+ */
+export interface BuyerMatchDto {
+  score: number;
+  reasons: string[];
 }
 
 export interface BuyerDiscoveryDto extends Page<BuyerDto> {
   car: CarDto;
   city: CityDto;
-  /** Active buyers for this car+city, excluding the viewer. A count, not a score. */
+  /** Active buyers for this car+city, excluding the viewer. */
   totalActiveBuyers: number;
-  /** The same count broken down per filter pill. Counts, never scores. */
+  /** The same count broken down per filter pill. */
   counts: Record<BuyerFilter, number>;
   /** The viewer's plan: Free sees "All" only, with buyer details locked. */
   viewerPlan: PassPlan;
