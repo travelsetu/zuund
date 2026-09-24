@@ -132,6 +132,19 @@ export const holidayDetailsSchema = z.object({
 });
 export type HolidayDetails = z.infer<typeof holidayDetailsSchema>;
 
+/** A device position. Stored rounded to about 1 km and never shown to other users. */
+export const geoPointSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+export type GeoPoint = z.infer<typeof geoPointSchema>;
+
+/** GET /geo/nearest: the city nearest a device position. */
+export const geoNearestQuerySchema = z.object({
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+});
+
 export const createBuyingIntentRequestSchema = z.object({
   carId: uuid,
   cityId: uuid,
@@ -139,6 +152,8 @@ export const createBuyingIntentRequestSchema = z.object({
   intentLevel: z.enum(INTENT_LEVELS).default('INTERESTED'),
   /** Required for holiday packages, refused for anything else. */
   holiday: holidayDetailsSchema.optional(),
+  /** The device's position when the user allowed it; otherwise the server uses the IP's. */
+  location: geoPointSchema.optional(),
 });
 export type CreateBuyingIntentRequest = z.infer<typeof createBuyingIntentRequestSchema>;
 

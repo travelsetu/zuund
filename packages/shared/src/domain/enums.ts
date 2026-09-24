@@ -171,6 +171,15 @@ export const ELITE_PASS_DAYS = 30;
 /** "Active recently" means a request in the last 48 hours. */
 export const ACTIVE_RECENTLY_HOURS = 48;
 
+/** Where a Buying Post's location came from: the device (GPS) or its IP address. */
+export const LOCATION_SOURCES = ['GPS', 'IP'] as const;
+export type LocationSource = (typeof LOCATION_SOURCES)[number];
+/** Nearby buyers are shown in these bands, never as an exact distance. */
+export const NEARBY_BANDS_KM = [5, 10, 25] as const;
+export type NearbyBandKm = (typeof NEARBY_BANDS_KM)[number];
+/** A nearby count below this is shown as "fewer than 3", so nobody can be singled out. */
+export const NEARBY_MIN_COUNT = 3;
+
 /**
  * What each plan allows. Active connections = accepted now + your own pending requests;
  * accepted = connections accepted since the pass started (never goes down);

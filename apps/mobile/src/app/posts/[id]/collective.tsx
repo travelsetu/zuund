@@ -2,11 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   ELITE_PASS_DAYS,
   FREE_PASS_DAYS,
-  INTENT_LEVEL_LABELS,
-  INTENT_LEVELS,
   PURCHASE_TIMELINE_LABELS,
-  PURCHASE_TIMELINES,
-  type BuyerCountDto,
   type BuyerDto,
 } from '@zuund/shared';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,6 +10,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { BuyerRow } from '@/components/BuyerRow';
+import { MemberPlans } from '@/components/MemberPlans';
 import { BuyerPulse, ELITE_PRICE } from '@/components/Plan';
 import {
   Button,
@@ -32,7 +29,7 @@ import {
 import { api, errorMessage } from '@/lib/api';
 import { useLightStatusBar } from '@/lib/statusBar';
 import { useFocusData } from '@/lib/useAsync';
-import { colors, fonts, radius, space, type } from '@/theme';
+import { colors, radius, space, type } from '@/theme';
 
 type Tab = 'about' | 'buyers' | 'discussion';
 
@@ -61,7 +58,7 @@ export default function GroupDetails() {
       collective: cols.items[0] ?? null,
       buyers,
       buyerCount: buyers?.totalActiveBuyers ?? count.count,
-      memberPlans: joined ? null : count.members,
+      memberPlans: count.members,
       pulse: count.pulse,
     };
   }, [id]);
@@ -175,8 +172,12 @@ export default function GroupDetails() {
 
       <BuyerPulse pulse={pulse} buyingIntentId={id} />
 
-      {!member && memberPlans ? (
-        <MemberPlans plans={memberPlans} holiday={intent.car.category === 'HOLIDAY'} />
+      {intent.status === 'ACTIVE' ? (
+        <MemberPlans
+          plans={memberPlans}
+          holiday={intent.car.category === 'HOLIDAY'}
+          buyingIntentId={id}
+        />
       ) : null}
 
       <ChipRow>
@@ -223,6 +224,9 @@ export default function GroupDetails() {
                 user={b.user}
                 purchaseTimeline={b.purchaseTimeline}
                 intentLevel={b.intentLevel}
+                trip={b.holiday}
+                activeRecently={b.activeRecently}
+                withinKm={b.withinKm}
               />
             ))}
             {buyers.nextCursor ? (
@@ -251,56 +255,6 @@ export default function GroupDetails() {
   );
 }
 
-/** How the members plan, as counts per answer: what someone deciding to join wants to know. */
-function MemberPlans({ plans, holiday }: { plans: BuyerCountDto['members']; holiday: boolean }) {
-  const total = INTENT_LEVELS.reduce((n, l) => n + plans.byIntentLevel[l], 0);
-  return (
-    <Card style={{ gap: space.lg }}>
-      <View style={{ gap: space.sm }}>
-        <Text style={type.h3}>
-          {holiday ? 'When they plan to book' : 'When they expect to buy'}
-        </Text>
-        {PURCHASE_TIMELINES.map((t) => (
-          <CountRow
-            key={t}
-            label={PURCHASE_TIMELINE_LABELS[t]}
-            count={plans.byTimeline[t]}
-            total={total}
-          />
-        ))}
-      </View>
-      <View style={{ gap: space.sm }}>
-        <Text style={type.h3}>How sure they are</Text>
-        {INTENT_LEVELS.map((l) => (
-          <CountRow
-            key={l}
-            label={INTENT_LEVEL_LABELS[l]}
-            count={plans.byIntentLevel[l]}
-            total={total}
-          />
-        ))}
-      </View>
-      {total ? null : <Text style={type.tiny}>No members yet. Be the first to join.</Text>}
-    </Card>
-  );
-}
-
-function CountRow({ label, count, total }: { label: string; count: number; total: number }) {
-  return (
-    <View
-      style={s.countRow}
-      accessible
-      accessibilityLabel={`${label}: ${count} ${count === 1 ? 'member' : 'members'}`}
-    >
-      <Text style={[type.small, s.countLabel]}>{label}</Text>
-      <View style={s.track}>
-        <View style={[s.fill, { width: `${total ? (count / total) * 100 : 0}%` }]} />
-      </View>
-      <Text style={[type.small, s.countValue]}>{count}</Text>
-    </View>
-  );
-}
-
 function Stat({ icon, value, label }: { icon: IconName; value: string; label: string }) {
   return (
     <View style={s.stat}>
@@ -314,11 +268,6 @@ function Stat({ icon, value, label }: { icon: IconName; value: string; label: st
 }
 
 const s = StyleSheet.create({
-  countRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  countLabel: { width: 112 },
-  track: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.line, overflow: 'hidden' },
-  fill: { height: '100%', borderRadius: 4, backgroundColor: colors.green },
-  countValue: { minWidth: 24, textAlign: 'right', fontFamily: fonts.semibold, color: colors.ink },
   stats: { flexDirection: 'row', gap: space.sm },
   stat: {
     flex: 1,

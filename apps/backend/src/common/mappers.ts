@@ -151,6 +151,7 @@ export function toIntent(i: IntentWithRelations, freePassAvailable = false): Buy
     holiday: toHolidayDetails(i),
     pass: pass ? toPass(pass) : null,
     freePassAvailable,
+    locationSource: i.locationSource,
     membership: m ? { id: m.id, collectiveId: m.collectiveId, status: m.status } : null,
   };
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { BrandDto, CarDto, CityDto, CountryDto, ProductCategory } from '@zuund/shared';
 import { toCar, toCity } from '../common/mappers';
 import { PrismaService } from '../prisma/prisma.service';
+import { distanceKm } from '../common/geo';
 
 @Injectable()
 export class CatalogService {
@@ -114,8 +115,9 @@ export class CatalogService {
    * (DB-IP). A city with the same name within 60 km wins ("Bengaluru"); otherwise the
    * nearest one within 40 km, so a suburb resolves to its city and a rural hit to nothing.
    */
+  /** The nearest city within 40 km (a same-named one within 60 km wins), optionally in one country. */
   async findNearestCity(
-    countryCode: string,
+    countryCode: string | null,
     latitude: number,
     longitude: number,
     name?: string,
@@ -124,7 +126,7 @@ export class CatalogService {
     const rows = await this.prisma.city.findMany({
       where: {
         status: 'ACTIVE',
-        countryCode,
+        ...(countryCode ? { countryCode } : {}),
         latitude: { gte: latitude - box, lte: latitude + box },
         longitude: { gte: longitude - box * 2, lte: longitude + box * 2 },
       },
@@ -154,13 +156,4 @@ export class CatalogService {
     if (!city) throw new NotFoundException('City not found');
     return city;
   }
-}
-
-/** Great-circle distance (haversine). */
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const rad = Math.PI / 180;
-  const a =
-    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
-    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lon2 - lon1) * rad) / 2) ** 2;
-  return 12742 * Math.asin(Math.sqrt(a));
 }

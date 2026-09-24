@@ -243,14 +243,19 @@ model BuyingIntent {
 
   /// Holiday packages only (null for cars and solar): the trip being planned.
   /// "2026-12": within the current month and the next 3 when the post is made.
-  travelMonth   String?        @map("travel_month") @db.VarChar(7)
+  travelMonth    String?         @map("travel_month") @db.VarChar(7)
   /// Week of that month: 1 = days 1–7, 2 = 8–14, 3 = 15–21, 4 = 22 to the month's end.
-  travelWeek    Int?           @map("travel_week")
-  adults        Int?
+  travelWeek     Int?            @map("travel_week")
+  adults         Int?
   /// One entry per child, their age in years (0–11; 12 and over count as adults).
-  childAges     Int[]          @default([]) @map("child_ages")
-  nights        Int?
-  hotelCategory HotelCategory? @map("hotel_category")
+  childAges      Int[]           @default([]) @map("child_ages")
+  nights         Int?
+  hotelCategory  HotelCategory?  @map("hotel_category")
+  /// Where the buyer is, rounded to ~1 km (2 decimals): the device's position when allowed,
+  /// else the IP's. Never shown; only used for "within 5/10/25 km" bands.
+  latitude       Float?
+  longitude      Float?
+  locationSource LocationSource? @map("location_source")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   car  Car  @relation(fields: [carId], references: [id])
@@ -294,6 +299,11 @@ enum BuyingPassStatus {
   EXPIRED
   CANCELLED
   REFUNDED
+}
+
+enum LocationSource {
+  GPS
+  IP
 }
 
 enum PassPlan {

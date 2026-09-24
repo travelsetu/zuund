@@ -5,6 +5,8 @@ import { Text, View } from 'react-native';
 import { BuyerRow } from '@/components/BuyerRow';
 import { ConnectButton, type ConnectionRef } from '@/components/ConnectButton';
 import { Button, Chip, ChipRow, Empty, Header, Loading, Screen, SearchBox } from '@/components/ui';
+import { goUpgrade } from '@/components/Plan';
+import { Alert } from '@/lib/alert';
 import { api } from '@/lib/api';
 import { useMe } from '@/lib/auth';
 import { useFocusData } from '@/lib/useAsync';
@@ -16,6 +18,7 @@ type Filter = 'ALL' | IntentLevel;
 export default function Members() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useMe();
+  const elite = me.pass?.plan === 'ELITE';
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('ALL');
   const { data, setData, error, refresh, refreshing } = useFocusData(
@@ -49,9 +52,26 @@ export default function Members() {
         {(['ALL', 'READY', 'COMMITTED', 'INTERESTED'] as const).map((f) => (
           <Chip
             key={f}
-            label={f === 'ALL' ? 'All' : f[0] + f.slice(1).toLowerCase()}
+            label={
+              (f === 'ALL' || elite ? '' : '🔒 ') +
+              (f === 'ALL' ? 'All' : f[0] + f.slice(1).toLowerCase())
+            }
             active={filter === f}
-            onPress={() => setFilter(f)}
+            onPress={() =>
+              f === 'ALL' || elite
+                ? setFilter(f)
+                : Alert.alert(
+                    'Part of the Elite Pass',
+                    'Seeing how sure members are, and filtering by it, is part of Elite.',
+                    [
+                      { text: 'Not now', style: 'cancel' },
+                      {
+                        text: 'Upgrade to Elite',
+                        onPress: () => goUpgrade(me.pass?.buyingIntentId),
+                      },
+                    ],
+                  )
+            }
           />
         ))}
       </ChipRow>

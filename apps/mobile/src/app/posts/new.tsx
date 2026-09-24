@@ -4,6 +4,7 @@ import {
   PURCHASE_TIMELINES,
   PURCHASE_TIMELINE_LABELS,
   type CityDto,
+  type GeoPoint,
   type IntentLevel,
   type ProductCategory,
   type PurchaseTimeline,
@@ -21,10 +22,11 @@ import {
 } from '@/components/HolidayTripForm';
 import { INTENT_HELP, Option } from '@/components/Option';
 import { Button, Card, ErrorText, Header, ProductArt, Screen } from '@/components/ui';
-import { geoGuess } from '@/lib/geo';
+import { Ionicons } from '@expo/vector-icons';
+import { devicePosition, suggestedCity } from '@/lib/location';
 import { api, ApiRequestError, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
-import { space, type } from '@/theme';
+import { colors, space, type } from '@/theme';
 
 /** Steps 4–6: city, buying timeline, intent → create the Buying Post (free). */
 export default function NewPost() {
@@ -37,11 +39,23 @@ export default function NewPost() {
   }>();
   const [city, setCity] = useState<CityDto | null>(me.city);
 
-  // Pre-select the city guessed from the IP; the user confirms or changes it.
+  // Where the buyer is, to find buyers near them: the device's position when they allow
+  // it, else the server uses the IP address. The nearest city is pre-selected (unless the
+  // profile already has one); the user confirms or changes it.
+  const [position, setPosition] = useState<GeoPoint | null>(null);
+  const [locating, setLocating] = useState(true);
+  const found = async (pos: GeoPoint | null) => {
+    setPosition(pos);
+    setLocating(false);
+    const suggested = await suggestedCity(pos).catch(() => null);
+    if (suggested) setCity((c) => c ?? suggested);
+  };
+  const locate = () => {
+    setLocating(true);
+    void devicePosition().then(found);
+  };
   useEffect(() => {
-    if (city) return;
-    void geoGuess().then((g) => g.city && setCity((c) => c ?? g.city));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void devicePosition().then(found);
   }, []);
   const [timeline, setTimeline] = useState<PurchaseTimeline | null>(null);
   const holiday = p.category === 'HOLIDAY';
@@ -64,6 +78,7 @@ export default function NewPost() {
         cityId: city.id,
         purchaseTimeline: timeline,
         intentLevel: level,
+        ...(position ? { location: position } : {}),
         ...(holiday
           ? {
               holiday: {
@@ -132,6 +147,23 @@ export default function NewPost() {
         value={city}
         onChange={setCity}
       />
+      <View style={s.locationLine}>
+        <Ionicons
+          name={position ? 'location' : 'location-outline'}
+          size={16}
+          color={position ? colors.green : colors.muted}
+        />
+        <Text style={[type.small, { flex: 1 }]}>
+          {locating
+            ? 'Finding where you are, to show buyers near you…'
+            : position
+              ? 'Using your location to find buyers near you. Others only ever see a range like “within 10 km”.'
+              : "Location is off, so we'll use an approximate location from your internet connection."}
+        </Text>
+        {!locating && !position ? (
+          <Button small variant="ghost" title="Use my location" onPress={locate} />
+        ) : null}
+      </View>
 
       {holiday ? <HolidayTripForm value={trip} onChange={setTrip} /> : null}
 
@@ -173,6 +205,7 @@ export default function NewPost() {
 }
 
 const s = StyleSheet.create({
+  locationLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -space.sm },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

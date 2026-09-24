@@ -202,6 +202,7 @@ export default function Buyers() {
               intentLevel={b.intentLevel}
               trip={b.holiday}
               activeRecently={b.activeRecently}
+              withinKm={b.withinKm}
               action={
                 <ConnectButton
                   userId={b.user.id}

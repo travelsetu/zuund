@@ -6,6 +6,7 @@ import {
   type BrandsQuery,
   carSearchQuerySchema,
   citiesQuerySchema,
+  geoNearestQuerySchema,
   type CitiesQuery,
   type CountryDto,
   type GeoGuessDto,
@@ -13,6 +14,7 @@ import {
   type CarSearchQuery,
   type CityDto,
 } from '@zuund/shared';
+import { z } from 'zod';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CatalogService } from './catalog.service';
 import { GeoService } from './geo.service';
@@ -52,5 +54,13 @@ export class CatalogController {
   @Get('geo')
   geo(@Req() req: Request): Promise<GeoGuessDto> {
     return this.geoService.guess(req.ip);
+  }
+
+  /** The city nearest the device's position (when the user allowed location). Not stored. */
+  @Get('geo/nearest')
+  nearest(
+    @Query(new ZodValidationPipe(geoNearestQuerySchema)) q: z.infer<typeof geoNearestQuerySchema>,
+  ): Promise<GeoGuessDto> {
+    return this.geoService.nearest(q);
   }
 }

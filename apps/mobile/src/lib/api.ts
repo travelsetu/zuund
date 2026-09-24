@@ -235,6 +235,9 @@ export const api = {
     brands: (category: ProductCategory) =>
       request<BrandDto[]>(`/cars/brands${qs({ category })}`, { auth: false }),
     countries: () => request<CountryDto[]>('/countries', { auth: false }),
+    /** The city nearest a device position (not stored). */
+    nearest: (p: { latitude: number; longitude: number }) =>
+      request<GeoGuessDto>(`/geo/nearest${qs(p)}`, { auth: false }),
     cities: (country: string, q?: string) =>
       request<CityDto[]>(`/cities${qs({ country, q, limit: 50 })}`, { auth: false }),
     /** Country/city guessed from this device's IP: a suggestion only. */

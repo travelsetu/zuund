@@ -74,8 +74,13 @@ describe('buyer discovery', () => {
       `/api/buyers/count?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}`,
     );
     expect(count.body.count).toBe(6);
-    // How the members plan, as counts: only the viewer has joined.
-    expect(count.body.members).toEqual({
+    // How the members plan is Elite only: a stranger (no pass) gets nothing.
+    expect(count.body.members).toBeNull();
+    // The Elite viewer sees it: only the viewer has joined.
+    const elite = await viewer.agent.get(
+      `/api/buyers/count?carId=${ctx.creta.id}&cityId=${ctx.ahmedabad.id}`,
+    );
+    expect(elite.body.members).toEqual({
       byTimeline: { WITHIN_7_DAYS: 0, WITHIN_15_DAYS: 0, WITHIN_30_DAYS: 1, WITHIN_60_DAYS: 0 },
       byIntentLevel: { INTERESTED: 0, COMMITTED: 1, READY: 0 },
     });

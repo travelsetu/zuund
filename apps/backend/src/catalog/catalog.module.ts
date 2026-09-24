@@ -6,6 +6,6 @@ import { GeoService } from './geo.service';
 @Module({
   controllers: [CatalogController],
   providers: [CatalogService, GeoService],
-  exports: [CatalogService],
+  exports: [CatalogService, GeoService],
 })
 export class CatalogModule {}

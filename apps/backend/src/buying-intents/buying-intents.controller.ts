@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -27,6 +28,7 @@ import {
   type Page,
   type UpdateBuyingIntentRequest,
 } from '@zuund/shared';
+import type { Request } from 'express';
 import { z } from 'zod';
 import type { RequestUser } from '../auth/auth.constants';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -48,8 +50,9 @@ export class BuyingIntentsController {
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createBuyingIntentRequestSchema)) body: CreateBuyingIntentRequest,
+    @Req() req: Request,
   ): Promise<BuyingIntentDto> {
-    return this.intents.create(user.userId, body);
+    return this.intents.create(user.userId, body, req.ip);
   }
 
   @Get('buying-intents')
@@ -117,11 +120,12 @@ export class BuyingIntentsController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(countQuery)) q: z.infer<typeof countQuery>,
   ): Promise<BuyerCountDto> {
-    const [count, members, pulse] = await Promise.all([
+    const [count, pulse] = await Promise.all([
       this.intents.countBuyers(q.carId, q.cityId, user.userId),
-      this.intents.memberBreakdown(q.carId, q.cityId),
       this.intents.pulse(q.carId, q.cityId, user.userId),
     ]);
+    // How the members plan (timeline, how sure) is part of the Elite Pass.
+    const members = pulse.elite ? await this.intents.memberBreakdown(q.carId, q.cityId) : null;
     return { count, members, pulse };
   }
 }

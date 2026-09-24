@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { open, type CityResponse, type Reader } from 'maxmind';
-import type { GeoGuessDto } from '@zuund/shared';
+import type { GeoGuessDto, GeoPoint } from '@zuund/shared';
 import type { Env } from '../config/env';
 import { CatalogService } from './catalog.service';
 
@@ -35,16 +35,7 @@ export class GeoService implements OnModuleInit {
 
   async guess(ip: string | undefined): Promise<GeoGuessDto> {
     const none: GeoGuessDto = { country: null, city: null };
-    let addr = ip?.replace(/^::ffff:/, '');
-    if (!this.reader || !addr || !isIP(addr)) return none;
-    if (isPrivate(addr)) {
-      // A phone on the office Wi-Fi reaches a dev API from 192.168.x.x; guess from this
-      // machine's own public IP instead. Production always sees the visitor's real IP.
-      if (this.config.get('NODE_ENV', { infer: true }) !== 'development') return none;
-      addr = await ownPublicIp();
-      if (!addr) return none;
-    }
-    const hit = this.reader.get(addr);
+    const hit = await this.lookup(ip);
     const code = hit?.country?.iso_code;
     if (!code) return none;
     const [country, city] = await Promise.all([
@@ -53,6 +44,33 @@ export class GeoService implements OnModuleInit {
     ]);
     // Only trust the city when it sits in the detected country.
     return { country, city: city && city.countryCode === code ? city : null };
+  }
+
+  /** The IP's approximate position: the fallback when a device doesn't share its own. */
+  async point(ip: string | undefined): Promise<GeoPoint | null> {
+    const loc = (await this.lookup(ip))?.location;
+    if (loc?.latitude === undefined || loc.longitude === undefined) return null;
+    return { latitude: loc.latitude, longitude: loc.longitude };
+  }
+
+  /** A device position → the nearest city in our list (and its country), for pre-selecting. */
+  async nearest(p: GeoPoint): Promise<GeoGuessDto> {
+    const city = await this.catalog.findNearestCity(null, p.latitude, p.longitude);
+    if (!city) return { country: null, city: null };
+    return { country: await this.catalog.findCountry(city.countryCode), city };
+  }
+
+  private async lookup(ip: string | undefined): Promise<CityResponse | null> {
+    let addr = ip?.replace(/^::ffff:/, '');
+    if (!this.reader || !addr || !isIP(addr)) return null;
+    if (isPrivate(addr)) {
+      // A phone on the office Wi-Fi reaches a dev API from 192.168.x.x; guess from this
+      // machine's own public IP instead. Production always sees the visitor's real IP.
+      if (this.config.get('NODE_ENV', { infer: true }) !== 'development') return null;
+      addr = await ownPublicIp();
+      if (!addr) return null;
+    }
+    return this.reader.get(addr);
   }
 
   /**

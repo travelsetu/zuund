@@ -26,10 +26,12 @@ import { colors, radius, space, type, fonts } from '@/theme';
 
 const SECTIONS: Array<{ key: string; label: string; icon: IconName }> = [
   { key: 'discussion', label: 'Discussion', icon: 'chatbubbles-outline' },
+  { key: 'buyers', label: 'Buyers', icon: 'search-outline' },
+  { key: 'insights', label: 'Insights', icon: 'pulse-outline' },
+  { key: 'activities', label: 'Activities', icon: 'calendar-outline' },
+  { key: 'members', label: 'Members', icon: 'people-outline' },
   { key: 'polls', label: 'Polls', icon: 'stats-chart-outline' },
   { key: 'files', label: 'Files', icon: 'document-text-outline' },
-  { key: 'members', label: 'Members', icon: 'people-outline' },
-  { key: 'activities', label: 'Activities', icon: 'calendar-outline' },
 ];
 
 /**
@@ -177,7 +179,12 @@ export default function CollectiveDashboard() {
               <Pressable
                 key={sec.key}
                 style={s.section}
-                onPress={() => router.push(`/collectives/${id}/${sec.key}` as never)}
+                onPress={() =>
+                  // Buyers is the Buying Post's buyer list: details, filters, nearby.
+                  sec.key === 'buyers'
+                    ? router.push(`/posts/${c.membership!.buyingIntentId}/buyers`)
+                    : router.push(`/collectives/${id}/${sec.key}` as never)
+                }
                 accessibilityRole="button"
               >
                 <Ionicons name={sec.icon} size={24} color={colors.brand} />
@@ -246,9 +253,9 @@ export default function CollectiveDashboard() {
 
 const s = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center', paddingVertical: space.md },
-  sections: { flexDirection: 'row', justifyContent: 'space-between' },
+  sections: { flexDirection: 'row', flexWrap: 'wrap', gap: '2%', rowGap: space.sm },
   section: {
-    width: '19%',
+    width: '23.5%',
     aspectRatio: 1,
     borderRadius: radius.md,
     backgroundColor: colors.white,

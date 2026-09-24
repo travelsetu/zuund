@@ -6,10 +6,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { E } from '../common/domain.exception';
+import { bandFor, boxAround, distanceKm, roundPoint } from '../common/geo';
+import { GeoService } from '../catalog/geo.service';
 import { activeSince, eliteUserIds, freePassUsed, planFor } from '../common/entitlements';
 import type {
   BuyerCountDto,
   BuyerPulseDto,
+  NearbyBandDto,
   BuyerDiscoveryDto,
   BuyerDiscoveryQuery,
   BuyerDto,
@@ -23,6 +26,8 @@ import type {
 } from '@zuund/shared';
 import {
   INTENT_LEVELS,
+  NEARBY_BANDS_KM,
+  NEARBY_MIN_COUNT,
   PURCHASE_TIMELINES,
   isTravelWeekOpen,
   travelMonthOptions,
@@ -49,14 +54,20 @@ export class BuyingIntentsService {
     private readonly prisma: PrismaService,
     private readonly catalog: CatalogService,
     private readonly audit: AuditService,
+    private readonly geo: GeoService,
   ) {}
 
   /**
    * Creating a post is free. One ACTIVE post per (user, car, city): the
    * partial unique index is the last line of defence; the pre-check gives a
-   * friendlier message.
+   * friendlier message. The post keeps a rounded location: the device's when the
+   * user allowed it, else the one the IP address resolves to.
    */
-  async create(userId: string, input: CreateBuyingIntentRequest): Promise<BuyingIntentDto> {
+  async create(
+    userId: string,
+    input: CreateBuyingIntentRequest,
+    ip?: string,
+  ): Promise<BuyingIntentDto> {
     const car = await this.catalog.requireActiveCar(input.carId);
     await this.catalog.requireActiveCity(input.cityId);
     // Holiday packages carry the trip; nothing else does.
@@ -74,6 +85,15 @@ export class BuyingIntentsService {
     });
     if (dup) throw E.DUPLICATE_ACTIVE_POST();
 
+    const fromIp = input.location ? null : await this.geo.point(ip);
+    const point = input.location ?? fromIp;
+    const location = point
+      ? {
+          ...roundPoint(point),
+          locationSource: input.location ? ('GPS' as const) : ('IP' as const),
+        }
+      : {};
+
     const row = await this.prisma.buyingIntent.create({
       data: {
         userId,
@@ -81,6 +101,7 @@ export class BuyingIntentsService {
         cityId: input.cityId,
         purchaseTimeline: input.purchaseTimeline,
         intentLevel: input.intentLevel,
+        ...location,
         ...(holiday
           ? {
               travelMonth: holiday.travelMonth,
@@ -326,6 +347,7 @@ export class BuyingIntentsService {
       ]);
 
     const ids = rows.map((r) => r.userId);
+    const here = elite ? await this.viewerPoint(viewerId, q.carId, q.cityId) : null;
     const [connections, eliteIds] = await Promise.all([
       connectionsWith(this.prisma, viewerId, ids),
       eliteUserIds(this.prisma, ids),
@@ -343,6 +365,10 @@ export class BuyingIntentsService {
         holiday: elite ? toHolidayTrip(r) : null,
         connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
         activeRecently: elite ? !!r.user.lastActiveAt && r.user.lastActiveAt >= activeCutoff : null,
+        withinKm:
+          here && r.latitude !== null && r.longitude !== null
+            ? bandFor(distanceKm(here.latitude, here.longitude, r.latitude, r.longitude))
+            : null,
       };
     });
     return {
@@ -401,7 +427,62 @@ export class BuyingIntentsService {
       readyActiveRecently: readyActive,
       newThisWeek,
       elite,
+      nearby: elite ? await this.nearby(viewerId, carId, cityId) : null,
     };
+  }
+
+  /** The viewer's own ACTIVE post for this car+city, if it has a location. */
+  private async viewerPoint(viewerId: string, carId: string, cityId: string) {
+    const mine = await this.prisma.buyingIntent.findFirst({
+      where: { userId: viewerId, carId, cityId, status: 'ACTIVE', latitude: { not: null } },
+      select: { latitude: true, longitude: true },
+    });
+    return mine?.latitude != null && mine.longitude != null
+      ? { latitude: mine.latitude, longitude: mine.longitude }
+      : null;
+  }
+
+  /**
+   * Buyers of the same item within 5/10/25 km of the viewer's post, in any city (a
+   * neighbouring town counts). Bands, never distances; 1–2 people read "fewer than 3".
+   */
+  private async nearby(
+    viewerId: string,
+    carId: string,
+    cityId: string,
+  ): Promise<NearbyBandDto[] | null> {
+    const here = await this.viewerPoint(viewerId, carId, cityId);
+    if (!here) return null;
+    const widest = NEARBY_BANDS_KM[NEARBY_BANDS_KM.length - 1]!;
+    const rows = await this.prisma.buyingIntent.findMany({
+      where: {
+        carId,
+        status: 'ACTIVE',
+        userId: { not: viewerId, notIn: await this.blockedUserIds(viewerId) },
+        user: { status: 'ACTIVE' },
+        ...boxAround(here, widest),
+      },
+      select: { latitude: true, longitude: true, user: { select: { lastActiveAt: true } } },
+    });
+    const since = activeSince();
+    const within = rows.map((r) => ({
+      km: distanceKm(here.latitude, here.longitude, r.latitude!, r.longitude!),
+      active: !!r.user.lastActiveAt && r.user.lastActiveAt >= since,
+    }));
+    const hide = (n: number) =>
+      n > 0 && n < NEARBY_MIN_COUNT ? { n: NEARBY_MIN_COUNT, hidden: true } : { n, hidden: false };
+    return NEARBY_BANDS_KM.map((km) => {
+      const inBand = within.filter((w) => w.km <= km);
+      const all = hide(inBand.length);
+      const active = hide(inBand.filter((w) => w.active).length);
+      return {
+        km,
+        count: all.n,
+        fewerThan: all.hidden,
+        activeRecently: active.n,
+        activeFewerThan: active.hidden,
+      };
+    });
   }
 
   /** "237 people are looking to buy Hyundai Creta in Ahmedabad." — a count, no viewer needed. */
@@ -418,7 +499,10 @@ export class BuyingIntentsService {
   }
 
   /** The collective's active members for a car+city, by timeline and by how sure they are. */
-  async memberBreakdown(carId: string, cityId: string): Promise<BuyerCountDto['members']> {
+  async memberBreakdown(
+    carId: string,
+    cityId: string,
+  ): Promise<NonNullable<BuyerCountDto['members']>> {
     const where = {
       memberships: {
         some: {

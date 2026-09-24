@@ -37,6 +37,7 @@ export const ELITE_FEATURES = [
   'See buyer details: timeline and how sure they are',
   'Filters: Ready to Buy, Committed, active recently',
   'Live Buyer Pulse: who was active in the last 48 hours',
+  'Nearby buyers within 5, 10 and 25 km',
   'Elite badge',
 ];
 
@@ -214,6 +215,32 @@ export function BuyerPulse({
             color={colors.brand}
             text={`+${pulse.newThisWeek ?? 0} new buyers this week`}
           />
+          <View style={s.nearby}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="location" size={16} color={colors.brand} />
+              <Text style={type.h3}>Nearby buyers</Text>
+            </View>
+            {pulse.nearby ? (
+              pulse.nearby.map((b) => (
+                <View key={b.km} style={s.nearbyRow}>
+                  <Text style={[type.body, { flex: 1 }]}>Within {b.km} km</Text>
+                  <Text style={[type.body, { fontFamily: fonts.semibold, color: colors.ink }]}>
+                    {b.fewerThan ? `Fewer than ${b.count}` : b.count}{' '}
+                    {b.count === 1 && !b.fewerThan ? 'buyer' : 'buyers'}
+                  </Text>
+                  <Text style={[type.tiny, s.nearbyActive]}>
+                    {b.activeFewerThan ? `<${b.activeRecently}` : b.activeRecently} active
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={type.small}>
+                Your Buying Post has no location yet. New posts use your location, or the one from
+                your internet connection.
+              </Text>
+            )}
+            <Text style={type.tiny}>Ranges only: nobody sees exactly where anyone is.</Text>
+          </View>
         </>
       ) : (
         <Pressable
@@ -223,7 +250,8 @@ export function BuyerPulse({
         >
           <Ionicons name="lock-closed" size={14} color={colors.purple} />
           <Text style={[type.small, { flex: 1, color: colors.text }]}>
-            See which Ready-to-Buy buyers are active and who&apos;s new this week with Elite.
+            See nearby buyers (within 5, 10 and 25 km), which Ready-to-Buy buyers are active and
+            who&apos;s new this week with Elite.
           </Text>
           <Text style={[type.small, { color: colors.brand, fontFamily: fonts.semibold }]}>
             Upgrade
@@ -321,6 +349,14 @@ const s = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.purpleSoft,
   },
+  nearby: {
+    gap: space.sm,
+    paddingTop: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.line,
+  },
+  nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  nearbyActive: { color: colors.green, minWidth: 70, textAlign: 'right' },
   stat: {
     flex: 1,
     gap: 2,

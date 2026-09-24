@@ -25,6 +25,7 @@ export function BuyerRow({
   intentLevel,
   trip,
   activeRecently,
+  withinKm,
   action,
 }: {
   user: PublicUserDto;
@@ -34,6 +35,8 @@ export function BuyerRow({
   trip?: HolidayTripDto | null;
   /** Elite viewers only: active in the last 48 hours. */
   activeRecently?: boolean | null;
+  /** Elite viewers only: the nearby band this buyer is within. */
+  withinKm?: number | null;
   action?: ReactNode;
 }) {
   const locked = !intentLevel;
@@ -55,7 +58,13 @@ export function BuyerRow({
             {user.verificationStatus === 'VERIFIED' ? <Verified small /> : null}
             {user.elite ? <EliteBadge small /> : null}
           </View>
-          {user.city ? <Text style={type.small}>{user.city.name}</Text> : null}
+          {user.city || withinKm ? (
+            <Text style={type.small}>
+              {[user.city?.name, withinKm ? `within ${withinKm} km` : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+          ) : null}
           {trip ? (
             <Text style={[type.small, { color: colors.text }]}>{formatTrip(trip)}</Text>
           ) : null}

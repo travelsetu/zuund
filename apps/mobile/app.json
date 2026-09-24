@@ -34,7 +34,15 @@
       "expo-image-picker",
       "expo-document-picker",
       "expo-font",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ZUUND uses your location to find buyers near you. Other buyers only ever see a range such as “within 10 km”, never where you are.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

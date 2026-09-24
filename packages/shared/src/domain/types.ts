@@ -5,6 +5,8 @@ import type {
   BuyingIntentStatus,
   BuyingPassStatus,
   HotelCategory,
+  LocationSource,
+  NearbyBandKm,
   PassPlan,
   CollectiveStatus,
   ConnectionStatus,
@@ -165,6 +167,8 @@ export interface BuyingIntentDto {
   pass: BuyingPassDto | null;
   /** This post can still start the one Free Pass for its car+city. */
   freePassAvailable: boolean;
+  /** Where the post's (private, rounded) location came from; null when unknown. */
+  locationSource: LocationSource | null;
   /** Live membership for this intent, if any. */
   membership: { id: string; collectiveId: string; status: MembershipStatus } | null;
 }
@@ -195,6 +199,8 @@ export interface BuyerDto {
   connection: { id: string; status: ConnectionStatus; requesterId: string } | null;
   /** Active in the last 48 hours. Elite viewers only; null otherwise. */
   activeRecently: boolean | null;
+  /** Elite viewers only: the smallest band (5/10/25 km) this buyer is within. Never a distance. */
+  withinKm: NearbyBandKm | null;
 }
 
 export interface BuyerDiscoveryDto extends Page<BuyerDto> {
@@ -212,11 +218,14 @@ export interface BuyerDiscoveryDto extends Page<BuyerDto> {
 export interface BuyerCountDto {
   /** Active buyers for this car+city, excluding the viewer. */
   count: number;
-  /** The collective's active members, by their post's timeline and how sure they are. */
+  /**
+   * The collective's active members, by their post's timeline and how sure they are.
+   * Elite viewers only; null otherwise.
+   */
   members: {
     byTimeline: Record<PurchaseTimeline, number>;
     byIntentLevel: Record<IntentLevel, number>;
-  };
+  } | null;
   /** Live Buyer Pulse: all active buyers for this car+city, excluding the viewer. */
   pulse: BuyerPulseDto;
 }
@@ -231,6 +240,22 @@ export interface BuyerPulseDto {
   newThisWeek: number | null;
   /** Whether the viewer saw the Elite numbers. */
   elite: boolean;
+  /**
+   * Elite only (null otherwise, or when the viewer's post has no location): buyers of the
+   * same item, in any city, within each band of the viewer's post.
+   */
+  nearby: NearbyBandDto[] | null;
+}
+
+export interface NearbyBandDto {
+  km: NearbyBandKm;
+  /** When `fewerThan` is true this is the threshold, not the count. */
+  count: number;
+  /** 1–2 buyers: shown as "fewer than 3" so nobody can be singled out. */
+  fewerThan: boolean;
+  /** Of them, how many were active in the last 48 hours (same rounding). */
+  activeRecently: number;
+  activeFewerThan: boolean;
 }
 
 export interface BuyerProfileDto {
