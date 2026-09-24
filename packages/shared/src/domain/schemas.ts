@@ -117,7 +117,13 @@ export const holidayDetailsSchema = z.object({
   travelWeek: z.number().int().min(1, 'Choose a week').max(4, 'Choose a week'),
   adults: z.number().int().min(1, 'At least one adult').max(HOLIDAY_LIMITS.maxAdults),
   childAges: z
-    .array(z.number().int().min(0).max(HOLIDAY_LIMITS.maxChildAge, 'Children are 0–17 years'))
+    .array(
+      z
+        .number()
+        .int()
+        .min(0)
+        .max(HOLIDAY_LIMITS.maxChildAge, `Children are 0–${HOLIDAY_LIMITS.maxChildAge} years`),
+    )
     .max(HOLIDAY_LIMITS.maxChildren)
     .default([]),
   nights: z.number().int().min(1).max(HOLIDAY_LIMITS.maxNights),

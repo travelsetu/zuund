@@ -194,7 +194,7 @@ describe('catalog categories', () => {
     expect(noWeek.status).toBe(400);
     const bad = await a.agent
       .post('/api/buying-intents')
-      .send({ ...base, carId: bali.id, holiday: { ...trip, adults: 0, childAges: [18] } });
+      .send({ ...base, carId: bali.id, holiday: { ...trip, adults: 0, childAges: [12] } });
     expect(bad.status).toBe(400);
     const notHoliday = await a.agent
       .post('/api/buying-intents')

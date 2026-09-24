@@ -10,28 +10,28 @@ import {
   travelMonthOptions,
   type HotelCategory,
 } from '@zuund/shared';
-import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, radius, space, type } from '@/theme';
 import { Option } from './Option';
-import { styles as ui } from './ui';
 
-/** The trip on a holiday Buying Post, as the form holds it (ages as typed). */
+/** The trip on a holiday Buying Post, as the form holds it (null until chosen). */
 export interface HolidayTripDraft {
   travelMonth: string | null;
   travelWeek: number | null;
-  adults: number;
-  childAges: string[];
-  nights: number;
+  adults: number | null;
+  /** null until the number of children is chosen; each age null until picked. */
+  childAges: (number | null)[] | null;
+  nights: number | null;
   hotelCategory: HotelCategory | null;
 }
 
 export const EMPTY_TRIP: HolidayTripDraft = {
   travelMonth: null,
   travelWeek: null,
-  adults: 2,
-  childAges: [],
-  nights: 4,
+  adults: null,
+  childAges: null,
+  nights: null,
   hotelCategory: null,
 };
 
@@ -39,8 +39,10 @@ export const EMPTY_TRIP: HolidayTripDraft = {
 export function tripProblem(t: HolidayTripDraft): string | null {
   if (!t.travelMonth) return 'Choose a travel month';
   if (!t.travelWeek) return 'Choose the week you travel';
-  if (t.childAges.some((a) => !/^\d{1,2}$/.test(a) || Number(a) > HOLIDAY_LIMITS.maxChildAge))
-    return `Enter each child's age (0–${HOLIDAY_LIMITS.maxChildAge})`;
+  if (!t.adults) return 'Choose the number of adults';
+  if (!t.childAges) return 'Choose the number of children';
+  if (t.childAges.some((a) => a === null)) return "Choose each child's age";
+  if (!t.nights) return 'Choose the number of nights';
   if (!t.hotelCategory) return 'Choose a hotel category';
   return null;
 }
@@ -99,7 +101,7 @@ export function HolidayTripForm({
       <View style={{ gap: space.sm }}>
         <Text style={type.h3}>Who is travelling?</Text>
         <View style={s.card}>
-          <Stepper
+          <Dropdown
             label="Adults"
             hint="12 years and over"
             value={value.adults}
@@ -108,51 +110,44 @@ export function HolidayTripForm({
             onChange={(adults) => set({ adults })}
           />
           <View style={s.divider} />
-          <Stepper
+          <Dropdown
             label="Children"
             hint={`Under ${HOLIDAY_LIMITS.maxChildAge + 1}`}
-            value={value.childAges.length}
+            value={value.childAges?.length ?? null}
             min={0}
             max={HOLIDAY_LIMITS.maxChildren}
-            onChange={(n) =>
+            onChange={(n) => {
+              const ages = value.childAges ?? [];
               set({
                 childAges:
-                  n > value.childAges.length
-                    ? [...value.childAges, ...Array(n - value.childAges.length).fill('')]
-                    : value.childAges.slice(0, n),
-              })
-            }
+                  n > ages.length
+                    ? [...ages, ...Array(n - ages.length).fill(null)]
+                    : ages.slice(0, n),
+              });
+            }}
           />
-          {value.childAges.length ? (
-            <View style={s.ages}>
-              {value.childAges.map((age, i) => (
-                <View key={i} style={{ gap: 4 }}>
-                  <Text style={type.tiny}>Child {i + 1} age</Text>
-                  <TextInput
-                    value={age}
-                    onChangeText={(t) => {
-                      const next = [...value.childAges];
-                      next[i] = t.replace(/\D/g, '').slice(0, 2);
-                      set({ childAges: next });
-                    }}
-                    placeholder="Age"
-                    placeholderTextColor={colors.faint}
-                    keyboardType="number-pad"
-                    maxLength={2}
-                    style={[ui.input, s.age]}
-                    accessibilityLabel={`Child ${i + 1} age in years`}
-                  />
-                </View>
-              ))}
-            </View>
-          ) : null}
+          {value.childAges?.map((age, i) => (
+            <Dropdown
+              key={i}
+              label={`Child ${i + 1} age`}
+              hint="In years"
+              value={age}
+              min={0}
+              max={HOLIDAY_LIMITS.maxChildAge}
+              onChange={(a) => {
+                const next = [...value.childAges!];
+                next[i] = a;
+                set({ childAges: next });
+              }}
+            />
+          ))}
         </View>
       </View>
 
       <View style={{ gap: space.sm }}>
         <Text style={type.h3}>How long?</Text>
         <View style={s.card}>
-          <Stepper
+          <Dropdown
             label="Nights"
             value={value.nights}
             min={1}
@@ -180,7 +175,10 @@ export function HolidayTripForm({
   );
 }
 
-function Stepper({
+const ROW = 48;
+
+/** A label on the left and a select box on the right; tapping opens the list of counts. */
+function Dropdown({
   label,
   hint,
   value,
@@ -190,59 +188,74 @@ function Stepper({
 }: {
   label: string;
   hint?: string;
-  value: number;
+  value: number | null;
   min: number;
   max: number;
   onChange: (n: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const counts = useMemo(
+    () => Array.from({ length: max - min + 1 }, (_, i) => min + i),
+    [min, max],
+  );
+
   return (
-    <View style={s.stepper}>
+    <View style={s.row}>
       <View style={{ flex: 1 }}>
         <Text style={[type.body, { fontFamily: fonts.semibold }]}>{label}</Text>
         {hint ? <Text style={type.tiny}>{hint}</Text> : null}
       </View>
-      <StepButton
-        icon="remove"
-        label={`Fewer ${label.toLowerCase()}`}
-        disabled={value <= min}
-        onPress={() => onChange(value - 1)}
-      />
-      <Text style={s.count} accessibilityLabel={`${value} ${label.toLowerCase()}`}>
-        {value}
-      </Text>
-      <StepButton
-        icon="add"
-        label={`More ${label.toLowerCase()}`}
-        disabled={value >= max}
-        onPress={() => onChange(value + 1)}
-      />
-    </View>
-  );
-}
+      <Pressable
+        onPress={() => setOpen(true)}
+        style={s.select}
+        accessibilityRole="button"
+        accessibilityLabel={
+          value === null ? `Select ${label.toLowerCase()}` : `${label}: ${value}. Change`
+        }
+      >
+        {value === null ? (
+          <Text style={[type.body, { color: colors.faint }]}>Select</Text>
+        ) : (
+          <Text style={s.count}>{value}</Text>
+        )}
+        <Ionicons name="chevron-down" size={18} color={colors.muted} />
+      </Pressable>
 
-function StepButton({
-  icon,
-  label,
-  disabled,
-  onPress,
-}: {
-  icon: 'add' | 'remove';
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={6}
-      style={[s.step, disabled && { opacity: 0.35 }]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-    >
-      <Ionicons name={icon} size={20} color={colors.brand} />
-    </Pressable>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={s.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close">
+          <Pressable style={s.sheet} onPress={() => {}}>
+            <Text style={[type.h3, s.sheetTitle]}>{label}</Text>
+            <FlatList
+              data={counts}
+              keyExtractor={String}
+              getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
+              initialScrollIndex={value === null ? 0 : Math.max(0, value - min - 2)}
+              renderItem={({ item }) => {
+                const on = item === value;
+                return (
+                  <Pressable
+                    onPress={() => {
+                      onChange(item);
+                      setOpen(false);
+                    }}
+                    style={[s.item, on && { backgroundColor: colors.brandSoft }]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Text
+                      style={[type.body, on && { color: colors.brand, fontFamily: fonts.semibold }]}
+                    >
+                      {item}
+                    </Text>
+                    {on ? <Ionicons name="checkmark" size={20} color={colors.brand} /> : null}
+                  </Pressable>
+                );
+              }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
@@ -262,23 +275,47 @@ const s = StyleSheet.create({
     gap: space.md,
   },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },
-  stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  step: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: colors.brand,
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  select: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    minWidth: 96,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: 10,
+    backgroundColor: colors.white,
   },
   count: {
-    minWidth: 28,
-    textAlign: 'center',
     fontFamily: fonts.bold,
     fontSize: 17,
     color: colors.ink,
   },
-  ages: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  age: { width: 84, textAlign: 'center' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.lg,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 360,
+    maxHeight: '70%',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    paddingVertical: space.sm,
+    overflow: 'hidden',
+  },
+  sheetTitle: { paddingHorizontal: space.lg, paddingVertical: space.sm },
+  item: {
+    height: ROW,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: space.lg,
+  },
 });

@@ -69,9 +69,9 @@ export default function NewPost() {
               holiday: {
                 travelMonth: trip.travelMonth!,
                 travelWeek: trip.travelWeek!,
-                adults: trip.adults,
-                childAges: trip.childAges.map(Number),
-                nights: trip.nights,
+                adults: trip.adults!,
+                childAges: trip.childAges! as number[],
+                nights: trip.nights!,
                 hotelCategory: trip.hotelCategory!,
               },
             }

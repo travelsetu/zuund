@@ -171,7 +171,7 @@ export const HOLIDAY_LIMITS = {
   monthsAhead: 3,
   maxAdults: 20,
   maxChildren: 10,
-  maxChildAge: 17,
+  maxChildAge: 11,
   maxNights: 30,
 } as const;
 

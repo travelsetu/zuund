@@ -240,7 +240,7 @@ model BuyingIntent {
   /// Week of that month: 1 = days 1–7, 2 = 8–14, 3 = 15–21, 4 = 22 to the month's end.
   travelWeek    Int?           @map("travel_week")
   adults        Int?
-  /// One entry per child, their age in years (0–17).
+  /// One entry per child, their age in years (0–11; 12 and over count as adults).
   childAges     Int[]          @default([]) @map("child_ages")
   nights        Int?
   hotelCategory HotelCategory? @map("hotel_category")
