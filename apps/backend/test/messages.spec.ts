@@ -31,10 +31,11 @@ describe('messages', () => {
     await teardownAll();
   });
 
-  it('a direct conversation needs an accepted connection', async () => {
+  it('on a Free Pass, a direct conversation needs an accepted connection', async () => {
     const res = await rahul.agent.post('/api/conversations/direct').send({ userId: priya.id });
     expect(res.status).toBe(403);
-    expect(res.body.error.code).toBe('NOT_CONNECTED');
+    // Messaging someone you're not connected with is an Elite Pass feature.
+    expect(res.body.error.code).toBe('ELITE_REQUIRED');
     const req = await rahul.agent.post('/api/connections').send({ userId: priya.id });
     expect(
       (await rahul.agent.post('/api/conversations/direct').send({ userId: priya.id })).status,

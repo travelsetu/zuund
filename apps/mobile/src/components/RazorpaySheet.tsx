@@ -45,7 +45,7 @@ export function RazorpaySheet({
           amount: checkout.payment.amount,
           currency: checkout.payment.currency,
           name: 'ZUUND',
-          description: 'Buying Pass',
+          description: 'Elite Pass',
           prefill,
           theme: { color: colors.brand },
           handler: (r: RazorpayResult) => onResult(r),
@@ -66,7 +66,7 @@ export function RazorpaySheet({
     amount: checkout.payment.amount,
     currency: checkout.payment.currency,
     name: 'ZUUND',
-    description: 'Buying Pass',
+    description: 'Elite Pass',
     prefill,
     theme: { color: colors.brand },
   };

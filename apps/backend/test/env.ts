@@ -19,11 +19,10 @@ export function applyTestEnv(): void {
     PUBLIC_API_URL: 'http://localhost:3000',
     UPLOAD_DIR: join(tmpdir(), 'zuund-test-uploads'),
     UPLOAD_MAX_BYTES: String(10 * 1024 * 1024),
-    BUYING_PASS_AMOUNT: '50000',
-    BUYING_PASS_VALIDITY_DAYS: '60',
+    ELITE_PASS_AMOUNT: '49900',
+    ELITE_PASS_DAYS: '30',
+    FREE_PASS_DAYS: '15',
     REFUND_ON_LEAVE: 'NONE',
-    // Most specs exercise the paid path; free-places.spec turns the free places on.
-    FREE_MEMBERS_PER_COLLECTIVE: process.env.ZUUND_TEST_FREE_MEMBERS ?? '0',
     PAYMENT_PROVIDER: 'mock',
     // Codes are kept in memory (OtpSender.sentForTests) instead of going to WhatsApp.
     OTP_PROVIDER: 'log',

@@ -13,6 +13,7 @@ import {
   startPayment,
   teardown,
   teardownAll,
+  useFreePass,
   type TestContext,
   type TestUser,
 } from './helpers';
@@ -26,6 +27,8 @@ describe('payments', () => {
   beforeAll(async () => {
     ctx = await setup();
     rahul = await registerUser(ctx, 'Rahul');
+    // The paid path: Rahul's Free Pass for this car+city is already used.
+    await useFreePass(rahul, ctx.creta, ctx.ahmedabad);
     postId = (await createPost(rahul.agent, ctx.creta, ctx.ahmedabad)).id;
     collectiveId = (await joinCollective(rahul.agent, postId)).id;
   });
@@ -44,9 +47,9 @@ describe('payments', () => {
     expect(res.body.error.code).toBe('JOIN_FIRST');
   });
 
-  it('creates a PENDING ₹500 payment tied to the post, with a provider order', async () => {
+  it('creates a PENDING ₹499 Elite payment tied to the post, with a provider order', async () => {
     const res = await startPayment(rahul.agent, postId, collectiveId);
-    expect(res.payment).toMatchObject({ status: 'PENDING', amount: 50000, buyingIntentId: postId });
+    expect(res.payment).toMatchObject({ status: 'PENDING', amount: 49900, buyingIntentId: postId });
     expect(res.provider).toBe('mock');
     expect(res.checkout.orderId).toMatch(/^mock_order_/);
     const row = await db.payment.findUniqueOrThrow({ where: { id: res.payment.id } });
@@ -119,7 +122,7 @@ describe('payments', () => {
     expect(notes).toHaveLength(1);
   });
 
-  it('a verified payment is idempotent and a further payment for the post is refused', async () => {
+  it('a verified payment is idempotent; a further payment would extend the Elite Pass', async () => {
     const payment = await db.payment.findFirstOrThrow({
       where: { buyingIntentId: postId, status: 'SUCCESS' },
     });
@@ -134,8 +137,14 @@ describe('payments', () => {
     const more = await rahul.agent
       .post('/api/payments')
       .send({ buyingIntentId: postId, collectiveId, idempotencyKey: `k-${randomUUID()}` });
-    expect(more.status).toBe(409);
-    expect(more.body.error.code).toBe('PASS_ALREADY_ACTIVE');
+    expect(more.status).toBe(201);
+    const pass = await db.buyingPass.findFirstOrThrow({
+      where: { buyingIntentId: postId, status: 'ACTIVE' },
+    });
+    // The extension is paid against the same pass; nothing changes until it succeeds.
+    expect(
+      (await db.payment.findUniqueOrThrow({ where: { id: more.body.payment.id } })).buyingPassId,
+    ).toBe(pass.id);
     const sameKey = await rahul.agent
       .post('/api/payments')
       .send({ buyingIntentId: postId, collectiveId, idempotencyKey: payment.idempotencyKey });
@@ -148,6 +157,7 @@ describe('payments', () => {
     let open: Awaited<ReturnType<typeof startPayment>>;
     beforeAll(async () => {
       priya = await registerUser(ctx, 'Priya');
+      await useFreePass(priya, ctx.creta, ctx.ahmedabad);
       priyaPost = (await createPost(priya.agent, ctx.creta, ctx.ahmedabad)).id;
       await priya.agent
         .post(`/api/collectives/${collectiveId}/join`)
@@ -220,7 +230,7 @@ describe('payments', () => {
         event: 'payment.captured',
         orderId: open.checkout.orderId,
         paymentId: `mock_pay_${randomUUID()}`,
-        amount: 50000,
+        amount: 49900,
       };
       expect((await hook(event)).status).toBe(200);
       expect((await db.payment.findUniqueOrThrow({ where: { id: open.payment.id } })).status).toBe(

@@ -1,4 +1,4 @@
-import { FREE_MEMBERS_PER_COLLECTIVE } from '@zuund/shared';
+import { ELITE_PASS_AMOUNT_PAISE, ELITE_PASS_DAYS, FREE_PASS_DAYS } from '@zuund/shared';
 import { Icon, type IconName } from '@/components/Icon';
 import { ProductArt } from '@/components/ProductArt';
 import { VehicleArt } from '@/components/VehicleArt';
@@ -15,7 +15,7 @@ const STEPS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Decide together in a collective',
-    body: `Discuss, run polls and share what you find. Each collective has ${FREE_MEMBERS_PER_COLLECTIVE} free places; when they are taken, joining is a ₹500 Buying Pass for that post, valid 60 days.`,
+    body: `Discuss, run polls and share what you find. Joining is free for ${FREE_PASS_DAYS} days. Elite (₹${ELITE_PASS_AMOUNT_PAISE / 100} for ${ELITE_PASS_DAYS} days) adds buyer details, more connections and direct messages.`,
   },
 ];
 

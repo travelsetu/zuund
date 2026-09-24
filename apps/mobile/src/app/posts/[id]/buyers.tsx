@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BuyerRow } from '@/components/BuyerRow';
 import { ConnectButton } from '@/components/ConnectButton';
+import { UpgradeCard, upgradeAlertFor } from '@/components/Plan';
 import {
   Button,
   Chip,
@@ -29,16 +30,18 @@ import { colors, space, type, fonts } from '@/theme';
 
 const LABEL: Record<BuyerFilter, string> = {
   ALL: 'All',
-  READY: 'Ready',
+  READY: 'Ready to Buy',
   COMMITTED: 'Committed',
   INTERESTED: 'Interested',
   RECENT: 'Recently joined',
+  ACTIVE_RECENT: 'Active recently',
 };
-const ORDER: BuyerFilter[] = ['ALL', 'READY', 'COMMITTED', 'INTERESTED', 'RECENT'];
+const ORDER: BuyerFilter[] = ['ALL', 'READY', 'COMMITTED', 'INTERESTED', 'ACTIVE_RECENT', 'RECENT'];
 
 /**
  * Mockup 4 — buyers of the same item in the same city. A count, never a
- * match score; no budget anywhere (spec §14–16).
+ * match score; no budget anywhere (spec §14–16). On a Free Pass everyone is listed
+ * by name, but details and the filters are Elite: the chips show a lock.
  */
 export default function Buyers() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -80,6 +83,7 @@ export default function Buyers() {
     },
     [id, filter],
   );
+  const elite = page?.viewerPlan === 'ELITE';
 
   useEffect(() => {
     setItems([]);
@@ -101,7 +105,7 @@ export default function Buyers() {
         <Empty
           icon="lock-closed-outline"
           title="Join the collective to see other buyers"
-          body="Join with your Buying Post to see who else is buying, connect and message them. The first members join free; after that it's a ₹500 Buying Pass."
+          body="Join with your Buying Post to see who else is buying, connect and message them. Your first 15 days are free."
         />
       </Screen>
     );
@@ -153,12 +157,35 @@ export default function Buyers() {
         {ORDER.filter((f) => BUYER_FILTERS.includes(f)).map((f) => (
           <Chip
             key={f}
-            label={f === 'RECENT' ? LABEL[f] : `${LABEL[f]} (${page.counts[f] ?? 0})`}
+            label={
+              (f === 'ALL' || elite ? '' : '🔒 ') +
+              (f === 'RECENT' ? LABEL[f] : `${LABEL[f]} (${page.counts[f] ?? 0})`)
+            }
             active={filter === f}
-            onPress={() => setFilter(f)}
+            onPress={() =>
+              f === 'ALL' || elite
+                ? setFilter(f)
+                : upgradeAlertFor(
+                    new ApiRequestError(403, {
+                      success: false,
+                      error: {
+                        code: 'ELITE_REQUIRED',
+                        message: `The ${LABEL[f]} filter and buyer details are part of the Elite Pass`,
+                      },
+                    }),
+                    me,
+                  )
+            }
           />
         ))}
       </ChipRow>
+      {!elite && items.length ? (
+        <UpgradeCard
+          title="See buyer details and filter"
+          body="Elite shows each buyer's timeline and how sure they are, who's Ready to Buy and who was active in the last 48 hours."
+          buyingIntentId={id}
+        />
+      ) : null}
       {items.length === 0 ? (
         <Empty
           icon="people-outline"
@@ -174,6 +201,7 @@ export default function Buyers() {
               purchaseTimeline={b.purchaseTimeline}
               intentLevel={b.intentLevel}
               trip={b.holiday}
+              activeRecently={b.activeRecently}
               action={
                 <ConnectButton
                   userId={b.user.id}

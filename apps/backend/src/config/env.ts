@@ -81,15 +81,12 @@ export const envSchema = z.object({
   MSG91_OTP_TEMPLATE: z.string().default('otp_auth'),
   MSG91_OTP_NAMESPACE: z.string().default('6997b3e9_ca9f_45cb_aefc_d4dc0c2e0b8c'),
 
-  // ── Buying pass ──
-  /** Paise. ₹500 = 50000. */
-  BUYING_PASS_AMOUNT: z.coerce.number().int().positive().default(50_000),
-  BUYING_PASS_VALIDITY_DAYS: z.coerce.number().int().positive().max(60).default(60),
-  /**
-   * Free places per collective: up to N current members join free with a ₹0 pass that
-   * still lasts BUYING_PASS_VALIDITY_DAYS. A place opens again when its member leaves.
-   */
-  FREE_MEMBERS_PER_COLLECTIVE: z.coerce.number().int().min(0).default(5),
+  // ── Passes ──
+  /** Elite Pass price in paise. ₹499 = 49900. */
+  ELITE_PASS_AMOUNT: z.coerce.number().int().positive().default(49_900),
+  ELITE_PASS_DAYS: z.coerce.number().int().positive().max(365).default(30),
+  /** The Free Pass: ₹0, once per user for a car+city. */
+  FREE_PASS_DAYS: z.coerce.number().int().positive().max(365).default(15),
   /** What happens to the pass/payment when a member leaves a collective. */
   REFUND_ON_LEAVE: z.enum(['NONE', 'FULL']).default('NONE'),
 

@@ -28,6 +28,9 @@ function target(n: NotificationDto): string | null {
   if (d.collectiveId && d.pollId) return `/collectives/${d.collectiveId}/polls/${d.pollId}`;
   if (d.collectiveId && d.activityId) return `/collectives/${d.collectiveId}/activities`;
   if (d.collectiveId) return `/collectives/${d.collectiveId}`;
+  // "Your Free Pass expires in 5 days" and a pass that ended lead to Elite.
+  if (d.buyingIntentId && (n.type === 'PASS_EXPIRING' || n.type === 'PASS_EXPIRED'))
+    return `/posts/${d.buyingIntentId}/pay`;
   if (d.buyingIntentId) return `/posts/${d.buyingIntentId}`;
   if (n.type.startsWith('CONNECTION')) return '/connections';
   if (d.paymentId) return '/payments';

@@ -14,7 +14,7 @@ import {
   type TestUser,
 } from './helpers';
 
-describe('buying pass', () => {
+describe('Free and Elite passes', () => {
   let ctx: TestContext;
   let rahul: TestUser;
   let postA: string;
@@ -24,78 +24,102 @@ describe('buying pass', () => {
     ctx = await setup();
     rahul = await registerUser(ctx, 'Rahul');
     postA = (await createPost(rahul.agent, ctx.creta, ctx.ahmedabad)).id;
-    collectiveA = (await joinCollective(rahul.agent, postA)).id;
   });
   afterAll(async () => {
     await teardown(ctx);
     await teardownAll();
   });
 
-  it('no pass exists before a payment flow; joining alone grants nothing', async () => {
-    expect(await db.buyingPass.count({ where: { buyingIntentId: postA } })).toBe(0);
+  it('before joining there is no pass, and the Free Pass is available', async () => {
     const post = await rahul.agent.get(`/api/buying-intents/${postA}`);
     expect(post.body.pass).toBeNull();
-    expect(post.body.membership.status).toBe('PENDING_PAYMENT');
-    const polls = await rahul.agent.get(`/api/collectives/${collectiveA}/polls`);
-    expect(polls.status).toBe(403);
-    expect(polls.body.error.code).toBe('BUYING_PASS_REQUIRED');
+    expect(post.body.freePassAvailable).toBe(true);
   });
 
-  it('activates only after verified payment, with server-side dates 60 days apart', async () => {
+  it('joining starts a 15-day Free Pass at once, with no payment', async () => {
+    const before = Date.now();
+    const col = await joinCollective(rahul.agent, postA);
+    collectiveA = col.id;
+    expect(col.membership?.status).toBe('ACTIVE');
+    const post = await rahul.agent.get(`/api/buying-intents/${postA}`);
+    expect(post.body.pass).toMatchObject({ plan: 'FREE', status: 'ACTIVE', amount: 0 });
+    expect(post.body.freePassAvailable).toBe(false);
+    const activatedAt = new Date(post.body.pass.activatedAt).getTime();
+    expect(activatedAt).toBeGreaterThanOrEqual(before - 1000);
+    expect(new Date(post.body.pass.expiresAt).getTime() - activatedAt).toBe(15 * DAY_MS);
+    expect(await db.payment.count()).toBe(0);
+    const me = await rahul.agent.get('/api/users/me');
+    expect(me.body.pass).toMatchObject({
+      plan: 'FREE',
+      activeConnectionsLimit: 5,
+      acceptedConnectionsLimit: 10,
+      directMessagesLeft: 0,
+    });
+    expect(me.body.elite).toBe(false);
+  });
+
+  it('upgrading ends the Free Pass and runs Elite for 30 days from payment', async () => {
     const before = Date.now();
     await payFor(rahul.agent, postA, collectiveA);
-    const post = await rahul.agent.get(`/api/buying-intents/${postA}`);
-    expect(post.body.pass).toMatchObject({
-      status: 'ACTIVE',
-      amount: 50000,
-      currency: 'INR',
-      buyingIntentId: postA,
+    const passes = await db.buyingPass.findMany({
+      where: { buyingIntentId: postA },
+      orderBy: { createdAt: 'asc' },
     });
-    const activatedAt = new Date(post.body.pass.activatedAt).getTime();
-    const expiresAt = new Date(post.body.pass.expiresAt).getTime();
-    expect(activatedAt).toBeGreaterThanOrEqual(before - 1000);
-    expect(activatedAt).toBeLessThanOrEqual(Date.now() + 1000);
-    expect(expiresAt - activatedAt).toBe(60 * DAY_MS);
-    expect(post.body.membership.status).toBe('ACTIVE');
-    // The API says ACTIVE; nothing for a client to compute.
-    const passes = await rahul.agent.get('/api/buying-passes');
-    expect(passes.body.items).toHaveLength(1);
-    expect(passes.body.items[0].status).toBe('ACTIVE');
-  });
-
-  it('belongs to one post: paying for A does not unlock a collective joined with post B', async () => {
-    const postB = (await createPost(rahul.agent, ctx.venue, ctx.ahmedabad)).id;
-    const collectiveB = (await joinCollective(rahul.agent, postB)).id;
-    expect(collectiveB).not.toBe(collectiveA);
-    const polls = await rahul.agent.get(`/api/collectives/${collectiveB}/polls`);
-    expect(polls.status).toBe(403);
-    expect(polls.body.error.code).toBe('BUYING_PASS_REQUIRED');
-    const b = await rahul.agent.get(`/api/buying-intents/${postB}`);
-    expect(b.body.pass).toBeNull();
-    // and there is no account-level paid flag anywhere in the user record
+    expect(passes.map((p) => [p.plan, p.status])).toEqual([
+      ['FREE', 'EXPIRED'],
+      ['ELITE', 'ACTIVE'],
+    ]);
+    const elite = passes[1]!;
+    expect(elite.amount).toBe(49900);
+    expect(elite.activatedAt!.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    expect(elite.expiresAt!.getTime() - elite.activatedAt!.getTime()).toBe(30 * DAY_MS);
+    // Same membership, now held by the Elite Pass.
+    const m = await db.collectiveMembership.findFirstOrThrow({ where: { buyingIntentId: postA } });
+    expect(m).toMatchObject({ status: 'ACTIVE', buyingPassId: elite.id });
     const me = await rahul.agent.get('/api/users/me');
-    expect(JSON.stringify(me.body).toLowerCase()).not.toContain('paid');
-    // paying for B is a second ₹500
-    await payFor(rahul.agent, postB, collectiveB);
-    expect(await db.payment.count({ where: { userId: rahul.id, status: 'SUCCESS' } })).toBe(2);
-    expect(await db.buyingPass.count({ where: { userId: rahul.id, status: 'ACTIVE' } })).toBe(2);
+    expect(me.body.elite).toBe(true);
+    expect(me.body.pass).toMatchObject({ plan: 'ELITE', directMessagesLeft: 15 });
   });
 
-  it('cannot be reassigned: the pass row references its post and the payment', async () => {
-    const pass = await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: postA } });
-    const payment = await db.payment.findUniqueOrThrow({ where: { id: pass.paymentId! } });
-    expect(payment.buyingIntentId).toBe(postA);
-    expect(payment.buyingPassId).toBe(pass.id);
-    // second ACTIVE pass for the same post is impossible at the database level
+  it('buying Elite again while it is active adds 30 days to the same pass', async () => {
+    const before = await db.buyingPass.findFirstOrThrow({
+      where: { buyingIntentId: postA, status: 'ACTIVE' },
+    });
+    await payFor(rahul.agent, postA, collectiveA);
+    const after = await db.buyingPass.findMany({
+      where: { buyingIntentId: postA, status: 'ACTIVE' },
+    });
+    expect(after).toHaveLength(1);
+    expect(after[0]!.id).toBe(before.id);
+    expect(after[0]!.expiresAt!.getTime() - before.expiresAt!.getTime()).toBe(30 * DAY_MS);
+    expect(await db.payment.count({ where: { buyingIntentId: postA, status: 'SUCCESS' } })).toBe(2);
+  });
+
+  it('belongs to one post: another car gets its own Free Pass, untouched by A', async () => {
+    const postB = (await createPost(rahul.agent, ctx.venue, ctx.ahmedabad)).id;
+    const collectiveB = await joinCollective(rahul.agent, postB);
+    expect(collectiveB.id).not.toBe(collectiveA);
+    expect(collectiveB.membership?.status).toBe('ACTIVE');
+    const b = await rahul.agent.get(`/api/buying-intents/${postB}`);
+    expect(b.body.pass).toMatchObject({ plan: 'FREE', status: 'ACTIVE' });
+    // A second ACTIVE pass for the same post is impossible at the database level.
     await expect(
       db.buyingPass.create({
-        data: { buyingIntentId: postA, userId: rahul.id, amount: 50000, status: 'ACTIVE' },
+        data: { buyingIntentId: postA, userId: rahul.id, amount: 49900, status: 'ACTIVE' },
       }),
     ).rejects.toThrow();
   });
 
-  it('expires by the scheduler, ends paid access with BUYING_PASS_EXPIRED, and never renews', async () => {
-    const pass = await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: postA } });
+  it('expiry keeps the post and leaves the discussion readable up to that moment', async () => {
+    const conv = await db.conversation.findUniqueOrThrow({ where: { collectiveId: collectiveA } });
+    const said = await rahul.agent
+      .post(`/api/conversations/${conv.id}/messages`)
+      .send({ content: 'Before the pass ended' });
+    expect(said.status).toBe(201);
+
+    const pass = await db.buyingPass.findFirstOrThrow({
+      where: { buyingIntentId: postA, status: 'ACTIVE' },
+    });
     await db.buyingPass.update({
       where: { id: pass.id },
       data: { expiresAt: new Date(Date.now() - 60_000) },
@@ -105,19 +129,38 @@ describe('buying pass', () => {
     await jobs.expirePasses(); // idempotent
 
     const post = await rahul.agent.get(`/api/buying-intents/${postA}`);
-    expect(post.body.status).toBe('ACTIVE'); // the post itself is untouched
+    expect(post.body.status).toBe('ACTIVE');
     expect(post.body.pass.status).toBe('EXPIRED');
     expect(post.body.membership).toBeNull();
-    for (const path of ['polls', 'files', 'activities', 'members']) {
+    for (const path of ['polls', 'files', 'activities']) {
       const res = await rahul.agent.get(`/api/collectives/${collectiveA}/${path}`);
       expect(res.status).toBe(403);
-      if (path !== 'members') expect(res.body.error.code).toBe('BUYING_PASS_EXPIRED');
+      expect(res.body.error.code).toBe('BUYING_PASS_EXPIRED');
     }
-    const conv = await db.conversation.findUniqueOrThrow({ where: { collectiveId: collectiveA } });
-    expect((await rahul.agent.get(`/api/conversations/${conv.id}/messages`)).status).toBe(403);
-    expect(
-      (await db.collectiveMembership.findFirstOrThrow({ where: { buyingIntentId: postA } })).status,
-    ).toBe('EXPIRED');
+    expect((await rahul.agent.get(`/api/collectives/${collectiveA}/members`)).status).toBe(403);
+
+    // Read-only history: what was said before, nothing after, no posting.
+    const col = await rahul.agent.get(`/api/collectives/${collectiveA}`);
+    expect(col.body).toMatchObject({ discussionReadOnly: true, conversationId: conv.id });
+    await db.message.create({
+      data: {
+        conversationId: conv.id,
+        senderId: rahul.id,
+        messageType: 'TEXT',
+        content: 'After (seeded)',
+        createdAt: new Date(Date.now() + 60_000),
+      },
+    });
+    const history = await rahul.agent.get(`/api/conversations/${conv.id}/messages`);
+    expect(history.status).toBe(200);
+    expect(history.body.items.map((m: { content: string }) => m.content)).toEqual([
+      'Before the pass ended',
+    ]);
+    const post2 = await rahul.agent
+      .post(`/api/conversations/${conv.id}/messages`)
+      .send({ content: 'Still here?' });
+    expect(post2.status).toBe(403);
+
     expect(await db.notification.count({ where: { userId: rahul.id, type: 'PASS_EXPIRED' } })).toBe(
       1,
     );
@@ -126,53 +169,60 @@ describe('buying pass', () => {
         where: { action: 'BUYING_PASS_EXPIRED', actorType: 'SYSTEM', targetId: pass.id },
       }),
     ).toBe(1);
-
-    // No renewal happened, no new charge.
-    expect(await db.buyingPass.count({ where: { buyingIntentId: postA } })).toBe(1);
-    expect(await db.payment.count({ where: { buyingIntentId: postA } })).toBe(1);
-    // Historical record survives.
-    const passes = await rahul.agent.get('/api/buying-passes');
-    expect(passes.body.items.find((p: { id: string }) => p.id === pass.id)).toMatchObject({
-      status: 'EXPIRED',
-      activatedAt: expect.any(String),
-      expiresAt: expect.any(String),
-    });
   });
 
-  it('after expiry a new payment creates a new pass; the old one stays EXPIRED', async () => {
-    await rahul.agent.post(`/api/collectives/${collectiveA}/join`).send({ buyingIntentId: postA });
+  it('after expiry there is no second Free Pass: rejoining waits for Elite', async () => {
+    const res = await rahul.agent
+      .post(`/api/collectives/${collectiveA}/join`)
+      .send({ buyingIntentId: postA });
+    expect(res.body.membership.status).toBe('PENDING_PAYMENT');
     await payFor(rahul.agent, postA, collectiveA);
     const passes = await db.buyingPass.findMany({
       where: { buyingIntentId: postA },
       orderBy: { createdAt: 'asc' },
     });
-    expect(passes.map((p) => p.status)).toEqual(['EXPIRED', 'ACTIVE']);
-    expect(await db.payment.count({ where: { buyingIntentId: postA, status: 'SUCCESS' } })).toBe(2);
+    expect(passes.map((p) => `${p.plan}:${p.status}`)).toEqual([
+      'FREE:EXPIRED',
+      'ELITE:EXPIRED',
+      'ELITE:ACTIVE',
+    ]);
+    const col = await rahul.agent.get(`/api/collectives/${collectiveA}`);
+    expect(col.body.discussionReadOnly).toBe(false);
   });
 
-  it('expiry warnings are sent once per window', async () => {
+  it('expiry warnings are sent 5 days and 1 day before, once each', async () => {
     const pass = await db.buyingPass.findFirstOrThrow({
       where: { buyingIntentId: postA, status: 'ACTIVE' },
     });
     await db.buyingPass.update({
       where: { id: pass.id },
-      data: { expiresAt: new Date(Date.now() + 6 * DAY_MS) },
+      data: { expiresAt: new Date(Date.now() + 4 * DAY_MS) },
     });
     const jobs = ctx.app.get(JobsService);
     await jobs.passExpiryWarnings();
     await jobs.passExpiryWarnings();
     const notes = await db.notification.findMany({
-      where: { userId: rahul.id, type: 'PASS_EXPIRING' },
+      where: {
+        userId: rahul.id,
+        type: 'PASS_EXPIRING',
+        data: { path: ['buyingPassId'], equals: pass.id },
+      },
     });
     expect(notes).toHaveLength(1);
-    expect(notes[0]!.title).toContain('7 days');
+    expect(notes[0]!.title).toBe('Your Elite Pass expires in 5 days');
     await db.buyingPass.update({
       where: { id: pass.id },
       data: { expiresAt: new Date(Date.now() + 0.5 * DAY_MS) },
     });
     await jobs.passExpiryWarnings();
     expect(
-      await db.notification.count({ where: { userId: rahul.id, type: 'PASS_EXPIRING' } }),
+      await db.notification.count({
+        where: {
+          userId: rahul.id,
+          type: 'PASS_EXPIRING',
+          data: { path: ['buyingPassId'], equals: pass.id },
+        },
+      }),
     ).toBe(2);
   });
 });

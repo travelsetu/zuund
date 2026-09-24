@@ -8,6 +8,7 @@ import {
   teardownAll,
   type TestContext,
   type TestUser,
+  makeElite,
 } from './helpers';
 
 describe('buyer discovery', () => {
@@ -20,6 +21,8 @@ describe('buyer discovery', () => {
     viewer = await registerUser(ctx, 'Viewer', ctx.ahmedabad.id);
     await createPost(viewer.agent, ctx.creta, ctx.ahmedabad, 'WITHIN_30_DAYS', 'COMMITTED');
     await activateMemberships(viewer);
+    // Filters and buyer details are Elite; the Free view is covered in entitlements.spec.
+    await makeElite(viewer);
     others = [];
     for (let i = 0; i < 5; i++) {
       const u = await registerUser(ctx, `Buyer${i}`, ctx.ahmedabad.id);

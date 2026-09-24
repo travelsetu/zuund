@@ -19,6 +19,7 @@ import { FilesService } from '../files/files.service';
 import type { Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { eliteUserIds, spendDirectMessageCredit } from '../common/entitlements';
 import { requireJoined } from '../common/joined';
 
 const messageInclude = {
@@ -30,9 +31,11 @@ type MessageRow = Prisma.MessageGetPayload<{ include: typeof messageInclude }>;
 
 /**
  * Direct (buyer-to-buyer) and collective conversations share one model.
- * Direct messaging requires an ACCEPTED connection; collective messaging
- * requires an ACTIVE membership (checked by CollectivesService, which
- * creates the collective conversation and adds/removes members).
+ * Starting a direct conversation needs an ACCEPTED connection, or an Elite Pass
+ * credit for someone you're not connected with; replying never needs either.
+ * Collective messaging requires an ACTIVE membership (checked by CollectivesService,
+ * which creates the collective conversation and adds/removes members). After a pass
+ * expires, the member can still read the discussion up to the moment it ended.
  */
 @Injectable()
 export class ConversationsService {
@@ -46,7 +49,20 @@ export class ConversationsService {
   async openDirect(userId: string, otherId: string): Promise<ConversationDto> {
     if (userId === otherId) throw new BadRequestException();
     await requireJoined(this.prisma, userId);
-    if (!(await this.connections.areConnected(userId, otherId))) throw E.NOT_CONNECTED();
+    if (!(await this.connections.areConnected(userId, otherId))) {
+      if (await this.connections.isBlocked(userId, otherId)) throw E.BLOCKED();
+      const other = await this.prisma.user.findFirst({
+        where: { id: otherId, status: 'ACTIVE' },
+        select: { id: true },
+      });
+      if (!other) throw new NotFoundException('User not found');
+      const existing = await this.prisma.conversation.findUnique({
+        where: { directKey: [userId, otherId].sort().join(':') },
+        select: { id: true },
+      });
+      // A conversation that already exists (they messaged you first) is free to reply to.
+      if (!existing) await spendDirectMessageCredit(this.prisma, userId, otherId);
+    }
     const directKey = [userId, otherId].sort().join(':');
     const conv = await this.prisma.conversation.upsert({
       where: { directKey },
@@ -61,8 +77,13 @@ export class ConversationsService {
   }
 
   async get(userId: string, conversationId: string): Promise<ConversationDto> {
-    await this.requireMember(conversationId, userId);
-    const page = await this.listFor(userId, { limit: 1, cursor: undefined }, conversationId);
+    const { until } = await this.requireReader(conversationId, userId);
+    const page = await this.listFor(
+      userId,
+      { limit: 1, cursor: undefined },
+      conversationId,
+      !!until,
+    );
     if (!page.items[0]) throw new NotFoundException('Conversation not found');
     return page.items[0];
   }
@@ -71,12 +92,13 @@ export class ConversationsService {
     userId: string,
     q: PageQuery,
     onlyId?: string,
+    includeLeft = false,
   ): Promise<Page<ConversationDto>> {
     // Ordered by activity, not creation: a plain findMany with a lastMessageAt cursor.
     const rows = await this.prisma.conversation.findMany({
       where: {
         ...(onlyId ? { id: onlyId } : {}),
-        members: { some: { userId, leftAt: null } },
+        members: { some: { userId, ...(includeLeft ? {} : { leftAt: null }) } },
         ...(q.cursor
           ? { updatedAt: { lt: new Date(Buffer.from(q.cursor, 'base64url').toString()) } }
           : {}),
@@ -95,6 +117,10 @@ export class ConversationsService {
     });
     const hasMore = rows.length > q.limit;
     const slice = hasMore ? rows.slice(0, q.limit) : rows;
+    const elite = await eliteUserIds(
+      this.prisma,
+      slice.flatMap((c) => c.members.map((m) => m.userId)),
+    );
     const items: ConversationDto[] = [];
     for (const c of slice) {
       const me = c.members.find((m) => m.userId === userId)!;
@@ -112,7 +138,7 @@ export class ConversationsService {
         id: c.id,
         type: c.type,
         collectiveId: c.collectiveId,
-        otherUser: other ? toPublicUser(other.user) : null,
+        otherUser: other ? toPublicUser(other.user, { elite }) : null,
         lastMessage: last ? await this.toMessage(last, userId) : null,
         unreadCount,
         updatedAt: c.updatedAt.toISOString(),
@@ -129,9 +155,14 @@ export class ConversationsService {
   }
 
   async messages(userId: string, conversationId: string, q: PageQuery): Promise<Page<MessageDto>> {
-    await this.requireMember(conversationId, userId);
+    const { until } = await this.requireReader(conversationId, userId);
     const rows = await this.prisma.message.findMany({
-      where: { conversationId, ...afterCursor(decodeCursor(q.cursor)) },
+      where: {
+        conversationId,
+        ...afterCursor(decodeCursor(q.cursor)),
+        // Read-only history after a pass ends: nothing said after that moment.
+        ...(until ? { createdAt: { lte: until } } : {}),
+      },
       include: messageInclude,
       orderBy: cursorOrder,
       take: q.limit + 1,
@@ -142,8 +173,12 @@ export class ConversationsService {
       data: { lastDeliveredAt: new Date() },
     });
     const page = toPage(rows, q.limit, (r) => r);
+    const elite = await eliteUserIds(
+      this.prisma,
+      page.items.map((r) => r.senderId),
+    );
     return {
-      items: await Promise.all(page.items.map((r) => this.toMessage(r, userId))),
+      items: await Promise.all(page.items.map((r) => this.toMessage(r, userId, elite))),
       nextCursor: page.nextCursor,
     };
   }
@@ -244,6 +279,32 @@ export class ConversationsService {
     });
   }
 
+  /**
+   * A current member, or someone whose pass expired while they were in this collective's
+   * discussion: they may read what was said up to `until` (when they left), nothing more.
+   */
+  private async requireReader(
+    conversationId: string,
+    userId: string,
+  ): Promise<{ until: Date | null }> {
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: { where: { userId } } },
+    });
+    if (!conv) throw new NotFoundException('Conversation not found');
+    const me = conv.members[0];
+    if (!me) throw E.NOT_A_MEMBER();
+    if (!me.leftAt) return { until: null };
+    if (conv.type !== 'COLLECTIVE' || !conv.collectiveId) throw E.NOT_A_MEMBER();
+    const latest = await this.prisma.collectiveMembership.findFirst({
+      where: { collectiveId: conv.collectiveId, userId },
+      orderBy: { createdAt: 'desc' },
+      select: { status: true },
+    });
+    if (latest?.status !== 'EXPIRED') throw E.NOT_A_MEMBER();
+    return { until: me.leftAt };
+  }
+
   async requireMember(conversationId: string, userId: string) {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -255,7 +316,11 @@ export class ConversationsService {
     return conv;
   }
 
-  private async toMessage(r: MessageRow, viewerId: string): Promise<MessageDto> {
+  private async toMessage(
+    r: MessageRow,
+    viewerId: string,
+    elite?: Set<string>,
+  ): Promise<MessageDto> {
     // Delivery state from the sender's view: READ once every other member has read past it, else DELIVERED, else SENT.
     let deliveryState: MessageDto['deliveryState'] = 'SENT';
     if (r.senderId === viewerId) {
@@ -280,7 +345,7 @@ export class ConversationsService {
     return {
       id: r.id,
       conversationId: r.conversationId,
-      sender: toPublicUser(r.sender),
+      sender: toPublicUser(r.sender, { elite }),
       messageType: r.messageType,
       content: r.deletedAt ? '' : r.content,
       replyToId: r.replyToId,

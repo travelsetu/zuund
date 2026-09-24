@@ -18,13 +18,13 @@ import type {
   PaymentDto,
   VerifyPaymentRequest,
 } from '@zuund/shared';
+import { freePassUsed } from '../common/entitlements';
 import { toPass, toPayment } from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { Env } from '../config/env';
 import type { CollectiveMembership, Payment, Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
-import { freePlaceHolders } from '../common/free-places';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PAYMENT_PROVIDER,
@@ -44,8 +44,8 @@ import {
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly amount: number;
-  private readonly validityDays: number;
-  private readonly freeMembers: number;
+  private readonly eliteDays: number;
+  private readonly freeDays: number;
 
   constructor(
     private readonly audit: AuditService,
@@ -54,17 +54,18 @@ export class PaymentsService {
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
     config: ConfigService<Env, true>,
   ) {
-    this.amount = config.get('BUYING_PASS_AMOUNT', { infer: true });
-    this.validityDays = config.get('BUYING_PASS_VALIDITY_DAYS', { infer: true });
-    this.freeMembers = config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true });
+    this.amount = config.get('ELITE_PASS_AMOUNT', { infer: true });
+    this.eliteDays = config.get('ELITE_PASS_DAYS', { infer: true });
+    this.freeDays = config.get('FREE_PASS_DAYS', { infer: true });
   }
 
   // ── Create ──
 
   /**
-   * Opens a payment for the ₹500 pass on one buying intent. The same
-   * idempotency key returns the same payment; a second key for an intent
-   * that already has a live payment or an active pass is refused.
+   * Opens a payment for the Elite Pass on one buying intent: to join, to upgrade from
+   * an active Free Pass, or to extend an active Elite Pass by another ELITE_PASS_DAYS.
+   * The same idempotency key returns the same payment; an intent with a live payment
+   * gets that payment back.
    */
   async create(userId: string, input: CreatePaymentRequest): Promise<PaymentCheckoutDto> {
     const existingByKey = await this.prisma.payment.findUnique({
@@ -92,14 +93,12 @@ export class PaymentsService {
       },
     });
     if (!membership) throw E.JOIN_FIRST();
-    if (membership.status === 'ACTIVE') throw E.PASS_ALREADY_ACTIVE();
-    // A free place may still be open (e.g. a stale pay screen): never charge for it.
-    if (await this.claimFreePlace(userId, membership.id)) throw E.PASS_ALREADY_ACTIVE();
 
+    // An active Free Pass is upgraded; an active Elite Pass is extended.
     const activePass = await this.prisma.buyingPass.findFirst({
       where: { buyingIntentId: intent.id, status: 'ACTIVE' },
     });
-    if (activePass) throw E.PASS_ALREADY_ACTIVE();
+    if (membership.status === 'ACTIVE' && !activePass) throw E.PASS_ALREADY_ACTIVE();
 
     // Another open payment for the same intent: hand it back rather than start a second one.
     const open = await this.prisma.payment.findFirst({
@@ -109,6 +108,7 @@ export class PaymentsService {
     if (open) return this.checkoutFor(open);
 
     const pass =
+      (activePass?.plan === 'ELITE' ? activePass : null) ??
       (await this.prisma.buyingPass.findFirst({
         where: { buyingIntentId: intent.id, status: 'PENDING' },
       })) ??
@@ -116,6 +116,7 @@ export class PaymentsService {
         data: {
           buyingIntentId: intent.id,
           userId,
+          plan: 'ELITE',
           amount: this.amount,
           currency: 'INR',
           status: 'PENDING',
@@ -280,7 +281,7 @@ export class PaymentsService {
         userId: payment.userId,
         type: 'PAYMENT_FAILED',
         title: 'Payment failed',
-        body: 'Your ₹500 Buying Pass payment did not go through. You can try again.',
+        body: `Your ₹${payment.amount / 100} Elite Pass payment did not go through. You can try again.`,
         data: { paymentId: payment.id },
         dedupeKey: `payfail:${payment.id}`,
       });
@@ -294,8 +295,9 @@ export class PaymentsService {
   }
 
   /**
-   * The one transaction that grants paid access. Safe to call twice: every
-   * step checks current state first.
+   * The one transaction that grants Elite access. Safe to call twice: every
+   * step checks current state first. An active Free Pass on the same post ends
+   * here, and Elite runs ELITE_PASS_DAYS from now.
    */
   async activate(paymentId: string, providerPaymentId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -320,6 +322,7 @@ export class PaymentsService {
           data: {
             buyingIntentId: payment.buyingIntentId,
             userId: payment.userId,
+            plan: 'ELITE',
             amount: payment.amount,
             currency: payment.currency,
             status: 'PENDING',
@@ -327,11 +330,33 @@ export class PaymentsService {
         });
         await tx.payment.update({ where: { id: paymentId }, data: { buyingPassId: pass.id } });
       }
-      if (pass.status !== 'ACTIVE') {
-        const expiresAt = new Date(now.getTime() + this.validityDays * 86_400_000);
+      const extending =
+        pass.status === 'ACTIVE' && pass.plan === 'ELITE' && pass.paymentId !== paymentId;
+      if (extending) {
+        // Extension: the same pass runs ELITE_PASS_DAYS longer; limits and credits carry on.
+        const from = Math.max(pass.expiresAt?.getTime() ?? 0, now.getTime());
         pass = await tx.buyingPass.update({
           where: { id: pass.id },
-          data: { status: 'ACTIVE', activatedAt: now, expiresAt, paymentId },
+          data: { expiresAt: new Date(from + this.eliteDays * 86_400_000) },
+        });
+        this.logger.log(`Elite Pass ${pass.id} extended to ${pass.expiresAt?.toISOString()}`);
+      } else if (pass.status !== 'ACTIVE') {
+        // One ACTIVE pass per post: the Free Pass being upgraded ends now.
+        const upgraded = await tx.buyingPass.updateMany({
+          where: {
+            buyingIntentId: payment.buyingIntentId,
+            status: 'ACTIVE',
+            plan: 'FREE',
+            id: { not: pass.id },
+          },
+          data: { status: 'EXPIRED', expiresAt: now },
+        });
+        if (upgraded.count)
+          this.logger.log(`Free Pass on ${payment.buyingIntentId} upgraded to Elite`);
+        const expiresAt = new Date(now.getTime() + this.eliteDays * 86_400_000);
+        pass = await tx.buyingPass.update({
+          where: { id: pass.id },
+          data: { plan: 'ELITE', status: 'ACTIVE', activatedAt: now, expiresAt, paymentId },
         });
       }
 
@@ -346,6 +371,12 @@ export class PaymentsService {
         await tx.collectiveMembership.update({
           where: { id: membership.id },
           data: { status: 'ACTIVE', joinedAt: now, buyingPassId: pass.id },
+        });
+      } else if (membership && membership.buyingPassId !== pass.id) {
+        // Upgrade: same membership, now held by the Elite Pass.
+        await tx.collectiveMembership.update({
+          where: { id: membership.id },
+          data: { buyingPassId: pass.id },
         });
       }
       if (membership) {
@@ -376,8 +407,8 @@ export class PaymentsService {
         {
           userId: payment.userId,
           type: 'PAYMENT_SUCCESS',
-          title: 'Buying Pass activated',
-          body: `Your ₹${payment.amount / 100} Buying Pass is active until ${pass.expiresAt?.toDateString()}.`,
+          title: 'Elite Pass activated',
+          body: `Your ₹${payment.amount / 100} Elite Pass is active until ${pass.expiresAt?.toDateString()}.`,
           data: { paymentId, buyingPassId: pass.id },
           dedupeKey: `paysuccess:${paymentId}`,
         },
@@ -426,33 +457,26 @@ export class PaymentsService {
     });
   }
 
-  // ── Free places ──
+  // ── Free Pass ──
 
   /**
-   * Each collective has FREE_MEMBERS_PER_COLLECTIVE free places, held by current
-   * members who joined free. When one leaves (or their pass expires) the place opens
-   * again for the next person to join. The member gets a ₹0 pass with the normal
-   * validity and no Payment row.
+   * "Join free": a ₹0 Free Pass for FREE_PASS_DAYS with no Payment row. Each user gets
+   * one per car+city, ever — closing a post and posting the same car+city again does
+   * not bring a second one.
    *
-   * Returns false (and changes nothing) when no place is left, the membership
-   * is not pending, or the post already has a payment in flight — someone
-   * mid-checkout finishes that payment rather than getting a free place.
+   * Returns false (and changes nothing) when the Free Pass was already used, the
+   * membership is not pending, or the post already has a pass or a payment in flight.
    */
-  async claimFreePlace(userId: string, membershipId: string): Promise<boolean> {
-    if (this.freeMembers <= 0) return false;
+  async startFreePass(userId: string, membershipId: string): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const membership = await tx.collectiveMembership.findUnique({ where: { id: membershipId } });
       if (!membership || membership.userId !== userId || membership.status !== 'PENDING_PAYMENT')
         return false;
-      // Serialise claims per collective so two joins cannot both take the last place.
-      await tx.$queryRaw`SELECT id FROM collectives WHERE id = ${membership.collectiveId} FOR UPDATE`;
-      const taken = await tx.collectiveMembership.count({
-        where: freePlaceHolders(membership.collectiveId),
-      });
-      if (taken >= this.freeMembers) return false;
-
       const intent = await tx.buyingIntent.findUnique({ where: { id: membership.buyingIntentId } });
       if (!intent || intent.status !== 'ACTIVE') return false;
+      // Serialise per user so two joins at once cannot both start a Free Pass.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+      if (await freePassUsed(tx, userId, intent.carId, intent.cityId)) return false;
       const [activePass, openPayment] = await Promise.all([
         tx.buyingPass.findFirst({ where: { buyingIntentId: intent.id, status: 'ACTIVE' } }),
         tx.payment.findFirst({
@@ -462,27 +486,19 @@ export class PaymentsService {
       if (activePass || openPayment) return false;
 
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + this.validityDays * 86_400_000);
-      // Reuse a pending ₹500 pass shell if one exists, so the post keeps a single pass.
-      const pending = await tx.buyingPass.findFirst({
-        where: { buyingIntentId: intent.id, status: 'PENDING' },
+      const expiresAt = new Date(now.getTime() + this.freeDays * 86_400_000);
+      const pass = await tx.buyingPass.create({
+        data: {
+          buyingIntentId: intent.id,
+          userId,
+          plan: 'FREE',
+          amount: 0,
+          currency: 'INR',
+          status: 'ACTIVE',
+          activatedAt: now,
+          expiresAt,
+        },
       });
-      const pass = pending
-        ? await tx.buyingPass.update({
-            where: { id: pending.id },
-            data: { amount: 0, status: 'ACTIVE', activatedAt: now, expiresAt },
-          })
-        : await tx.buyingPass.create({
-            data: {
-              buyingIntentId: intent.id,
-              userId,
-              amount: 0,
-              currency: 'INR',
-              status: 'ACTIVE',
-              activatedAt: now,
-              expiresAt,
-            },
-          });
       await tx.collectiveMembership.update({
         where: { id: membership.id },
         data: { status: 'ACTIVE', joinedAt: now, buyingPassId: pass.id },
@@ -503,14 +519,14 @@ export class PaymentsService {
           userId,
           type: 'COLLECTIVE_MEMBERSHIP',
           title: 'You are in, free',
-          body: `You got one of the collective's ${this.freeMembers} free places. Your Buying Pass is active until ${expiresAt.toDateString()}.`,
+          body: `Your Free Pass is active until ${expiresAt.toDateString()}.`,
           data: { collectiveId: membership.collectiveId, buyingIntentId: intent.id },
           dedupeKey: `member:${membership.id}`,
         },
         tx,
       );
       this.logger.log(
-        `Free place ${taken + 1}/${this.freeMembers} in collective ${membership.collectiveId}: pass ${pass.id} ACTIVE until ${expiresAt.toISOString()}`,
+        `Free Pass ${pass.id} for intent ${intent.id} ACTIVE until ${expiresAt.toISOString()}`,
       );
       await this.audit.log(
         {
@@ -519,12 +535,7 @@ export class PaymentsService {
           action: 'BUYING_PASS_ACTIVATED',
           targetType: 'BuyingPass',
           targetId: pass.id,
-          metadata: {
-            buyingIntentId: intent.id,
-            free: true,
-            place: taken + 1,
-            expiresAt: expiresAt.toISOString(),
-          },
+          metadata: { buyingIntentId: intent.id, plan: 'FREE', expiresAt: expiresAt.toISOString() },
         },
         tx,
       );
@@ -579,7 +590,21 @@ export class PaymentsService {
         },
         tx,
       );
-      if (payment.buyingPassId) {
+      const pass = payment.buyingPassId
+        ? await tx.buyingPass.findUnique({ where: { id: payment.buyingPassId } })
+        : null;
+      if (pass && pass.paymentId && pass.paymentId !== paymentId) {
+        // An extension payment: take its days back off the pass, which otherwise stands.
+        if (pass.status === 'ACTIVE' && pass.expiresAt)
+          await tx.buyingPass.update({
+            where: { id: pass.id },
+            data: {
+              expiresAt: new Date(
+                Math.max(now.getTime(), pass.expiresAt.getTime() - this.eliteDays * 86_400_000),
+              ),
+            },
+          });
+      } else if (payment.buyingPassId) {
         await tx.buyingPass.updateMany({
           where: { id: payment.buyingPassId, status: { in: ['ACTIVE', 'PENDING'] } },
           data: { status: 'REFUNDED' },

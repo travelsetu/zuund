@@ -14,6 +14,9 @@ export const colors = {
   greenSoft: '#E4F5EC',
   orange: '#D9720A',
   orangeSoft: '#FDF1E4',
+  /** Elite Pass: the one gold accent. */
+  gold: '#B7791F',
+  goldSoft: '#FDF4DF',
   purple: '#6D4AFF',
   purpleSoft: '#F0ECFF',
   red: '#D92D20',

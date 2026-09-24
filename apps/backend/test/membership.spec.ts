@@ -9,6 +9,7 @@ import {
   setup,
   teardown,
   teardownAll,
+  useFreePass,
   type TestContext,
   type TestUser,
 } from './helpers';
@@ -25,6 +26,9 @@ describe('collective membership', () => {
     ctx = await setup();
     rahul = await registerUser(ctx, 'Rahul');
     priya = await registerUser(ctx, 'Priya');
+    // These specs follow the paid path: both have used their Free Pass for this car+city.
+    await useFreePass(rahul, ctx.creta, ctx.ahmedabad);
+    await useFreePass(priya, ctx.creta, ctx.ahmedabad);
     rahulPost = (await createPost(rahul.agent, ctx.creta, ctx.ahmedabad)).id;
     priyaPost = (await createPost(priya.agent, ctx.creta, ctx.ahmedabad)).id;
   });
@@ -149,7 +153,7 @@ describe('collective membership', () => {
     );
   });
 
-  it('an expired pass expires the membership and closes discussion access', async () => {
+  it('an expired pass expires the membership; the discussion becomes read-only', async () => {
     await payFor(priya.agent, priyaPost, collectiveId);
     const conv = (await priya.agent.get(`/api/collectives/${collectiveId}`)).body
       .conversationId as string;
@@ -166,7 +170,12 @@ describe('collective membership', () => {
       (await db.collectiveMembership.findFirstOrThrow({ where: { buyingIntentId: priyaPost } }))
         .status,
     ).toBe('EXPIRED');
-    expect((await priya.agent.get(`/api/conversations/${conv}/messages`)).status).toBe(403);
+    // History stays readable; nothing can be posted.
+    expect((await priya.agent.get(`/api/conversations/${conv}/messages`)).status).toBe(200);
+    expect(
+      (await priya.agent.post(`/api/conversations/${conv}/messages`).send({ content: 'hi' }))
+        .status,
+    ).toBe(403);
     const polls = await priya.agent.get(`/api/collectives/${collectiveId}/polls`);
     expect(polls.body.error.code).toBe('BUYING_PASS_EXPIRED');
     expect((await priya.agent.get(`/api/collectives/${collectiveId}`)).body.activeMemberCount).toBe(

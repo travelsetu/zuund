@@ -7,6 +7,7 @@ import type {
   HolidayDetailsDto,
   HolidayTripDto,
   MeDto,
+  MyPassDto,
   PaymentDto,
   PublicUserDto,
 } from '@zuund/shared';
@@ -44,20 +45,27 @@ export function toCar(c: Car): CarDto {
 }
 
 /** Never includes email, phone or verification internals. */
-export function toPublicUser(u: UserWithProfile, opts: { about?: boolean } = {}): PublicUserDto {
+/** `elite`: ids holding an active Elite Pass (`eliteUserIds`); without it nobody shows the 👑. */
+export function toPublicUser(
+  u: UserWithProfile,
+  opts: { about?: boolean; elite?: Set<string> } = {},
+): PublicUserDto {
   return {
     id: u.id,
     name: u.name,
     photoUrl: u.profile?.photoUrl ?? null,
     city: u.profile?.city ? toCity(u.profile.city) : null,
     verificationStatus: u.verificationStatus,
+    elite: opts.elite?.has(u.id) ?? false,
     ...(opts.about ? { about: u.profile?.about ?? null } : {}),
   };
 }
 
-export function toMe(u: UserWithProfile): MeDto {
+export function toMe(u: UserWithProfile, pass: MyPassDto | null): MeDto {
   return {
     ...toPublicUser(u, { about: true }),
+    elite: pass?.plan === 'ELITE',
+    pass,
     email: u.email,
     phone: u.phone,
     phoneVerified: !!u.phoneVerifiedAt,
@@ -82,6 +90,7 @@ export function toPass(p: BuyingPass): BuyingPassDto {
   return {
     id: p.id,
     buyingIntentId: p.buyingIntentId,
+    plan: p.plan,
     amount: p.amount,
     currency: p.currency,
     status: p.status,
@@ -122,7 +131,8 @@ export const intentInclude = {
   memberships: { where: { status: { in: ['PENDING_PAYMENT' as const, 'ACTIVE' as const] } } },
 };
 
-export function toIntent(i: IntentWithRelations): BuyingIntentDto {
+/** `freePassAvailable`: whether this post can still start the owner's Free Pass (`freePassUsed`). */
+export function toIntent(i: IntentWithRelations, freePassAvailable = false): BuyingIntentDto {
   const active = i.passes.find((p) => p.status === 'ACTIVE');
   const pass = active ?? i.passes[0] ?? null;
   const m = i.memberships[0] ?? null;
@@ -140,6 +150,7 @@ export function toIntent(i: IntentWithRelations): BuyingIntentDto {
     pausedAt: iso(i.pausedAt),
     holiday: toHolidayDetails(i),
     pass: pass ? toPass(pass) : null,
+    freePassAvailable,
     membership: m ? { id: m.id, collectiveId: m.collectiveId, status: m.status } : null,
   };
 }

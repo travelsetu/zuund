@@ -135,7 +135,13 @@ export interface AdminStatsDto {
     byCity: Array<{ city: CityDto; count: number }>;
   };
   collectives: { active: number; total: number; activeMemberships: number };
-  passes: { active: number; expired: number; refunded: number };
+  passes: {
+    active: number;
+    expired: number;
+    refunded: number;
+    activeFree: number;
+    activeElite: number;
+  };
   payments: {
     success: number;
     failed: number;

@@ -5,6 +5,7 @@ import type {
   BuyingIntentStatus,
   BuyingPassStatus,
   HotelCategory,
+  PassPlan,
   CollectiveStatus,
   ConnectionStatus,
   ConversationType,
@@ -79,7 +80,21 @@ export interface PublicUserDto {
   photoUrl: string | null;
   city: CityDto | null;
   verificationStatus: VerificationStatus;
+  /** Holds an active Elite Pass: shown as a 👑 next to the name. */
+  elite: boolean;
   about?: string | null;
+}
+
+/** The pass that sets the signed-in user's limits (their best active one) and what's used. */
+export interface MyPassDto {
+  plan: PassPlan;
+  buyingIntentId: string;
+  expiresAt: string;
+  activeConnections: number;
+  activeConnectionsLimit: number;
+  acceptedConnections: number;
+  acceptedConnectionsLimit: number;
+  directMessagesLeft: number;
 }
 
 /** The signed-in user's own view of themselves. */
@@ -94,11 +109,14 @@ export interface MeDto extends PublicUserDto {
   role: UserRole;
   status: UserStatus;
   createdAt: string;
+  /** Null when no pass is active. */
+  pass: MyPassDto | null;
 }
 
 export interface BuyingPassDto {
   id: string;
   buyingIntentId: string;
+  plan: PassPlan;
   amount: number;
   currency: string;
   status: BuyingPassStatus;
@@ -145,6 +163,8 @@ export interface BuyingIntentDto {
   holiday: HolidayDetailsDto | null;
   /** The ACTIVE pass if there is one, otherwise the most recent, otherwise null. */
   pass: BuyingPassDto | null;
+  /** This post can still start the one Free Pass for its car+city. */
+  freePassAvailable: boolean;
   /** Live membership for this intent, if any. */
   membership: { id: string; collectiveId: string; status: MembershipStatus } | null;
 }
@@ -157,19 +177,24 @@ export interface IntentHistoryDto {
   changedById: string;
 }
 
-/** A buyer card in discovery. */
+/**
+ * A buyer card in discovery. A Free viewer sees who the buyer is (name, photo, city),
+ * not their details: timeline, how sure they are and the trip are null (Elite only).
+ */
 export interface BuyerDto {
   buyingIntentId: string;
   user: PublicUserDto;
   car: CarDto;
   city: CityDto;
-  purchaseTimeline: PurchaseTimeline;
-  intentLevel: IntentLevel;
+  purchaseTimeline: PurchaseTimeline | null;
+  intentLevel: IntentLevel | null;
   createdAt: string;
-  /** Holiday packages only. */
+  /** Holiday packages only; null for a Free viewer. */
   holiday: HolidayTripDto | null;
   /** The viewer's relationship with this buyer, if any. */
   connection: { id: string; status: ConnectionStatus; requesterId: string } | null;
+  /** Active in the last 48 hours. Elite viewers only; null otherwise. */
+  activeRecently: boolean | null;
 }
 
 export interface BuyerDiscoveryDto extends Page<BuyerDto> {
@@ -179,6 +204,8 @@ export interface BuyerDiscoveryDto extends Page<BuyerDto> {
   totalActiveBuyers: number;
   /** The same count broken down per filter pill. Counts, never scores. */
   counts: Record<BuyerFilter, number>;
+  /** The viewer's plan: Free sees "All" only, with buyer details locked. */
+  viewerPlan: PassPlan;
 }
 
 /** Buyers for a car+city, as counts only (seen before joining). */
@@ -190,6 +217,20 @@ export interface BuyerCountDto {
     byTimeline: Record<PurchaseTimeline, number>;
     byIntentLevel: Record<IntentLevel, number>;
   };
+  /** Live Buyer Pulse: all active buyers for this car+city, excluding the viewer. */
+  pulse: BuyerPulseDto;
+}
+
+export interface BuyerPulseDto {
+  byIntentLevel: Record<IntentLevel, number>;
+  /** Buyers active in the last 48 hours. */
+  activeRecently: number;
+  /** Elite only (null otherwise): Ready-to-Buy buyers active in the last 48 hours. */
+  readyActiveRecently: number | null;
+  /** Elite only (null otherwise): buyers who posted in the last 7 days. */
+  newThisWeek: number | null;
+  /** Whether the viewer saw the Elite numbers. */
+  elite: boolean;
 }
 
 export interface BuyerProfileDto {
@@ -198,12 +239,17 @@ export interface BuyerProfileDto {
     id: string;
     car: CarDto;
     city: CityDto;
-    purchaseTimeline: PurchaseTimeline;
-    intentLevel: IntentLevel;
+    /** Null for a Free viewer (details are Elite only). */
+    purchaseTimeline: PurchaseTimeline | null;
+    intentLevel: IntentLevel | null;
   }>;
   connection: { id: string; status: ConnectionStatus; requesterId: string } | null;
   connectionCount: number;
   collectiveCount: number;
+  /** Elite viewers only (and your own profile); null otherwise. */
+  lastActiveAt: string | null;
+  /** The viewer is on Free: details above are locked. */
+  detailsLocked: boolean;
 }
 
 export interface ConnectionDto {
@@ -258,20 +304,21 @@ export interface CollectiveDto {
   creatorId: string;
   status: CollectiveStatus;
   activeMemberCount: number;
-  /** Free places open now (a place frees up when a free member leaves). 0 = ₹500 Buying Pass. */
-  freePlacesLeft: number;
   createdAt: string;
   closedAt: string | null;
   /** The viewer's live membership, if any. */
   membership: { id: string; status: MembershipStatus; buyingIntentId: string } | null;
   conversationId: string | null;
+  /** The viewer's pass ended: they can read the discussion up to then, not post. */
+  discussionReadOnly: boolean;
 }
 
 export interface CollectiveMemberDto {
   membershipId: string;
   user: PublicUserDto;
-  intentLevel: IntentLevel;
-  purchaseTimeline: PurchaseTimeline;
+  /** Null for a Free viewer looking at someone else (details are Elite only). */
+  intentLevel: IntentLevel | null;
+  purchaseTimeline: PurchaseTimeline | null;
   status: MembershipStatus;
   joinedAt: string | null;
   /** The viewer's relationship with this member; null for the viewer themselves. */

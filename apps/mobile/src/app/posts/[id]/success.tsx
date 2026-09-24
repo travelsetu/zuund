@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { FREE_MEMBERS_PER_COLLECTIVE, type BuyingIntentDto, type PaymentDto } from '@zuund/shared';
+import { type BuyingIntentDto, type PaymentDto } from '@zuund/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Check, Column, Loading } from '@/components/ui';
+import { PlanFeatures } from '@/components/Plan';
+import { Button, Column, Loading } from '@/components/ui';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { formatDate, rupees } from '@/lib/format';
 import { colors, space, type, fonts } from '@/theme';
 
@@ -17,13 +19,18 @@ export default function PaymentSuccess() {
   const { id, paymentId, free } = useLocalSearchParams<{
     id: string;
     paymentId?: string;
-    /** "1" when joining took one of the collective's free places: no payment to confirm. */
+    /** "1" when joining started the Free Pass: no payment to confirm. */
     free?: string;
   }>();
   const isFree = free === '1';
   const [payment, setPayment] = useState<PaymentDto | null>(null);
   const [intent, setIntent] = useState<BuyingIntentDto | null>(null);
   const [gaveUp, setGaveUp] = useState(false);
+  const { reload } = useAuth();
+  // The pass sets your limits and the 👑: refresh the signed-in user once it's active.
+  useEffect(() => {
+    if (intent) void reload();
+  }, [intent, reload]);
 
   useEffect(() => {
     let alive = true;
@@ -76,7 +83,7 @@ export default function PaymentSuccess() {
             <Text style={[type.body, { textAlign: 'center' }]}>
               {isFree
                 ? 'Open your Buying Post to see its current status.'
-                : "We're waiting for confirmation from the payment provider. If money left your account, your Buying Pass will activate automatically — you'll get a notification."}
+                : "We're waiting for confirmation from the payment provider. If money left your account, your Elite Pass will activate automatically — you'll get a notification."}
             </Text>
             <Button title="Back to my Buying Post" onPress={() => router.replace(`/posts/${id}`)} />
           </>
@@ -115,14 +122,13 @@ export default function PaymentSuccess() {
           >
             <Ionicons name="checkmark" size={60} color={colors.white} />
           </View>
-          <Text style={type.h1}>{isFree ? "You're in!" : 'Payment Successful!'}</Text>
-          <Text style={[type.h2, { color: isFree ? colors.green : colors.brand }]}>
-            {isFree ? 'Free place' : rupees(payment!.amount)}
+          <Text style={type.h1}>{isFree ? "You're in!" : "You're Elite!"}</Text>
+          <Text style={[type.h2, { color: isFree ? colors.green : colors.gold }]}>
+            {isFree ? 'Free Pass' : `Elite Pass · ${rupees(payment!.amount)}`}
           </Text>
           {isFree ? (
             <Text style={[type.small, { textAlign: 'center' }]}>
-              You took one of the collective's {FREE_MEMBERS_PER_COLLECTIVE} free places, so there's
-              nothing to pay.
+              Nothing to pay. You can upgrade to Elite any time.
             </Text>
           ) : null}
           <Text style={[type.body, { textAlign: 'center' }]}>
@@ -139,7 +145,7 @@ export default function PaymentSuccess() {
             }}
           >
             <Text style={type.body}>
-              Buying Pass:{' '}
+              {isFree ? 'Free Pass' : 'Elite Pass'}:{' '}
               <Text style={{ fontFamily: fonts.heavy, color: colors.green }}>
                 {intent.pass?.status}
               </Text>
@@ -150,11 +156,8 @@ export default function PaymentSuccess() {
             </Text>
           </View>
           <View style={{ alignSelf: 'stretch', gap: 10, marginTop: space.sm }}>
-            <Text style={type.h3}>You now have access to:</Text>
-            <Check>Group discussions</Check>
-            <Check>Members of the collective</Check>
-            <Check>Polls</Check>
-            <Check>Shared information and activities</Check>
+            <Text style={type.h3}>You now have:</Text>
+            <PlanFeatures plan={isFree ? 'FREE' : 'ELITE'} />
           </View>
         </View>
         <View style={{ padding: space.lg, gap: space.sm }}>

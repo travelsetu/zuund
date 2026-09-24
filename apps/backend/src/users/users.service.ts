@@ -10,6 +10,7 @@ import { isUniqueViolation } from '../common/prisma-errors';
 import { toCar, toCity, toMe, toPublicUser } from '../common/mappers';
 import { OtpService } from '../otp/otp.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { eliteUserIds, myPass, planFor } from '../common/entitlements';
 import { requireJoined } from '../common/joined';
 import type { User } from '../generated/prisma/client';
 
@@ -44,7 +45,7 @@ export class UsersService {
   async getMe(userId: string): Promise<MeDto> {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, include: withProfile });
     if (!u) throw new NotFoundException();
-    return toMe(u);
+    return toMe(u, await myPass(this.prisma, userId));
   }
 
   async updateProfile(userId: string, input: UpdateProfileRequest): Promise<MeDto> {
@@ -109,7 +110,7 @@ export class UsersService {
         if (isUniqueViolation(e, 'phone')) throw E.PHONE_TAKEN();
         throw e;
       });
-    return toMe(u);
+    return toMe(u, await myPass(this.prisma, userId));
   }
 
   /**
@@ -147,15 +148,19 @@ export class UsersService {
       this.prisma.collectiveMembership.count({ where: { userId, status: 'ACTIVE' } }),
     ]);
 
+    // Details (timeline, how sure, last active) are Elite only; your own profile shows them.
+    const details = viewerId === userId || (await planFor(this.prisma, viewerId)) === 'ELITE';
     return {
-      user: toPublicUser(u, { about: true }),
+      user: toPublicUser(u, { about: true, elite: await eliteUserIds(this.prisma, [u.id]) }),
       activeIntents: u.buyingIntents.map((i) => ({
         id: i.id,
         car: toCar(i.car),
         city: toCity(i.city),
-        purchaseTimeline: i.purchaseTimeline,
-        intentLevel: i.intentLevel,
+        purchaseTimeline: details ? i.purchaseTimeline : null,
+        intentLevel: details ? i.intentLevel : null,
       })),
+      lastActiveAt: details ? (u.lastActiveAt?.toISOString() ?? null) : null,
+      detailsLocked: !details,
       connection: connection
         ? { id: connection.id, status: connection.status, requesterId: connection.requesterId }
         : null,

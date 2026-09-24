@@ -1,8 +1,8 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { ChatScreen, MessageThread } from '@/components/MessageThread';
-import { Column, Header, Loading, ProductArt } from '@/components/ui';
+import { Button, Column, Header, Loading, ProductArt } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { colors, space, type } from '@/theme';
 import type { CollectiveDto } from '@zuund/shared';
@@ -38,9 +38,23 @@ export default function Discussion() {
           <Loading />
         ) : c.conversationId && c.membership?.status === 'ACTIVE' ? (
           <MessageThread conversationId={c.conversationId} showNames />
+        ) : c.conversationId && c.discussionReadOnly ? (
+          // The pass ended: what was said up to then stays readable.
+          <MessageThread
+            conversationId={c.conversationId}
+            showNames
+            readOnly={
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                <Text style={[type.small, { flex: 1 }]}>
+                  Your pass has ended. Continue with Elite to take part again.
+                </Text>
+                <Button small title="Continue" onPress={() => router.back()} />
+              </View>
+            }
+          />
         ) : (
           <Text style={[type.small, { padding: space.lg }]}>
-            The discussion opens with an active Buying Pass.
+            The discussion opens once you join with a Free or Elite Pass.
           </Text>
         )}
       </Column>

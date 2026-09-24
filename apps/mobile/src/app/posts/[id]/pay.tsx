@@ -1,13 +1,18 @@
-import { Ionicons } from '@expo/vector-icons';
-import type { BuyingIntentDto, PaymentCheckoutDto, PaymentDto } from '@zuund/shared';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  ELITE_PASS_DAYS,
+  type BuyingIntentDto,
+  type PaymentCheckoutDto,
+  type PaymentDto,
+} from '@zuund/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
+import { ELITE_PRICE, PlanFeatures } from '@/components/Plan';
 import { RazorpaySheet, type RazorpayResult } from '@/components/RazorpaySheet';
 import {
   Button,
   Card,
-  Check,
   ErrorText,
   Header,
   Loading,
@@ -18,7 +23,7 @@ import {
 } from '@/components/ui';
 import { api, ApiRequestError, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
-import { rupees } from '@/lib/format';
+import { daysLeft, formatDate, rupees } from '@/lib/format';
 import { clearIdempotencyKey, idempotencyKeyFor } from '@/lib/payments';
 import { colors, space, type } from '@/theme';
 
@@ -30,8 +35,9 @@ const METHODS: Array<{ icon: IconName; label: string }> = [
 ];
 
 /**
- * Mockup 6 — pay ₹500 for this Buying Post (spec §70). Wording: Buying Pass,
- * never "subscription". The amount shown comes from the server's payment.
+ * The Elite Pass for this Buying Post: to join once the Free Pass is used, to upgrade
+ * from an active Free Pass, or to add another 30 days to an active Elite Pass. Never
+ * "subscription": it doesn't renew by itself. The amount comes from the server's payment.
  */
 export default function Pay() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,11 +51,7 @@ export default function Pay() {
   useEffect(() => {
     api.intents
       .get(id)
-      .then((i) => {
-        if (i.pass?.status === 'ACTIVE' && i.membership?.collectiveId)
-          router.replace(`/collectives/${i.membership.collectiveId}`);
-        else setIntent(i);
-      })
+      .then(setIntent)
       .catch((e) => setErr(errorMessage(e)));
   }, [id]);
 
@@ -62,7 +64,7 @@ export default function Pay() {
       const col = existing
         ? await api.collectives.join(existing.id, i.id)
         : await api.collectives.create(i.id);
-      // Joining took one of the free places: nothing to pay.
+      // Joining started the Free Pass: nothing to pay.
       if (col.membership?.status === 'ACTIVE') {
         router.replace({ pathname: '/posts/[id]/success', params: { id: i.id, free: '1' } });
         return null;
@@ -156,7 +158,10 @@ export default function Pay() {
         {err ? <ErrorText>{err}</ErrorText> : <Loading />}
       </Screen>
     );
-  const amount = checkout ? rupees(checkout.payment.amount) : '₹500';
+  const amount = checkout ? rupees(checkout.payment.amount) : ELITE_PRICE;
+  const active = intent.pass?.status === 'ACTIVE' ? intent.pass : null;
+  const mode = active?.plan === 'ELITE' ? 'extend' : active ? 'upgrade' : 'join';
+  const left = daysLeft(active?.expiresAt ?? null);
 
   return (
     <Screen
@@ -184,12 +189,16 @@ export default function Pay() {
               <Ionicons name="shield-checkmark" size={16} color={colors.green} />
               <Text style={type.small}>Secure payment by Razorpay</Text>
             </View>
-            <Button variant="green" title={`Pay ${amount}`} loading={busy} onPress={pay} />
+            <Button
+              title={mode === 'extend' ? `Extend for ${amount}` : `Upgrade to Elite — ${amount}`}
+              loading={busy}
+              onPress={pay}
+            />
           </View>
         )
       }
     >
-      <Header title="Payment" />
+      <Header title={mode === 'extend' ? 'Extend Elite' : 'Elite Pass'} />
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
         <ProductArt car={intent.car} size="sm" />
         <View style={{ flex: 1 }}>
@@ -199,18 +208,20 @@ export default function Pay() {
       </Card>
 
       <Card style={{ gap: space.md }}>
-        <Text style={type.small}>Buying Pass</Text>
-        <Text style={[type.hero, { color: colors.brand, fontSize: 36 }]}>{amount}</Text>
-        <Text style={type.body}>
-          Valid for up to 60 days from successful payment, for this Buying Post (
-          {intent.car.displayName} — {intent.city.name}) only.
-        </Text>
-        <View style={{ gap: 10 }}>
-          <Check>Collective discussion with other buyers</Check>
-          <Check>Create and vote in polls</Check>
-          <Check>Share brochures, links and useful information</Check>
-          <Check>Plan meetups and group calls</Check>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <MaterialCommunityIcons name="crown" size={20} color={colors.gold} />
+          <Text style={[type.h3, { color: colors.gold }]}>Elite Pass</Text>
         </View>
+        <Text style={[type.hero, { color: colors.ink, fontSize: 36 }]}>{amount}</Text>
+        <Text style={type.body}>
+          {mode === 'extend'
+            ? `Adds ${ELITE_PASS_DAYS} days to your Elite Pass, which now ends on ${formatDate(active!.expiresAt)}. Your connections and message credits carry on.`
+            : mode === 'upgrade'
+              ? `Your Free Pass has ${left} ${left === 1 ? 'day' : 'days'} left. Elite starts now and runs ${ELITE_PASS_DAYS} days from payment.`
+              : `${ELITE_PASS_DAYS} days from successful payment.`}{' '}
+          For this Buying Post ({intent.car.displayName} — {intent.city.name}) only.
+        </Text>
+        <PlanFeatures plan="ELITE" />
         <Text style={type.tiny}>One-time payment. It does not renew and is not charged again.</Text>
       </Card>
 

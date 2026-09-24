@@ -117,10 +117,11 @@ export class BuyingIntentsController {
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(countQuery)) q: z.infer<typeof countQuery>,
   ): Promise<BuyerCountDto> {
-    const [count, members] = await Promise.all([
+    const [count, members, pulse] = await Promise.all([
       this.intents.countBuyers(q.carId, q.cityId, user.userId),
       this.intents.memberBreakdown(q.carId, q.cityId),
+      this.intents.pulse(q.carId, q.cityId, user.userId),
     ]);
-    return { count, members };
+    return { count, members, pulse };
   }
 }

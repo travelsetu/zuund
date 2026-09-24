@@ -4,6 +4,7 @@ import { ApiRequestError } from '@/lib/api';
 // ── Badge ──
 const TONES: Record<string, string> = {
   ACTIVE: 'good',
+  ELITE: 'good',
   SUCCESS: 'good',
   VERIFIED: 'good',
   ACCEPTED: 'good',

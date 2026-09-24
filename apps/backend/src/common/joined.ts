@@ -3,7 +3,7 @@ import type { PrismaService } from '../prisma/prisma.service';
 
 /**
  * Nothing between buyers happens until you've joined a collective: an ACTIVE membership,
- * from a free place or a paid Buying Pass (it lapses with the pass). With `scope`, the
+ * from a Free or Elite Pass (it lapses with the pass). With `scope`, the
  * membership must be in that item + city's collective (seeing its buyers); without, any
  * collective will do (connecting, messaging, profiles).
  */

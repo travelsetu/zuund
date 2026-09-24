@@ -59,6 +59,14 @@ export const BUYING_PASS_STATUSES = [
 ] as const;
 export type BuyingPassStatus = (typeof BUYING_PASS_STATUSES)[number];
 
+/** Free: ₹0 for 15 days, once per car+city. Elite: paid, 30 days, deeper access. */
+export const PASS_PLANS = ['FREE', 'ELITE'] as const;
+export type PassPlan = (typeof PASS_PLANS)[number];
+export const PASS_PLAN_LABELS: Record<PassPlan, string> = {
+  FREE: 'Free Pass',
+  ELITE: 'Elite Pass',
+};
+
 export const PAYMENT_STATUSES = [
   'INITIATED',
   'PENDING',
@@ -145,15 +153,36 @@ export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 export const REPORT_STATUSES = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'] as const;
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
-export const BUYER_FILTERS = ['ALL', 'RECENT', 'READY', 'COMMITTED', 'INTERESTED'] as const;
+export const BUYER_FILTERS = [
+  'ALL',
+  'RECENT',
+  'ACTIVE_RECENT',
+  'READY',
+  'COMMITTED',
+  'INTERESTED',
+] as const;
 export type BuyerFilter = (typeof BUYER_FILTERS)[number];
 
-/** ₹500 in paise. The backend is the source of truth; this is for display only. */
-export const BUYING_PASS_AMOUNT_PAISE = 50_000;
+/** ₹499 in paise. The backend is the source of truth; this is for display only. */
+export const ELITE_PASS_AMOUNT_PAISE = 49_900;
 export const BUYING_PASS_CURRENCY = 'INR';
-export const BUYING_PASS_VALIDITY_DAYS = 60;
-/** Display fallback before a collective exists; the server's CollectiveDto.freePlacesLeft is authoritative. */
-export const FREE_MEMBERS_PER_COLLECTIVE = 5;
+export const FREE_PASS_DAYS = 15;
+export const ELITE_PASS_DAYS = 30;
+/** "Active recently" means a request in the last 48 hours. */
+export const ACTIVE_RECENTLY_HOURS = 48;
+
+/**
+ * What each plan allows. Active connections = accepted now + your own pending requests;
+ * accepted = connections accepted since the pass started (never goes down);
+ * direct messages = people you may message without being connected, per pass.
+ */
+export const PLAN_LIMITS: Record<
+  PassPlan,
+  { activeConnections: number; acceptedConnections: number; directMessages: number }
+> = {
+  FREE: { activeConnections: 5, acceptedConnections: 10, directMessages: 0 },
+  ELITE: { activeConnections: 30, acceptedConnections: 60, directMessages: 15 },
+};
 
 /** Hotel category asked for on a holiday Buying Post. */
 export const HOTEL_CATEGORIES = ['BUDGET', 'THREE_STAR', 'FOUR_STAR', 'FIVE_STAR'] as const;

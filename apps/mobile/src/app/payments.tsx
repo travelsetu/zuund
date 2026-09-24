@@ -16,7 +16,7 @@ const TONE: Record<PaymentDto['status'], 'green' | 'orange' | 'red' | 'grey'> = 
   REFUNDED: 'grey',
 };
 
-/** Each ₹500 payment belongs to one Buying Post; show which. */
+/** Each Elite Pass payment belongs to one Buying Post; show which. */
 export default function Payments() {
   const { data, refresh, refreshing } = useFocusData(async () => {
     const [payments, intents] = await Promise.all([api.payments.list(), api.intents.list()]);
@@ -34,7 +34,7 @@ export default function Payments() {
         <Empty
           icon="card-outline"
           title="No payments yet"
-          body="Buying Passes you buy for your posts appear here."
+          body="Elite Passes you buy for your posts appear here."
         />
       ) : (
         data.payments.map((p) => {
@@ -49,7 +49,7 @@ export default function Payments() {
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={type.h3}>Buying Pass, {rupees(p.amount)}</Text>
+                  <Text style={type.h3}>Elite Pass, {rupees(p.amount)}</Text>
                   <StatusBadge label={p.status} tone={TONE[p.status]} />
                 </View>
                 <Text style={type.small}>

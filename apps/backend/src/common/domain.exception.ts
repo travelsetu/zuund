@@ -60,13 +60,13 @@ export const E = {
   BUYING_PASS_REQUIRED: () =>
     new DomainException(
       'BUYING_PASS_REQUIRED',
-      'A Buying Pass for this buying post is required to participate',
+      'Join with a Free or Elite Pass for this buying post to take part',
       HttpStatus.FORBIDDEN,
     ),
   BUYING_PASS_EXPIRED: () =>
     new DomainException(
       'BUYING_PASS_EXPIRED',
-      'Your Buying Pass has expired',
+      'Your pass has expired. Continue with Elite to take part again.',
       HttpStatus.FORBIDDEN,
     ),
   INTENT_MISMATCH: () =>
@@ -94,7 +94,7 @@ export const E = {
   PASS_ALREADY_ACTIVE: () =>
     new DomainException(
       'PASS_ALREADY_ACTIVE',
-      'This buying post already has an active Buying Pass',
+      'This buying post already has an active Elite Pass',
       HttpStatus.CONFLICT,
     ),
   PAYMENT_VERIFICATION_FAILED: () =>
@@ -102,6 +102,33 @@ export const E = {
   PAYMENT_ORDER_MISMATCH: () =>
     new DomainException('PAYMENT_ORDER_MISMATCH', 'The payment does not match this order'),
   REFUND_NOT_ALLOWED: (m: string) => new DomainException('REFUND_NOT_ALLOWED', m),
+  // plans
+  ELITE_REQUIRED: () =>
+    new DomainException('ELITE_REQUIRED', 'This is part of the Elite Pass', HttpStatus.FORBIDDEN),
+  CONNECTION_LIMIT: (n: number) =>
+    new DomainException(
+      'CONNECTION_LIMIT',
+      `Your pass allows ${n} open connections at a time (accepted and your pending requests)`,
+      HttpStatus.FORBIDDEN,
+    ),
+  ACCEPTED_LIMIT: (n: number) =>
+    new DomainException(
+      'ACCEPTED_LIMIT',
+      `Your pass allows ${n} accepted connections`,
+      HttpStatus.FORBIDDEN,
+    ),
+  OTHER_AT_LIMIT: () =>
+    new DomainException(
+      'OTHER_AT_LIMIT',
+      'This buyer cannot take more connections on their current pass',
+      HttpStatus.FORBIDDEN,
+    ),
+  DM_CREDITS_USED: (n: number) =>
+    new DomainException(
+      'DM_CREDITS_USED',
+      `You have messaged ${n} buyers you are not connected with on this pass`,
+      HttpStatus.FORBIDDEN,
+    ),
   // polls
   POLL_CLOSED: () => new DomainException('POLL_CLOSED', 'This poll is closed'),
   ALREADY_VOTED: () => new DomainException('ALREADY_VOTED', 'You have already voted on this poll'),

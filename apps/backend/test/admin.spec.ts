@@ -12,6 +12,7 @@ import {
   type Agent,
   type TestContext,
   type TestUser,
+  useFreePass,
 } from './helpers';
 
 describe('admin', () => {
@@ -26,6 +27,7 @@ describe('admin', () => {
     ctx = await setup();
     admin = await adminAgent(ctx);
     rahul = await registerUser(ctx, 'Rahul');
+    await useFreePass(rahul, ctx.creta, ctx.ahmedabad);
     postId = (await createPost(rahul.agent, ctx.creta, ctx.ahmedabad)).id;
     collectiveId = (await joinCollective(rahul.agent, postId)).id;
     paymentId = (await payFor(rahul.agent, postId, collectiveId)).payment.id;
@@ -72,8 +74,8 @@ describe('admin', () => {
     expect(stats.body).toMatchObject({
       users: { total: 2 },
       intents: { active: 1, byCar: [{ car: { displayName: 'Hyundai Creta' }, count: 1 }] },
-      passes: { active: 1 },
-      payments: { success: 1, revenuePaise: 50000 },
+      passes: { active: 1, activeElite: 1, activeFree: 0 },
+      payments: { success: 1, revenuePaise: 49900 },
       collectives: { active: 1, activeMemberships: 1 },
     });
     const users = await admin.get(`/api/admin/users?q=${rahul.phone.slice(3)}`);
@@ -120,7 +122,7 @@ describe('admin', () => {
     const refund = await admin
       .post(`/api/admin/payments/${paymentId}/refund`)
       .send({ note: 'goodwill' });
-    expect(refund.body).toMatchObject({ status: 'REFUNDED', refundedAmount: 50000 });
+    expect(refund.body).toMatchObject({ status: 'REFUNDED', refundedAmount: 49900 });
     expect(
       (await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: postId } })).status,
     ).toBe('REFUNDED');

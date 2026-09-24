@@ -14,6 +14,7 @@ import type {
   Page,
   PageQuery,
 } from '@zuund/shared';
+import { eliteUserIds, planFor } from '../common/entitlements';
 import { toCar, toCity, toPublicUser } from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { Env } from '../config/env';
@@ -21,7 +22,6 @@ import type { Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
 import { connectionsWith } from '../common/connections';
-import { freePlaceHolders } from '../common/free-places';
 import { PrismaService } from '../prisma/prisma.service';
 
 const collectiveInclude = {
@@ -181,16 +181,24 @@ export class CollectivesService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    const connections = await connectionsWith(
-      this.prisma,
-      userId,
-      rows.map((m) => m.userId).filter((id) => id !== userId),
-    );
+    const viewerElite = (await planFor(this.prisma, userId)) === 'ELITE';
+    const [connections, elite] = await Promise.all([
+      connectionsWith(
+        this.prisma,
+        userId,
+        rows.map((m) => m.userId).filter((id) => id !== userId),
+      ),
+      eliteUserIds(
+        this.prisma,
+        rows.map((m) => m.userId),
+      ),
+    ]);
     return toPage(rows, q.limit, (m) => ({
       membershipId: m.id,
-      user: toPublicUser(m.user),
-      intentLevel: m.buyingIntent.intentLevel,
-      purchaseTimeline: m.buyingIntent.purchaseTimeline,
+      user: toPublicUser(m.user, { elite }),
+      // Details are Elite only; everyone sees their own.
+      intentLevel: viewerElite || m.userId === userId ? m.buyingIntent.intentLevel : null,
+      purchaseTimeline: viewerElite || m.userId === userId ? m.buyingIntent.purchaseTimeline : null,
       status: m.status,
       joinedAt: m.joinedAt?.toISOString() ?? null,
       connection: connections.get(m.userId) ?? null,
@@ -280,9 +288,8 @@ export class CollectivesService {
   }
 
   private async toDto(r: CollectiveRow, viewerId: string): Promise<CollectiveDto> {
-    const [activeMemberCount, freeTaken, m] = await Promise.all([
+    const [activeMemberCount, m, latest] = await Promise.all([
       this.prisma.collectiveMembership.count({ where: { collectiveId: r.id, status: 'ACTIVE' } }),
-      this.prisma.collectiveMembership.count({ where: freePlaceHolders(r.id) }),
       this.prisma.collectiveMembership.findFirst({
         where: {
           collectiveId: r.id,
@@ -290,7 +297,14 @@ export class CollectivesService {
           status: { in: ['PENDING_PAYMENT', 'ACTIVE'] },
         },
       }),
+      this.prisma.collectiveMembership.findFirst({
+        where: { collectiveId: r.id, userId: viewerId },
+        orderBy: { createdAt: 'desc' },
+        select: { status: true },
+      }),
     ]);
+    // A pass that ran out leaves the discussion readable up to the moment it ended.
+    const readOnly = !m && latest?.status === 'EXPIRED';
     return {
       id: r.id,
       name: r.name,
@@ -299,14 +313,11 @@ export class CollectivesService {
       creatorId: r.creatorId,
       status: r.status,
       activeMemberCount,
-      freePlacesLeft: Math.max(
-        0,
-        this.config.get('FREE_MEMBERS_PER_COLLECTIVE', { infer: true }) - freeTaken,
-      ),
       createdAt: r.createdAt.toISOString(),
       closedAt: r.closedAt?.toISOString() ?? null,
       membership: m ? { id: m.id, status: m.status, buyingIntentId: m.buyingIntentId } : null,
-      conversationId: m?.status === 'ACTIVE' ? (r.conversation?.id ?? null) : null,
+      conversationId: m?.status === 'ACTIVE' || readOnly ? (r.conversation?.id ?? null) : null,
+      discussionReadOnly: readOnly,
     };
   }
 }

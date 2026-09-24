@@ -7,6 +7,7 @@ import {
   HOTEL_CATEGORIES,
   INTENT_LEVELS,
   PARTICIPANT_STATUSES,
+  PASS_PLANS,
   PRODUCT_CATEGORIES,
   PURCHASE_TIMELINES,
   REPORT_TARGET_TYPES,
@@ -328,6 +329,7 @@ export const adminRefundSchema = z.object({
 export const adminPassesQuerySchema = pageQuerySchema.extend({
   q: z.string().trim().max(120).optional(),
   status: z.enum(['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'REFUNDED']).optional(),
+  plan: z.enum(PASS_PLANS).optional(),
   userId: uuid.optional(),
 });
 export const adminReportsQuerySchema = pageQuerySchema.extend({

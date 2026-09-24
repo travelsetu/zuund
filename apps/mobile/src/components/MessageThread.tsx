@@ -27,6 +27,7 @@ import { openFile, pickDocument, pickImage } from '@/lib/files';
 import { clockTime } from '@/lib/format';
 import { tokens } from '@/lib/tokens';
 import { colors, radius, space, type, fonts } from '@/theme';
+import { EliteBadge } from './Plan';
 import { Preloader } from './Preloader';
 import { Avatar } from './ui';
 
@@ -39,9 +40,12 @@ const POLL_MS = 5000;
 export function MessageThread({
   conversationId,
   showNames,
+  readOnly,
 }: {
   conversationId: string;
   showNames: boolean;
+  /** History only (a pass has ended): shown in place of the composer. */
+  readOnly?: ReactNode;
 }) {
   const me = useMe();
   const insets = useSafeAreaInsets();
@@ -79,11 +83,11 @@ export function MessageThread({
       setLoaded(true);
       setCursor((c) => c ?? page.nextCursor);
       setErr(null);
-      await api.conversations.markRead(conversationId);
+      if (!readOnly) await api.conversations.markRead(conversationId);
     } catch (e) {
       setErr(errorMessage(e));
     }
-  }, [conversationId, merge]);
+  }, [conversationId, merge, readOnly]);
 
   useEffect(() => {
     void poll();
@@ -229,33 +233,37 @@ export function MessageThread({
           </Pressable>
         </View>
       ) : null}
-      <Animated.View style={[s.composer, composerInset]}>
-        <Pressable
-          onPress={attach}
-          hitSlop={8}
-          accessibilityLabel="Attach a file"
-          disabled={sending}
-        >
-          <Ionicons name="attach" size={26} color={colors.muted} />
-        </Pressable>
-        <TextInput
-          value={text}
-          onChangeText={setText}
-          placeholder="Type a message…"
-          placeholderTextColor={colors.faint}
-          style={s.input}
-          multiline
-          maxLength={4000}
-        />
-        <Pressable
-          onPress={() => send()}
-          disabled={sending || !text.trim()}
-          style={[s.send, (sending || !text.trim()) && { opacity: 0.5 }]}
-          accessibilityLabel="Send"
-        >
-          <Ionicons name="send" size={18} color={colors.white} />
-        </Pressable>
-      </Animated.View>
+      {readOnly ? (
+        <Animated.View style={[s.composer, composerInset]}>{readOnly}</Animated.View>
+      ) : (
+        <Animated.View style={[s.composer, composerInset]}>
+          <Pressable
+            onPress={attach}
+            hitSlop={8}
+            accessibilityLabel="Attach a file"
+            disabled={sending}
+          >
+            <Ionicons name="attach" size={26} color={colors.muted} />
+          </Pressable>
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Type a message…"
+            placeholderTextColor={colors.faint}
+            style={s.input}
+            multiline
+            maxLength={4000}
+          />
+          <Pressable
+            onPress={() => send()}
+            disabled={sending || !text.trim()}
+            style={[s.send, (sending || !text.trim()) && { opacity: 0.5 }]}
+            accessibilityLabel="Send"
+          >
+            <Ionicons name="send" size={18} color={colors.white} />
+          </Pressable>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -286,9 +294,12 @@ function Bubble({
         style={[s.bubble, mine ? s.mine : s.theirs]}
       >
         {!mine && showName ? (
-          <Text style={{ fontFamily: fonts.bold, color: colors.ink, fontSize: 13 }}>
-            {m.sender.name} <Text style={type.tiny}>{clockTime(m.createdAt)}</Text>
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontFamily: fonts.bold, color: colors.ink, fontSize: 13 }}>
+              {m.sender.name} <Text style={type.tiny}>{clockTime(m.createdAt)}</Text>
+            </Text>
+            {m.sender.elite ? <EliteBadge small /> : null}
+          </View>
         ) : null}
         {replied ? (
           <View style={[s.quote, mine && { borderLeftColor: colors.white }]}>

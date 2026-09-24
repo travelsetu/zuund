@@ -14,7 +14,9 @@ import {
   Screen,
   Verified,
 } from '@/components/ui';
+import { EliteBadge, UpgradeCard, UsageRow, upgradeAlertFor } from '@/components/Plan';
 import { api, errorMessage } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, space, type } from '@/theme';
 
@@ -31,12 +33,43 @@ export default function Connections() {
     () => api.connections.list(box),
     [box],
   );
+  const { me, reload: reloadMe } = useAuth();
+  const pass = me?.pass ?? null;
   const run = (p: Promise<unknown>) =>
-    p.then(reload).catch((e) => Alert.alert('Could not update', errorMessage(e)));
+    p
+      .then(() => Promise.all([reload(), reloadMe()]))
+      .catch((e) => {
+        if (!upgradeAlertFor(e, me)) Alert.alert('Could not update', errorMessage(e));
+      });
 
   return (
     <Screen onRefresh={refresh} refreshing={refreshing}>
       <Header title="My Connections" />
+      {pass ? (
+        <View style={{ flexDirection: 'row', gap: space.md }}>
+          <View style={{ flex: 1 }}>
+            <UsageRow
+              label="Active"
+              used={pass.activeConnections}
+              limit={pass.activeConnectionsLimit}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <UsageRow
+              label="Total"
+              used={pass.acceptedConnections}
+              limit={pass.acceptedConnectionsLimit}
+            />
+          </View>
+        </View>
+      ) : null}
+      {pass?.plan === 'FREE' && pass.activeConnections >= pass.activeConnectionsLimit ? (
+        <UpgradeCard
+          title="You've reached your Free Pass limit"
+          body="Elite allows 30 active and 60 total connections."
+          buyingIntentId={pass.buyingIntentId}
+        />
+      ) : null}
       <ChipRow>
         {(Object.keys(LABEL) as Box[]).map((b) => (
           <Chip key={b} label={LABEL[b]} active={box === b} onPress={() => setBox(b)} />
@@ -60,7 +93,10 @@ export default function Connections() {
             >
               <Avatar user={c.otherUser} size={46} />
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={type.h3}>{c.otherUser.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={type.h3}>{c.otherUser.name}</Text>
+                  {c.otherUser.elite ? <EliteBadge small /> : null}
+                </View>
                 {c.otherUser.verificationStatus === 'VERIFIED' ? (
                   <View style={{ alignSelf: 'flex-start' }}>
                     <Verified small />

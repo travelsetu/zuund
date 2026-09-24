@@ -28,9 +28,9 @@ export default function AboutPage() {
         <h2>How it is paid for</h2>
         <p>
           Creating a Buying Post is free. Seeing and contacting the other buyers happens once you
-          join the collective. Each collective has 5 free places; when they are taken, joining costs
-          a one-time ₹500 Buying Pass for that Buying Post, valid for up to 60 days. It never renews
-          on its own.
+          join the collective. Joining starts a Free Pass for 15 days, once for each car and city.
+          The Elite Pass (₹499 for 30 days, for that Buying Post) adds buyer details, more
+          connections, direct messages and the Live Buyer Pulse. Passes never renew on their own.
         </p>
         <h2>Privacy</h2>
         <p>

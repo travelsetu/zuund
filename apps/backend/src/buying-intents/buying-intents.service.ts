@@ -6,8 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { E } from '../common/domain.exception';
+import { activeSince, eliteUserIds, freePassUsed, planFor } from '../common/entitlements';
 import type {
   BuyerCountDto,
+  BuyerPulseDto,
   BuyerDiscoveryDto,
   BuyerDiscoveryQuery,
   BuyerDto,
@@ -109,7 +111,7 @@ export class BuyingIntentsService {
         ...(holiday ? { holiday } : {}),
       },
     });
-    return toIntent(row);
+    return toIntent(row, !(await freePassUsed(this.prisma, userId, row.carId, row.cityId)));
   }
 
   async listMine(
@@ -126,11 +128,13 @@ export class BuyingIntentsService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    return toPage(rows, q.limit, toIntent);
+    return toPage(rows, q.limit, (r) => toIntent(r));
   }
 
+  /** The owner's view, with whether "Join free" can still start a Free Pass for it. */
   async getOwned(userId: string, id: string): Promise<BuyingIntentDto> {
-    return toIntent(await this.requireOwned(userId, id));
+    const row = await this.requireOwned(userId, id);
+    return toIntent(row, !(await freePassUsed(this.prisma, userId, row.carId, row.cityId)));
   }
 
   async updateTimeline(
@@ -265,6 +269,10 @@ export class BuyingIntentsService {
    * Other people's ACTIVE posts for the same car and city. A plain filtered
    * list plus a count: no scores, no budget. Blocked users in either
    * direction are excluded.
+   *
+   * Free viewers see "All" only, and who each buyer is (name, photo, city) but not
+   * their details. Elite viewers get every filter, the details and who has been
+   * active in the last 48 hours.
    */
   async discover(viewerId: string, q: BuyerDiscoveryQuery): Promise<BuyerDiscoveryDto> {
     const [car, city] = await Promise.all([
@@ -272,7 +280,10 @@ export class BuyingIntentsService {
       this.catalog.requireActiveCity(q.cityId),
     ]);
     await requireJoined(this.prisma, viewerId, { carId: q.carId, cityId: q.cityId });
+    const elite = (await planFor(this.prisma, viewerId)) === 'ELITE';
+    if (!elite && q.filter !== 'ALL') throw E.ELITE_REQUIRED();
     const blockedIds = await this.blockedUserIds(viewerId);
+    const activeCutoff = activeSince();
 
     const base: Prisma.BuyingIntentWhereInput = {
       carId: q.carId,
@@ -281,49 +292,57 @@ export class BuyingIntentsService {
       userId: { not: viewerId, notIn: blockedIds },
       user: { status: 'ACTIVE' },
     };
+    const activeRecently: Prisma.BuyingIntentWhereInput = {
+      user: { status: 'ACTIVE', lastActiveAt: { gte: activeCutoff } },
+    };
     const filter: Prisma.BuyingIntentWhereInput =
       q.filter === 'READY' || q.filter === 'COMMITTED' || q.filter === 'INTERESTED'
         ? { intentLevel: q.filter }
         : q.filter === 'RECENT'
           ? { createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } }
-          : {};
+          : q.filter === 'ACTIVE_RECENT'
+            ? activeRecently
+            : {};
 
     const recentSince = new Date(Date.now() - 7 * 86_400_000);
-    const [totalActiveBuyers, ready, committed, interested, recent, rows] = await Promise.all([
-      this.prisma.buyingIntent.count({ where: base }),
-      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'READY' } }),
-      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'COMMITTED' } }),
-      this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'INTERESTED' } }),
-      this.prisma.buyingIntent.count({ where: { ...base, createdAt: { gte: recentSince } } }),
-      this.prisma.buyingIntent.findMany({
-        where: { ...base, ...filter, ...afterCursor(decodeCursor(q.cursor)) },
-        include: {
-          car: true,
-          city: true,
-          user: { include: { profile: { include: { city: true } } } },
-        },
-        orderBy: cursorOrder,
-        take: q.limit + 1,
-      }),
-    ]);
+    const [totalActiveBuyers, ready, committed, interested, recent, active, rows] =
+      await Promise.all([
+        this.prisma.buyingIntent.count({ where: base }),
+        this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'READY' } }),
+        this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'COMMITTED' } }),
+        this.prisma.buyingIntent.count({ where: { ...base, intentLevel: 'INTERESTED' } }),
+        this.prisma.buyingIntent.count({ where: { ...base, createdAt: { gte: recentSince } } }),
+        this.prisma.buyingIntent.count({ where: { ...base, ...activeRecently } }),
+        this.prisma.buyingIntent.findMany({
+          where: { ...base, ...filter, ...afterCursor(decodeCursor(q.cursor)) },
+          include: {
+            car: true,
+            city: true,
+            user: { include: { profile: { include: { city: true } } } },
+          },
+          orderBy: cursorOrder,
+          take: q.limit + 1,
+        }),
+      ]);
 
-    const connections = await connectionsWith(
-      this.prisma,
-      viewerId,
-      rows.map((r) => r.userId),
-    );
+    const ids = rows.map((r) => r.userId);
+    const [connections, eliteIds] = await Promise.all([
+      connectionsWith(this.prisma, viewerId, ids),
+      eliteUserIds(this.prisma, ids),
+    ]);
     const page = toPage(rows, q.limit, (r): BuyerDto => {
       const c = connections.get(r.userId);
       return {
         buyingIntentId: r.id,
-        user: toPublicUser(r.user),
+        user: toPublicUser(r.user, { elite: eliteIds }),
         car: toCar(r.car),
         city: toCity(r.city),
-        purchaseTimeline: r.purchaseTimeline,
-        intentLevel: r.intentLevel,
+        purchaseTimeline: elite ? r.purchaseTimeline : null,
+        intentLevel: elite ? r.intentLevel : null,
         createdAt: r.createdAt.toISOString(),
-        holiday: toHolidayTrip(r),
+        holiday: elite ? toHolidayTrip(r) : null,
         connection: c ? { id: c.id, status: c.status, requesterId: c.requesterId } : null,
+        activeRecently: elite ? !!r.user.lastActiveAt && r.user.lastActiveAt >= activeCutoff : null,
       };
     });
     return {
@@ -337,7 +356,51 @@ export class BuyingIntentsService {
         COMMITTED: committed,
         INTERESTED: interested,
         RECENT: recent,
+        ACTIVE_RECENT: active,
       },
+      viewerPlan: elite ? 'ELITE' : 'FREE',
+    };
+  }
+
+  /**
+   * Live Buyer Pulse for a car+city: every ACTIVE post except the viewer's, by how sure
+   * they are and how many were active in the last 48 hours. Elite viewers also get the
+   * Ready-to-Buy buyers active recently and the new posts this week.
+   */
+  async pulse(carId: string, cityId: string, viewerId: string): Promise<BuyerPulseDto> {
+    const elite = (await planFor(this.prisma, viewerId)) === 'ELITE';
+    const base: Prisma.BuyingIntentWhereInput = {
+      carId,
+      cityId,
+      status: 'ACTIVE',
+      userId: { not: viewerId },
+      user: { status: 'ACTIVE' },
+    };
+    const active: Prisma.BuyingIntentWhereInput = {
+      ...base,
+      user: { status: 'ACTIVE', lastActiveAt: { gte: activeSince() } },
+    };
+    const [levels, activeRecently, readyActive, newThisWeek] = await Promise.all([
+      this.prisma.buyingIntent.groupBy({ by: ['intentLevel'], where: base, _count: true }),
+      this.prisma.buyingIntent.count({ where: active }),
+      elite ? this.prisma.buyingIntent.count({ where: { ...active, intentLevel: 'READY' } }) : null,
+      elite
+        ? this.prisma.buyingIntent.count({
+            where: { ...base, createdAt: { gte: new Date(Date.now() - 7 * 86_400_000) } },
+          })
+        : null,
+    ]);
+    const byIntentLevel = Object.fromEntries(INTENT_LEVELS.map((l) => [l, 0])) as Record<
+      IntentLevel,
+      number
+    >;
+    for (const l of levels) byIntentLevel[l.intentLevel] = l._count;
+    return {
+      byIntentLevel,
+      activeRecently,
+      readyActiveRecently: readyActive,
+      newThisWeek,
+      elite,
     };
   }
 

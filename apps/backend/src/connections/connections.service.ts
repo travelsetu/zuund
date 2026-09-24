@@ -12,6 +12,12 @@ import type { Connection, Prisma } from '../generated/prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../common/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  assertCanAccept,
+  assertCanRequest,
+  eliteUserIds,
+  recordAcceptance,
+} from '../common/entitlements';
 import { requireJoined } from '../common/joined';
 
 const withUsers = {
@@ -49,6 +55,7 @@ export class ConnectionsService {
 
     let row: Row;
     if (!existing) {
+      await assertCanRequest(this.prisma, requesterId);
       row = await this.prisma.connection.create({
         data: { requesterId, recipientId, ...pair, status: 'PENDING' },
         include: withUsers,
@@ -66,6 +73,7 @@ export class ConnectionsService {
         case 'REJECTED':
         case 'CANCELLED':
           // A fresh request re-uses the row so the pair stays unique.
+          await assertCanRequest(this.prisma, requesterId);
           row = await this.prisma.connection.update({
             where: { id: existing.id },
             data: {
@@ -103,10 +111,21 @@ export class ConnectionsService {
     if (row.recipientId !== userId) throw new ForbiddenException('Only the recipient can accept');
     if (row.status !== 'PENDING') throw E.REQUEST_NOT_PENDING();
     await requireJoined(this.prisma, userId);
-    const updated = await this.prisma.connection.update({
-      where: { id },
-      data: { status: 'ACCEPTED', acceptedAt: new Date() },
-      include: withUsers,
+    await assertCanAccept(this.prisma, userId, { ownRequestPending: false });
+    try {
+      await assertCanAccept(this.prisma, row.requesterId, { ownRequestPending: true });
+    } catch {
+      throw E.OTHER_AT_LIMIT();
+    }
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.connection.update({
+        where: { id },
+        data: { status: 'ACCEPTED', acceptedAt: now },
+        include: withUsers,
+      });
+      await recordAcceptance(tx, u, now);
+      return u;
     });
     await this.notifications.notify({
       userId: row.requesterId,
@@ -210,7 +229,11 @@ export class ConnectionsService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    return toPage(rows, q.limit, (r) => this.toDto(r, userId));
+    const elite = await eliteUserIds(
+      this.prisma,
+      rows.map((r) => (r.requesterId === userId ? r.recipientId : r.requesterId)),
+    );
+    return toPage(rows, q.limit, (r) => this.toDto(r, userId, elite));
   }
 
   /** True when the two users are connected and neither has blocked the other. */
@@ -241,14 +264,14 @@ export class ConnectionsService {
     return row;
   }
 
-  private toDto(r: Row, viewerId: string): ConnectionDto {
+  private toDto(r: Row, viewerId: string, elite?: Set<string>): ConnectionDto {
     const other = r.requesterId === viewerId ? r.recipient : r.requester;
     return {
       id: r.id,
       requesterId: r.requesterId,
       recipientId: r.recipientId,
       status: r.status,
-      otherUser: toPublicUser(other),
+      otherUser: toPublicUser(other, { elite }),
       createdAt: r.createdAt.toISOString(),
       acceptedAt: r.acceptedAt?.toISOString() ?? null,
     };

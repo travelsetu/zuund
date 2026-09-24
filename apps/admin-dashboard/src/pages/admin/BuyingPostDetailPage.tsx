@@ -126,12 +126,13 @@ export function BuyingPostDetailPage() {
         />
       </Section>
 
-      <Section title="Buying passes">
+      <Section title="Passes">
         <Table
           rows={intent.passes}
           rowKey={(p) => p.id}
           empty="No pass."
           columns={[
+            { key: 'plan', header: 'Plan', render: (p) => <Badge value={p.plan} /> },
             { key: 'st', header: 'Status', render: (p) => <Badge value={p.status} /> },
             { key: 'amt', header: 'Amount', render: (p) => fmtPaise(p.amount) },
             { key: 'act', header: 'Activated', render: (p) => fmtDate(p.activatedAt) },

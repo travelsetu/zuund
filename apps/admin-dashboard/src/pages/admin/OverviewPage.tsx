@@ -85,9 +85,9 @@ export function OverviewPage() {
           hint={`${stats.collectives.activeMemberships} active memberships`}
         />
         <StatTile
-          label="Buying passes"
+          label="Active passes"
           value={stats.passes.active}
-          hint={`${stats.passes.expired} expired · ${stats.passes.refunded} refunded`}
+          hint={`${stats.passes.activeElite} Elite · ${stats.passes.activeFree} Free · ${stats.passes.expired} expired · ${stats.passes.refunded} refunded`}
         />
         <StatTile
           label="Revenue"

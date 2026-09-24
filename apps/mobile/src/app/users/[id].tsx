@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { ConnectButton } from '@/components/ConnectButton';
+import { EliteBadge, UpgradeCard } from '@/components/Plan';
 import {
   Avatar,
   Card,
@@ -17,6 +18,7 @@ import {
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { listTime } from '@/lib/format';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, space, type, fonts } from '@/theme';
 
@@ -85,6 +87,7 @@ export default function BuyerProfile() {
         <Avatar user={user} size={96} />
         <Text style={type.h1}>{user.name}</Text>
         {user.verificationStatus === 'VERIFIED' ? <Verified /> : null}
+        {user.elite ? <EliteBadge /> : null}
         {user.city ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Ionicons name="location" size={15} color={colors.brand} />
@@ -95,6 +98,9 @@ export default function BuyerProfile() {
           {data.connectionCount} {data.connectionCount === 1 ? 'connection' : 'connections'},{' '}
           {data.collectiveCount} {data.collectiveCount === 1 ? 'collective' : 'collectives'}
         </Text>
+        {data.lastActiveAt ? (
+          <Text style={type.tiny}>Last active {listTime(data.lastActiveAt)}</Text>
+        ) : null}
       </View>
 
       {!self ? (
@@ -117,18 +123,29 @@ export default function BuyerProfile() {
               <Text style={type.small}>Looking for</Text>
               <Text style={type.h3}>{i.car.displayName}</Text>
             </View>
-            <IntentBadge level={i.intentLevel} />
+            {i.intentLevel ? <IntentBadge level={i.intentLevel} /> : null}
           </View>
-          <Text style={type.body}>
-            Buying:{' '}
-            <Text style={{ fontFamily: fonts.bold }}>
-              {PURCHASE_TIMELINE_LABELS[i.purchaseTimeline]}
-            </Text>{' '}
-            in {i.city.name}. Intent:{' '}
-            <Text style={{ fontFamily: fonts.bold }}>{INTENT_LEVEL_LABELS[i.intentLevel]}</Text>
-          </Text>
+          {i.purchaseTimeline && i.intentLevel ? (
+            <Text style={type.body}>
+              Buying:{' '}
+              <Text style={{ fontFamily: fonts.bold }}>
+                {PURCHASE_TIMELINE_LABELS[i.purchaseTimeline]}
+              </Text>{' '}
+              in {i.city.name}. Intent:{' '}
+              <Text style={{ fontFamily: fonts.bold }}>{INTENT_LEVEL_LABELS[i.intentLevel]}</Text>
+            </Text>
+          ) : (
+            <Text style={type.small}>In {i.city.name}</Text>
+          )}
         </Card>
       ))}
+      {data.detailsLocked && data.activeIntents.length ? (
+        <UpgradeCard
+          title="See full details"
+          body="Elite shows when this buyer plans to buy, how sure they are and when they were last active."
+          buyingIntentId={me.pass?.buyingIntentId}
+        />
+      ) : null}
 
       {user.about ? (
         <Card style={{ gap: 6 }}>

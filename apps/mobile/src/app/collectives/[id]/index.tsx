@@ -17,8 +17,9 @@ import {
   sentenceCase,
   type IconName,
 } from '@/components/ui';
+import { ELITE_PRICE, PassChip, goUpgrade } from '@/components/Plan';
 import { api, errorMessage } from '@/lib/api';
-import { formatDate, listTime } from '@/lib/format';
+import { daysLeft, formatDate, listTime } from '@/lib/format';
 import { useLightStatusBar } from '@/lib/statusBar';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, radius, space, type, fonts } from '@/theme';
@@ -31,14 +32,18 @@ const SECTIONS: Array<{ key: string; label: string; icon: IconName }> = [
   { key: 'activities', label: 'Activities', icon: 'calendar-outline' },
 ];
 
-/** Mockup 8 — the member's hub. Every section is gated server-side on an ACTIVE membership. */
+/**
+ * Mockup 8 — the member's hub. Every section is gated server-side on an ACTIVE membership.
+ * The pass chip says Free or Elite and how long is left; in the last 5 days of a Free
+ * Pass a banner offers Elite. Once a pass has ended, the discussion stays readable.
+ */
 export default function CollectiveDashboard() {
   const { id } = useLocalSearchParams<{ id: string }>();
   useLightStatusBar();
   const { data, error, refresh, refreshing } = useFocusData(async () => {
     const c = await api.collectives.get(id);
     const [recent, intent] = await Promise.all([
-      c.conversationId && c.membership?.status === 'ACTIVE'
+      c.conversationId && (c.membership?.status === 'ACTIVE' || c.discussionReadOnly)
         ? api.conversations
             .messages(c.conversationId)
             .then((p) => p.items.slice(0, 4))
@@ -46,7 +51,16 @@ export default function CollectiveDashboard() {
         : Promise.resolve([]),
       c.membership
         ? api.intents.get(c.membership.buyingIntentId).catch(() => null)
-        : Promise.resolve(null),
+        : // After a pass ends: your still-active post for this car+city, to continue with Elite.
+          api.intents
+            .list()
+            .then(
+              (p) =>
+                p.items.find(
+                  (i) => i.status === 'ACTIVE' && i.car.id === c.car.id && i.city.id === c.city.id,
+                ) ?? null,
+            )
+            .catch(() => null),
     ]);
     return { c, recent, intent };
   }, [id]);
@@ -136,15 +150,23 @@ export default function CollectiveDashboard() {
         </View>
       </Hero>
 
+      {active && intent?.pass?.status === 'ACTIVE' ? (
+        <PassChip pass={intent.pass} onUpgrade={() => goUpgrade(intent.id)} />
+      ) : null}
       {!active ? (
         <Notice tone="orange" icon="lock-closed">
           {c.membership?.status === 'PENDING_PAYMENT'
-            ? 'Your Buying Pass is not active yet. Pay ₹500 for your Buying Post to open the collective.'
-            : 'You are not an active member of this collective.'}
+            ? `Your Free Pass for this car and city is used. Continue with Elite (${ELITE_PRICE}) to open the collective.`
+            : c.discussionReadOnly
+              ? 'Your pass has ended. You can still read the discussion up to then; continue with Elite to take part again.'
+              : 'You are not an active member of this collective.'}
         </Notice>
-      ) : intent?.pass?.expiresAt ? (
-        <Notice icon="ticket-outline">
-          Your Buying Pass is active until {formatDate(intent.pass.expiresAt)}.
+      ) : intent?.pass?.plan === 'FREE' && (daysLeft(intent.pass.expiresAt) ?? 99) <= 5 ? (
+        <Notice tone="orange" icon="time-outline">
+          Your Free Pass expires in {daysLeft(intent.pass.expiresAt)}{' '}
+          {daysLeft(intent.pass.expiresAt) === 1 ? 'day' : 'days'}, on{' '}
+          {formatDate(intent.pass.expiresAt)}. Continue for another 30 days with Elite: see
+          Ready-to-Buy buyers, 30 connections and direct messages.
         </Notice>
       ) : null}
 
@@ -199,10 +221,24 @@ export default function CollectiveDashboard() {
         </>
       ) : c.membership?.status === 'PENDING_PAYMENT' ? (
         <Button
-          variant="green"
-          title="Get Buying Pass — ₹500"
+          title={`Continue with Elite — ${ELITE_PRICE}`}
           onPress={() => router.push(`/posts/${c.membership!.buyingIntentId}/pay`)}
         />
+      ) : c.discussionReadOnly ? (
+        <View style={{ gap: space.sm }}>
+          <Button
+            variant="outline"
+            title="Read the discussion"
+            icon="chatbubbles-outline"
+            onPress={() => router.push(`/collectives/${id}/discussion`)}
+          />
+          {intent ? (
+            <Button
+              title={`Continue with Elite — ${ELITE_PRICE}`}
+              onPress={() => router.push(`/posts/${intent.id}/pay`)}
+            />
+          ) : null}
+        </View>
       ) : null}
     </Screen>
   );

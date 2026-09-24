@@ -43,8 +43,8 @@ export function PaymentDetailPage() {
                 title: 'Refund this payment?',
                 body: (
                   <p>
-                    The Buying Pass and any collective membership tied to it will be marked
-                    refunded. This cannot be undone here.
+                    The Elite Pass and any collective membership tied to it will be marked refunded.
+                    This cannot be undone here.
                   </p>
                 ),
                 confirmLabel: 'Refund',

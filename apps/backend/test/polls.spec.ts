@@ -10,6 +10,7 @@ import {
   teardownAll,
   type TestContext,
   type TestUser,
+  useFreePass,
 } from './helpers';
 
 describe('polls', () => {
@@ -91,6 +92,7 @@ describe('polls', () => {
     expect(vote.status).toBe(403);
     expect(vote.body.error.code).toBe('NOT_A_MEMBER');
     const pending = await registerUser(ctx, 'Pending');
+    await useFreePass(pending, ctx.creta, ctx.ahmedabad);
     const p = await createPost(pending.agent, ctx.creta, ctx.ahmedabad);
     await pending.agent
       .post(`/api/collectives/${collectiveId}/join`)

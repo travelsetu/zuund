@@ -76,6 +76,7 @@ export class AdminService {
       activePasses,
       expiredPasses,
       refundedPasses,
+      activeFreePasses,
       success,
       failed,
       refunded,
@@ -128,6 +129,7 @@ export class AdminService {
       this.prisma.buyingPass.count({ where: { status: 'ACTIVE' } }),
       this.prisma.buyingPass.count({ where: { status: 'EXPIRED' } }),
       this.prisma.buyingPass.count({ where: { status: 'REFUNDED' } }),
+      this.prisma.buyingPass.count({ where: { status: 'ACTIVE', plan: 'FREE' } }),
       this.prisma.payment.count({ where: { status: 'SUCCESS' } }),
       this.prisma.payment.count({ where: { status: 'FAILED' } }),
       this.prisma.payment.count({ where: { status: 'REFUNDED' } }),
@@ -174,7 +176,13 @@ export class AdminService {
         }),
       },
       collectives: { active: activeCollectives, total: totalCollectives, activeMemberships },
-      passes: { active: activePasses, expired: expiredPasses, refunded: refundedPasses },
+      passes: {
+        active: activePasses,
+        expired: expiredPasses,
+        refunded: refundedPasses,
+        activeFree: activeFreePasses,
+        activeElite: activePasses - activeFreePasses,
+      },
       payments: {
         success,
         failed,
@@ -272,7 +280,7 @@ export class AdminService {
       createdAt: u.createdAt.toISOString(),
       activeIntentCount: u._count.buyingIntents,
       activePassCount: u._count.buyingPasses,
-      intents: u.buyingIntents.map(toIntent),
+      intents: u.buyingIntents.map((i) => toIntent(i)),
       payments: u.payments.map(toPayment),
       reportsAgainstCount: u._count.reportsAgainst,
     };
@@ -598,11 +606,12 @@ export class AdminService {
   }
 
   async passes(
-    q: PageQuery & { q?: string; status?: string; userId?: string },
+    q: PageQuery & { q?: string; status?: string; plan?: 'FREE' | 'ELITE'; userId?: string },
   ): Promise<Page<AdminPassDto>> {
     const rows = await this.prisma.buyingPass.findMany({
       where: {
         ...(q.status ? { status: q.status as never } : {}),
+        ...(q.plan ? { plan: q.plan } : {}),
         ...(q.userId ? { userId: q.userId } : {}),
         ...(q.q ? { user: { email: { contains: q.q, mode: 'insensitive' } } } : {}),
         ...afterCursor(decodeCursor(q.cursor)),

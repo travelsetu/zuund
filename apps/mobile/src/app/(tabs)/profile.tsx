@@ -14,8 +14,10 @@ import {
   Verified,
   type IconName,
 } from '@/components/ui';
+import { ELITE_PRICE, EliteBadge, UsageRow, goUpgrade } from '@/components/Plan';
 import { api } from '@/lib/api';
 import { useAuth, useMe } from '@/lib/auth';
+import { formatDate } from '@/lib/format';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, space, type, fonts } from '@/theme';
 
@@ -55,7 +57,43 @@ export default function Profile() {
             <Text style={type.body}>{me.city.name}</Text>
           </View>
         ) : null}
+        {me.pass ? (
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            {me.pass.plan === 'ELITE' ? <EliteBadge /> : null}
+            <Text style={type.small}>
+              {me.pass.plan === 'ELITE' ? 'Elite member' : 'Free member'} · valid till{' '}
+              {formatDate(me.pass.expiresAt)}
+            </Text>
+          </View>
+        ) : null}
       </View>
+
+      {me.pass ? (
+        <Card style={{ gap: space.md }}>
+          <Text style={type.h3}>My {me.pass.plan === 'ELITE' ? 'Elite' : 'Free'} Pass</Text>
+          <UsageRow
+            label="Active connections"
+            used={me.pass.activeConnections}
+            limit={me.pass.activeConnectionsLimit}
+          />
+          <UsageRow
+            label="Total connections"
+            used={me.pass.acceptedConnections}
+            limit={me.pass.acceptedConnectionsLimit}
+          />
+          {me.pass.plan === 'ELITE' ? (
+            <Text style={type.small}>
+              {me.pass.directMessagesLeft} messages left to buyers you&apos;re not connected with
+            </Text>
+          ) : null}
+          <Button
+            small
+            variant={me.pass.plan === 'ELITE' ? 'outline' : 'primary'}
+            title={me.pass.plan === 'ELITE' ? 'Extend Elite' : `Upgrade to Elite — ${ELITE_PRICE}`}
+            onPress={() => goUpgrade(me.pass!.buyingIntentId)}
+          />
+        </Card>
+      ) : null}
 
       {!data ? (
         <Loading />
@@ -71,12 +109,14 @@ export default function Profile() {
           <Fact
             icon="time-outline"
             label="Buying timeframe"
-            value={PURCHASE_TIMELINE_LABELS[primary.purchaseTimeline]}
+            value={
+              primary.purchaseTimeline ? PURCHASE_TIMELINE_LABELS[primary.purchaseTimeline] : '—'
+            }
           />
           <Fact
             icon="person-outline"
             label="Intent"
-            value={INTENT_LEVEL_LABELS[primary.intentLevel]}
+            value={primary.intentLevel ? INTENT_LEVEL_LABELS[primary.intentLevel] : '—'}
           />
           {data && data.activeIntents.length > 1 ? (
             <Button

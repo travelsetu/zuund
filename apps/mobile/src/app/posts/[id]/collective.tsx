@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-  FREE_MEMBERS_PER_COLLECTIVE,
+  ELITE_PASS_DAYS,
+  FREE_PASS_DAYS,
   INTENT_LEVEL_LABELS,
   INTENT_LEVELS,
   PURCHASE_TIMELINE_LABELS,
@@ -13,6 +14,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { BuyerRow } from '@/components/BuyerRow';
+import { BuyerPulse, ELITE_PRICE } from '@/components/Plan';
 import {
   Button,
   Card,
@@ -36,8 +38,8 @@ type Tab = 'about' | 'buyers' | 'discussion';
 
 /**
  * Mockup 5 — the collective for this post's item + city, seen before joining.
- * Before paying you see buyers from discovery (free); members, discussion,
- * polls and files open only with an ACTIVE Buying Pass.
+ * Everyone sees the counts and the Live Buyer Pulse; joining starts the Free Pass
+ * (15 days, once per car+city) or, once that's used, the Elite Pass.
  */
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,14 +54,15 @@ export default function GroupDetails() {
     const [cols, buyers, count] = await Promise.all([
       api.collectives.list(scope),
       joined ? api.buyers.discover(scope) : Promise.resolve(null),
-      joined ? Promise.resolve(null) : api.buyers.count(scope),
+      api.buyers.count(scope),
     ]);
     return {
       intent,
       collective: cols.items[0] ?? null,
       buyers,
-      buyerCount: buyers?.totalActiveBuyers ?? count?.count ?? 0,
-      memberPlans: count?.members ?? null,
+      buyerCount: buyers?.totalActiveBuyers ?? count.count,
+      memberPlans: joined ? null : count.members,
+      pulse: count.pulse,
     };
   }, [id]);
 
@@ -70,10 +73,9 @@ export default function GroupDetails() {
         <Loading />
       </Screen>
     );
-  const { intent, collective, buyers, buyerCount, memberPlans } = data;
+  const { intent, collective, buyers, buyerCount, memberPlans, pulse } = data;
   const member = collective?.membership?.status === 'ACTIVE';
-  // Before anyone has started the collective, all free places are open.
-  const freeLeft = collective ? collective.freePlacesLeft : FREE_MEMBERS_PER_COLLECTIVE;
+  const free = intent.freePassAvailable;
 
   async function joinFree() {
     setJoining(true);
@@ -84,11 +86,15 @@ export default function GroupDetails() {
       if (col.membership?.status === 'ACTIVE') {
         router.replace({ pathname: '/posts/[id]/success', params: { id, free: '1' } });
       } else {
-        // The last free place went to someone else a moment ago.
-        Alert.alert('Free places just ran out', 'You can still join with a ₹500 Buying Pass.', [
-          { text: 'Not now', style: 'cancel', onPress: () => void reload() },
-          { text: 'Continue', onPress: () => router.push(`/posts/${id}/pay`) },
-        ]);
+        // The Free Pass for this car+city was used on another post.
+        Alert.alert(
+          'Free Pass already used',
+          `You've used your Free Pass for ${intent.car.displayName} in ${intent.city.name}. Continue with Elite: ${ELITE_PRICE} for ${ELITE_PASS_DAYS} days.`,
+          [
+            { text: 'Not now', style: 'cancel', onPress: () => void reload() },
+            { text: 'Continue', onPress: () => router.push(`/posts/${id}/pay`) },
+          ],
+        );
       }
     } catch (e) {
       Alert.alert('Could not join', errorMessage(e));
@@ -113,13 +119,13 @@ export default function GroupDetails() {
           <Text style={[type.small, { textAlign: 'center' }]}>
             Resume this Buying Post to join its collective.
           </Text>
-        ) : freeLeft > 0 ? (
+        ) : free ? (
           <View style={{ gap: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
               <Text style={[type.hero, { color: colors.green }]}>Free</Text>
               <Text style={[type.small, { flex: 1 }]}>
-                {freeLeft} of {FREE_MEMBERS_PER_COLLECTIVE} free places left. Then ₹500 per Buying
-                Post.
+                Free Pass for {FREE_PASS_DAYS} days: join the room, the discussion and activities.
+                Upgrade to Elite any time.
               </Text>
             </View>
             <Button variant="green" title="Join free" loading={joining} onPress={joinFree} />
@@ -127,14 +133,16 @@ export default function GroupDetails() {
         ) : (
           <View style={{ gap: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-              <Text style={[type.hero, { color: colors.brand }]}>₹500</Text>
-              <Text style={type.small}>Buying Pass for this Buying Post only</Text>
+              <Text style={[type.hero, { color: colors.gold }]}>{ELITE_PRICE}</Text>
+              <Text style={[type.small, { flex: 1 }]}>
+                Elite Pass for {ELITE_PASS_DAYS} days. Your Free Pass for this car and city is used.
+              </Text>
             </View>
             <Button
               title={
                 collective?.membership?.status === 'PENDING_PAYMENT'
-                  ? 'Pay for Buying Pass'
-                  : 'Join Now'
+                  ? 'Pay for Elite Pass'
+                  : 'Join with Elite'
               }
               onPress={() => router.push(`/posts/${id}/pay`)}
             />
@@ -165,6 +173,8 @@ export default function GroupDetails() {
         />
       </View>
 
+      <BuyerPulse pulse={pulse} buyingIntentId={id} />
+
       {!member && memberPlans ? (
         <MemberPlans plans={memberPlans} holiday={intent.car.category === 'HOLIDAY'} />
       ) : null}
@@ -190,7 +200,7 @@ export default function GroupDetails() {
             to talk with other buyers, run polls, share useful information and make a
             better-informed decision together. Each member buys individually.
           </Text>
-          <Check>Members are buyers with an active Buying Pass</Check>
+          <Check>Members join with a Free or Elite Pass</Check>
           <Check>Private discussion — WhatsApp numbers stay hidden</Check>
           <Check>No dealers or sellers inside the collective</Check>
         </Card>
@@ -233,7 +243,7 @@ export default function GroupDetails() {
           body={
             member
               ? 'Open the collective to see the discussion.'
-              : 'Discussion, polls and shared files open once your Buying Pass is active.'
+              : 'Discussion, polls and shared files open once you join.'
           }
         />
       )}

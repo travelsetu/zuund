@@ -29,7 +29,11 @@ export default function DirectChat() {
           <Header
             align="left"
             title={other?.name ?? 'Message'}
-            subtitle={other?.city?.name}
+            subtitle={
+              other
+                ? [other.elite ? '👑 Elite' : null, other.city?.name].filter(Boolean).join(' · ')
+                : undefined
+            }
             right={
               other ? (
                 <Pressable onPress={() => router.push(`/users/${other.id}`)}>

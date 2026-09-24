@@ -3,6 +3,7 @@ import type { ConversationDto } from '@zuund/shared';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar, Empty, Header, Loading, Screen } from '@/components/ui';
+import { EliteBadge } from '@/components/Plan';
 import { api } from '@/lib/api';
 import { listTime } from '@/lib/format';
 import { useFocusData } from '@/lib/useAsync';
@@ -39,7 +40,7 @@ export default function Messages() {
         <Empty
           icon="chatbubbles-outline"
           title="No messages yet"
-          body="Connect with a buyer, then message them here."
+          body="Connect with a buyer, then message them here. Elite members can also message buyers they're not connected with."
         />
       ) : (
         <View>
@@ -76,9 +77,15 @@ function Row({ c, title }: { c: ConversationDto; title: string }) {
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[type.h3, c.unreadCount > 0 && { color: colors.brandDark }]} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text
+            style={[type.h3, { flexShrink: 1 }, c.unreadCount > 0 && { color: colors.brandDark }]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+          {c.otherUser?.elite ? <EliteBadge small /> : null}
+        </View>
         <Text
           style={[
             type.small,

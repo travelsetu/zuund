@@ -66,7 +66,7 @@ function CollectiveCard({ c }: { c: CollectiveDto }) {
           {active ? (
             <StatusBadge label="Member" tone="green" />
           ) : (
-            <StatusBadge label="Buying Pass needed" tone="orange" />
+            <StatusBadge label="Elite Pass needed" tone="orange" />
           )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.faint} />

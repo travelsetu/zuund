@@ -19,28 +19,35 @@ const STATUS = ['PENDING', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'REFUNDED'].map((v)
   value: v,
   label: v,
 }));
+const PLAN = [
+  { value: 'FREE', label: 'Free' },
+  { value: 'ELITE', label: 'Elite' },
+];
 
 export function BuyingPassesPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
-  const key = JSON.stringify({ q, status });
+  const [plan, setPlan] = useState('');
+  const key = JSON.stringify({ q, status, plan });
   const fetcher = useCallback(
-    (cursor: string | undefined) => api.admin.passes({ q, status, cursor, limit: 25 }),
-    [q, status],
+    (cursor: string | undefined) => api.admin.passes({ q, status, plan, cursor, limit: 25 }),
+    [q, status, plan],
   );
   const { items, nextCursor, loading, error, loadMore } = usePaged<AdminPassDto>(fetcher, key);
 
   return (
     <>
-      <PageHeader title="Buying passes" />
+      <PageHeader title="Passes" />
       <Filters
         onReset={() => {
           setQ('');
           setStatus('');
+          setPlan('');
         }}
       >
         <SearchInput label="Search" value={q} onChange={setQ} placeholder="User email" />
         <Select label="Status" value={status} onChange={setStatus} options={STATUS} />
+        <Select label="Plan" value={plan} onChange={setPlan} options={PLAN} />
       </Filters>
       <ErrorText error={error} />
       <Table<AdminPassDto>
@@ -62,6 +69,7 @@ export function BuyingPassesPage() {
               </Link>
             ),
           },
+          { key: 'plan', header: 'Plan', render: (p) => <Badge value={p.plan} /> },
           { key: 'st', header: 'Status', render: (p) => <Badge value={p.status} /> },
           { key: 'amt', header: 'Amount', render: (p) => fmtPaise(p.amount) },
           { key: 'act', header: 'Activated', render: (p) => fmtDate(p.activatedAt) },

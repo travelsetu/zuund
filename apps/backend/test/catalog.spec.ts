@@ -10,6 +10,7 @@ import {
   teardown,
   teardownAll,
   type TestContext,
+  makeElite,
 } from './helpers';
 
 describe('catalog categories', () => {
@@ -207,10 +208,14 @@ describe('catalog categories', () => {
     expect(ok.status).toBe(201);
     expect(ok.body.holiday).toEqual(trip);
 
-    // Another buyer of the same trip sees the plan, but not the children's ages.
+    // Another buyer of the same trip: on Free the trip is locked; on Elite they see the
+    // plan, but not the children's ages.
     await createPost(b.agent, bali, ctx.surat);
     await activateMemberships(b);
-    const seen = await b.agent.get(`/api/buyers?carId=${bali.id}&cityId=${ctx.surat.id}`);
+    const url = `/api/buyers?carId=${bali.id}&cityId=${ctx.surat.id}`;
+    expect((await b.agent.get(url)).body.items[0].holiday).toBeNull();
+    await makeElite(b);
+    const seen = await b.agent.get(url);
     expect(seen.body.items[0].holiday).toEqual({
       travelMonth: months[3],
       travelWeek: 3,

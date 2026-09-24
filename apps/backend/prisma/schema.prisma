@@ -42,6 +42,8 @@ model User {
   status             UserStatus         @default(ACTIVE)
   verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
   verifiedAt         DateTime?          @map("verified_at")
+  /// Last authenticated request, at most every few minutes: "active recently" is 48 hours.
+  lastActiveAt       DateTime?          @map("last_active_at")
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
@@ -71,10 +73,15 @@ model User {
   reportsAgainst         Report[]               @relation("ReportedUser")
   reportsResolved        Report[]               @relation("ReportResolver")
   auditLogs              AuditLog[]
+  connectionAcceptances  ConnectionAcceptance[] @relation("AcceptanceUser")
+  acceptedBy             ConnectionAcceptance[] @relation("AcceptanceOther")
+  dmCreditsUsed          DirectMessageCredit[]  @relation("CreditUser")
+  dmCreditsReceived      DirectMessageCredit[]  @relation("CreditRecipient")
 
   @@index([role])
   @@index([status])
   @@index([createdAt])
+  @@index([lastActiveAt])
   @@map("users")
 }
 
@@ -289,14 +296,22 @@ enum BuyingPassStatus {
   REFUNDED
 }
 
-/// The ₹500 pass for ONE buying intent. At most one ACTIVE pass per intent:
+enum PassPlan {
+  /// ₹0, 15 days: once per user for a car+city.
+  FREE
+  /// Paid, 30 days.
+  ELITE
+}
+
+/// The pass for ONE buying intent, Free or Elite. At most one ACTIVE pass per intent:
 /// partial unique index in the migration.
 model BuyingPass {
   id             String           @id @default(uuid())
   buyingIntentId String           @map("buying_intent_id")
   userId         String           @map("user_id")
   paymentId      String?          @unique @map("payment_id")
-  /// Paise. ₹500 = 50000.
+  plan           PassPlan         @default(ELITE)
+  /// Paise. Elite ₹499 = 49900; Free is 0.
   amount         Int
   currency       String           @default("INR")
   status         BuyingPassStatus @default(PENDING)
@@ -311,6 +326,7 @@ model BuyingPass {
 
   payments    Payment[]              @relation("PaymentPass")
   memberships CollectiveMembership[]
+  dmCredits   DirectMessageCredit[]
 
   @@index([buyingIntentId])
   @@index([userId])
@@ -486,6 +502,39 @@ model Connection {
   @@index([recipientId, status])
   @@index([status])
   @@map("connections")
+}
+
+/// One row per side each time a connection is accepted. Connection rows are reused
+/// after a cancel, so this is what "accepted during this pass" counts.
+model ConnectionAcceptance {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  otherUserId  String   @map("other_user_id")
+  connectionId String   @map("connection_id")
+  acceptedAt   DateTime @default(now()) @map("accepted_at")
+
+  user  User @relation("AcceptanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  other User @relation("AcceptanceOther", fields: [otherUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, acceptedAt])
+  @@map("connection_acceptances")
+}
+
+/// An Elite pass spends one credit per person messaged without a connection.
+model DirectMessageCredit {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  buyingPassId String   @map("buying_pass_id")
+  recipientId  String   @map("recipient_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation("CreditUser", fields: [userId], references: [id], onDelete: Cascade)
+  recipient  User       @relation("CreditRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  buyingPass BuyingPass @relation(fields: [buyingPassId], references: [id], onDelete: Cascade)
+
+  @@unique([buyingPassId, recipientId])
+  @@index([userId])
+  @@map("direct_message_credits")
 }
 
 // ───────────────────────────── Messaging ─────────────────────────────

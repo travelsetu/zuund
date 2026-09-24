@@ -94,11 +94,15 @@ export class CollectivesController {
     return this.withFreePlace(user.userId, dto);
   }
 
-  /** Joining while a free place is open activates the membership at once, with no payment. */
+  /**
+   * "Join free": when this user hasn't used the Free Pass for the car+city, joining
+   * starts it and activates the membership at once, with no payment. Otherwise the
+   * membership waits for an Elite payment.
+   */
   private async withFreePlace(userId: string, dto: CollectiveDto): Promise<CollectiveDto> {
     if (dto.membership?.status !== 'PENDING_PAYMENT') return dto;
-    const claimed = await this.payments.claimFreePlace(userId, dto.membership.id);
-    return claimed ? this.collectives.get(userId, dto.id) : dto;
+    const started = await this.payments.startFreePass(userId, dto.membership.id);
+    return started ? this.collectives.get(userId, dto.id) : dto;
   }
 
   @Post('collectives/:id/leave')

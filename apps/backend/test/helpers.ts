@@ -226,7 +226,10 @@ export async function createPost(
   return res.body as { id: string; status: string; intentLevel: string; purchaseTimeline: string };
 }
 
-/** Creates (or joins the existing) collective for the post; membership is PENDING_PAYMENT afterwards. */
+/**
+ * Creates (or joins the existing) collective for the post. The first post for a car+city
+ * starts the user's Free Pass (membership ACTIVE); after that it waits for Elite (PENDING_PAYMENT).
+ */
 export async function joinCollective(agent: Agent, buyingIntentId: string) {
   const res = await agent.post('/api/collectives').send({ buyingIntentId });
   if (res.status !== 201)
@@ -303,8 +306,8 @@ export async function upload(agent: Agent, buffer: Buffer, filename: string, con
 export const DAY_MS = 86_400_000;
 
 /**
- * Joins the collective for each of the user's active posts, then stands in for the
- * payment (tests have no free places): the memberships become ACTIVE.
+ * Joins the collective for each of the user's active posts (starting the Free Pass where
+ * it is unused), and stands in for a payment on any that still wait: all become ACTIVE.
  */
 export async function activateMemberships(user: TestUser): Promise<void> {
   const posts = await db.buyingIntent.findMany({
@@ -320,11 +323,12 @@ export async function activateMemberships(user: TestUser): Promise<void> {
     if (res.status !== 201)
       throw new Error(`join failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
-  const { count } = await db.collectiveMembership.updateMany({
+  await db.collectiveMembership.updateMany({
     where: { userId: user.id, status: 'PENDING_PAYMENT' },
     data: { status: 'ACTIVE', joinedAt: new Date() },
   });
-  if (!count) throw new Error('activateMemberships: nothing pending for this user');
+  if (!(await db.collectiveMembership.count({ where: { userId: user.id, status: 'ACTIVE' } })))
+    throw new Error('activateMemberships: no active membership for this user');
 }
 
 /**
@@ -341,4 +345,42 @@ export async function joinedUser(
   await createPost(u.agent, solar, ctx.ahmedabad);
   await activateMemberships(u);
   return u;
+}
+
+/**
+ * Marks the user's one Free Pass for this car+city as used (on an old, closed post), so
+ * joining waits for an Elite payment: for specs about the paid path.
+ */
+export async function useFreePass(user: TestUser, car: Car, city: City): Promise<void> {
+  const old = await db.buyingIntent.create({
+    data: {
+      userId: user.id,
+      carId: car.id,
+      cityId: city.id,
+      purchaseTimeline: 'WITHIN_30_DAYS',
+      intentLevel: 'INTERESTED',
+      status: 'CLOSED',
+      closedAt: new Date(),
+    },
+  });
+  await db.buyingPass.create({
+    data: {
+      buyingIntentId: old.id,
+      userId: user.id,
+      plan: 'FREE',
+      amount: 0,
+      status: 'EXPIRED',
+      activatedAt: new Date(Date.now() - 20 * DAY_MS),
+      expiresAt: new Date(Date.now() - 5 * DAY_MS),
+    },
+  });
+}
+
+/** Stands in for an Elite payment: the user's active passes become Elite. */
+export async function makeElite(user: TestUser): Promise<void> {
+  const { count } = await db.buyingPass.updateMany({
+    where: { userId: user.id, status: 'ACTIVE' },
+    data: { plan: 'ELITE', amount: 49900 },
+  });
+  if (!count) throw new Error('makeElite: no active pass for this user');
 }

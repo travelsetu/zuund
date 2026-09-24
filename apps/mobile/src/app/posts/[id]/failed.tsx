@@ -46,7 +46,7 @@ export default function PaymentFailed() {
           </View>
           <Text style={type.h1}>Payment unsuccessful</Text>
           <Text style={[type.body, { textAlign: 'center' }]}>
-            Your Buying Pass has not been activated
+            Your Elite Pass has not been activated
             {payment ? ` (payment ${payment.status.toLowerCase()})` : ''}. If money left your
             account, it will be confirmed or returned automatically.
           </Text>
