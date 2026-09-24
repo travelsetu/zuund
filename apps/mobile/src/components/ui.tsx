@@ -31,6 +31,7 @@ import { VehicleArt } from './VehicleArt';
 import { CONTENT_MAX_WIDTH, useIsDesktop } from '@/lib/layout';
 import { tokens } from '@/lib/tokens';
 import { colors, intentTone, radius, shadow, space, type, fonts } from '@/theme';
+import { apiFileUrl } from '@/lib/config';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -468,7 +469,7 @@ export function Avatar({
     return (
       <Image
         source={{
-          uri: user.photoUrl,
+          uri: apiFileUrl(user.photoUrl),
           headers: tokens.access ? { Authorization: `Bearer ${tokens.access}` } : undefined,
         }}
         style={[round, { backgroundColor: colors.brandSoft }]}

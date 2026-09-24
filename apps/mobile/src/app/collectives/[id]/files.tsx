@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { SharedFileDto, SharedFileType } from '@zuund/shared';
+import type { FileDto, SharedFileDto, SharedFileType } from '@zuund/shared';
+import { Image } from 'expo-image';
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui';
 import { api, errorMessage, type LocalFile } from '@/lib/api';
 import { useMe } from '@/lib/auth';
+import { ImageViewer, fileSource } from '@/components/ImageViewer';
 import { openFile, pickDocument, pickImage } from '@/lib/files';
 import { fileSize, shortDate } from '@/lib/format';
 import { useFocusData } from '@/lib/useAsync';
@@ -38,6 +40,7 @@ export default function Files() {
   const me = useMe();
   const [filter, setFilter] = useState<Filter>('ALL');
   const [draft, setDraft] = useState<{ type: SharedFileType; file?: LocalFile } | null>(null);
+  const [viewing, setViewing] = useState<FileDto | null>(null);
   const { data, error, reload, refresh, refreshing } = useFocusData(
     () => api.collectives.files(id),
     [id],
@@ -105,9 +108,11 @@ export default function Files() {
   const open = (f: SharedFileDto) =>
     f.url
       ? Linking.openURL(f.url)
-      : f.file
-        ? openFile(f.file).catch((e) => Alert.alert('Could not open', errorMessage(e)))
-        : undefined;
+      : f.file?.mimeType.startsWith('image/')
+        ? setViewing(f.file)
+        : f.file
+          ? openFile(f.file).catch((e) => Alert.alert('Could not open', errorMessage(e)))
+          : undefined;
 
   return (
     <Screen
@@ -141,8 +146,19 @@ export default function Files() {
       ) : (
         <View>
           {shown.map((f) => (
-            <Pressable key={f.id} style={s.row} onPress={() => open(f)} accessibilityRole="button">
-              <Ionicons name={ICON[f.type].name} size={30} color={ICON[f.type].color} />
+            <Pressable
+              key={f.id}
+              // Pressed: the row lights up and an image preview dims, so the tap is felt.
+              style={({ pressed }) => [s.row, pressed && s.rowPressed]}
+              onPress={() => open(f)}
+              accessibilityRole="button"
+            >
+              {f.file?.mimeType.startsWith('image/') ? (
+                // Images show a preview; tapping opens them full screen.
+                <Image source={fileSource(f.file)} style={s.thumb} contentFit="cover" />
+              ) : (
+                <Ionicons name={ICON[f.type].name} size={30} color={ICON[f.type].color} />
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={type.h3} numberOfLines={1}>
                   {f.title}
@@ -160,6 +176,7 @@ export default function Files() {
           ))}
         </View>
       )}
+      <ImageViewer file={viewing} onClose={() => setViewing(null)} />
       <ShareSheet
         collectiveId={id}
         draft={draft}
@@ -284,5 +301,11 @@ const s = StyleSheet.create({
     paddingVertical: space.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line,
+    // Inset so the pressed highlight has room, pulled back out so content stays aligned.
+    paddingHorizontal: space.sm,
+    marginHorizontal: -space.sm,
+    borderRadius: 10,
   },
+  rowPressed: { backgroundColor: colors.brandSoft },
+  thumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: colors.canvas },
 });

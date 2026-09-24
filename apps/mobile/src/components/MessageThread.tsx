@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { MessageDto } from '@zuund/shared';
+import type { FileDto, MessageDto } from '@zuund/shared';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -25,9 +25,9 @@ import { useMe } from '@/lib/auth';
 import { atLeast } from '@/lib/minDuration';
 import { openFile, pickDocument, pickImage } from '@/lib/files';
 import { clockTime } from '@/lib/format';
-import { tokens } from '@/lib/tokens';
 import { colors, radius, space, type, fonts } from '@/theme';
 import { EliteBadge } from './Plan';
+import { ImageViewer, fileSource } from './ImageViewer';
 import { Preloader } from './Preloader';
 import { Avatar } from './ui';
 
@@ -61,6 +61,7 @@ export function MessageThread({
   const [replyTo, setReplyTo] = useState<MessageDto | null>(null);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<FileDto | null>(null);
   const loadingOlder = useRef(false);
   const [loaded, setLoaded] = useState(false);
   const firstPoll = useRef(true);
@@ -220,6 +221,7 @@ export function MessageThread({
             showName={showNames}
             replied={item.replyToId ? byId.get(item.replyToId) : undefined}
             onLongPress={() => actions(item)}
+            onViewImage={setViewing}
           />
         )}
       />
@@ -264,6 +266,7 @@ export function MessageThread({
           </Pressable>
         </Animated.View>
       )}
+      <ImageViewer file={viewing} onClose={() => setViewing(null)} />
     </View>
   );
 }
@@ -274,12 +277,14 @@ function Bubble({
   showName,
   replied,
   onLongPress,
+  onViewImage,
 }: {
   m: MessageDto;
   mine: boolean;
   showName: boolean;
   replied?: MessageDto;
   onLongPress: () => void;
+  onViewImage: (f: FileDto) => void;
 }) {
   const fg = mine ? colors.white : colors.text;
   const a = m.attachment;
@@ -313,14 +318,13 @@ function Bubble({
         ) : (
           <>
             {a && a.mimeType.startsWith('image/') ? (
-              <Pressable onPress={() => openFile(a).catch(() => {})}>
+              <Pressable
+                onPress={() => onViewImage(a)}
+                style={({ pressed }) => pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }}
+                accessibilityLabel="Open image"
+              >
                 <Image
-                  source={{
-                    uri: a.url,
-                    headers: tokens.access
-                      ? { Authorization: `Bearer ${tokens.access}` }
-                      : undefined,
-                  }}
+                  source={fileSource(a)}
                   style={{ width: 200, height: 150, borderRadius: radius.sm }}
                   contentFit="cover"
                 />

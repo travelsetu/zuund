@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import type { LocalFile } from './api';
 import { tokens } from './tokens';
+import { apiFileUrl } from './config';
 
 /** Longest side of an uploaded photo. Plenty for chat and profile photos; keeps uploads quick. */
 const MAX_SIDE = 2048;
@@ -83,14 +84,14 @@ export class UnsupportedImageError extends Error {
 export async function openFile(f: FileDto): Promise<void> {
   // Web: the session cookie authorises the file URL, so the browser can open it directly.
   if (Platform.OS === 'web') {
-    window.open(f.url, '_blank', 'noopener');
+    window.open(apiFileUrl(f.url), '_blank', 'noopener');
     return;
   }
   const dir = new Directory(Paths.cache, 'zuund-files');
   if (!dir.exists) dir.create({ intermediates: true });
   const target = new File(dir, `${f.id}-${f.fileName.replace(/[^\w.-]+/g, '_')}`);
   if (!target.exists) {
-    await File.downloadFileAsync(f.url, target, {
+    await File.downloadFileAsync(apiFileUrl(f.url), target, {
       headers: tokens.access ? { Authorization: `Bearer ${tokens.access}` } : {},
     });
   }

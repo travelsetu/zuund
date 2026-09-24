@@ -19,4 +19,14 @@ function resolveApiUrl(): string {
 }
 
 export const API_URL = resolveApiUrl();
+
+/**
+ * A file's address, through the API this app talks to. Files are saved with the
+ * server's own public address (http://localhost:3000 on a developer's Mac, which a
+ * phone can't reach); the path is what matters. Other addresses pass through.
+ */
+export function apiFileUrl(url: string): string {
+  const at = url.indexOf('/api/files/');
+  return at >= 0 ? `${API_URL}${url.slice(at)}` : url;
+}
 export const SUPPORT_EMAIL = 'support@zuund.com';
