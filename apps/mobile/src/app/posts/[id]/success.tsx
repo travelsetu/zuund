@@ -98,6 +98,8 @@ export default function PaymentSuccess() {
   }
 
   const collectiveId = intent.membership?.collectiveId;
+  // Joining with no payment is either the Free Pass or, for an Elite member, their Elite Pass.
+  const plan = intent.pass?.plan ?? (isFree ? 'FREE' : 'ELITE');
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.white }}>
       <Column max={480}>
@@ -123,10 +125,14 @@ export default function PaymentSuccess() {
             <Ionicons name="checkmark" size={60} color={colors.white} />
           </View>
           <Text style={type.h1}>{isFree ? "You're in!" : "You're Elite!"}</Text>
-          <Text style={[type.h2, { color: isFree ? colors.green : colors.gold }]}>
-            {isFree ? 'Free Pass' : `Elite Pass · ${rupees(payment!.amount)}`}
+          <Text style={[type.h2, { color: plan === 'FREE' ? colors.green : colors.gold }]}>
+            {!isFree
+              ? `Elite Pass · ${rupees(payment!.amount)}`
+              : plan === 'ELITE'
+                ? 'Included in your Elite Pass'
+                : 'Free Pass'}
           </Text>
-          {isFree ? (
+          {isFree && plan === 'FREE' ? (
             <Text style={[type.small, { textAlign: 'center' }]}>
               Nothing to pay. You can upgrade to Elite any time.
             </Text>
@@ -145,7 +151,7 @@ export default function PaymentSuccess() {
             }}
           >
             <Text style={type.body}>
-              {isFree ? 'Free Pass' : 'Elite Pass'}:{' '}
+              {plan === 'FREE' ? 'Free Pass' : 'Elite Pass'}:{' '}
               <Text style={{ fontFamily: fonts.heavy, color: colors.green }}>
                 {intent.pass?.status}
               </Text>
@@ -157,7 +163,7 @@ export default function PaymentSuccess() {
           </View>
           <View style={{ alignSelf: 'stretch', gap: 10, marginTop: space.sm }}>
             <Text style={type.h3}>You now have:</Text>
-            <PlanFeatures plan={isFree ? 'FREE' : 'ELITE'} />
+            <PlanFeatures plan={plan} />
           </View>
         </View>
         <View style={{ padding: space.lg, gap: space.sm }}>

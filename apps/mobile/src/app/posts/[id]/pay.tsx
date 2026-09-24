@@ -35,9 +35,10 @@ const METHODS: Array<{ icon: IconName; label: string }> = [
 ];
 
 /**
- * The Elite Pass for this Buying Post: to join once the Free Pass is used, to upgrade
- * from an active Free Pass, or to add another 30 days to an active Elite Pass. Never
- * "subscription": it doesn't renew by itself. The amount comes from the server's payment.
+ * The Elite Pass: one per person, covering all their Buying Posts and collectives. Bought
+ * from this post to join once its Free Pass is used or to upgrade from Free; while Elite
+ * is active, paying adds another 30 days. Never "subscription": it doesn't renew by
+ * itself. The amount comes from the server's payment.
  */
 export default function Pay() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -160,7 +161,8 @@ export default function Pay() {
     );
   const amount = checkout ? rupees(checkout.payment.amount) : ELITE_PRICE;
   const active = intent.pass?.status === 'ACTIVE' ? intent.pass : null;
-  const mode = active?.plan === 'ELITE' ? 'extend' : active ? 'upgrade' : 'join';
+  // Elite is per person: an active one (from any post) is extended.
+  const mode = me.pass?.plan === 'ELITE' ? 'extend' : active ? 'upgrade' : 'join';
   const left = daysLeft(active?.expiresAt ?? null);
 
   return (
@@ -215,11 +217,11 @@ export default function Pay() {
         <Text style={[type.hero, { color: colors.ink, fontSize: 36 }]}>{amount}</Text>
         <Text style={type.body}>
           {mode === 'extend'
-            ? `Adds ${ELITE_PASS_DAYS} days to your Elite Pass, which now ends on ${formatDate(active!.expiresAt)}. Your connections and message credits carry on.`
+            ? `Adds ${ELITE_PASS_DAYS} days to your Elite Pass, which now ends on ${formatDate(me.pass!.expiresAt)}. Your connections and message credits carry on.`
             : mode === 'upgrade'
               ? `Your Free Pass has ${left} ${left === 1 ? 'day' : 'days'} left. Elite starts now and runs ${ELITE_PASS_DAYS} days from payment.`
               : `${ELITE_PASS_DAYS} days from successful payment.`}{' '}
-          For this Buying Post ({intent.car.displayName} — {intent.city.name}) only.
+          Elite covers all your Buying Posts and collectives, not just this one.
         </Text>
         <PlanFeatures plan="ELITE" />
         <Text style={type.tiny}>One-time payment. It does not renew and is not charged again.</Text>

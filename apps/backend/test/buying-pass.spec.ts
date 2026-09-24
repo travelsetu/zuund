@@ -95,13 +95,26 @@ describe('Free and Elite passes', () => {
     expect(await db.payment.count({ where: { buyingIntentId: postA, status: 'SUCCESS' } })).toBe(2);
   });
 
-  it('belongs to one post: another car gets its own Free Pass, untouched by A', async () => {
+  it('Elite is per person: another collective rides on it, with no Free Pass used', async () => {
     const postB = (await createPost(rahul.agent, ctx.venue, ctx.ahmedabad)).id;
     const collectiveB = await joinCollective(rahul.agent, postB);
     expect(collectiveB.id).not.toBe(collectiveA);
     expect(collectiveB.membership?.status).toBe('ACTIVE');
+    const elite = await db.buyingPass.findFirstOrThrow({
+      where: { buyingIntentId: postA, status: 'ACTIVE' },
+    });
     const b = await rahul.agent.get(`/api/buying-intents/${postB}`);
-    expect(b.body.pass).toMatchObject({ plan: 'FREE', status: 'ACTIVE' });
+    // B's post reports the Elite Pass that covers it, and its Free Pass is still unused.
+    expect(b.body.pass).toMatchObject({ id: elite.id, plan: 'ELITE', status: 'ACTIVE' });
+    expect(b.body.freePassAvailable).toBe(true);
+    expect(await db.buyingPass.count({ where: { buyingIntentId: postB } })).toBe(0);
+
+    // Paying from B extends the same Elite Pass by 30 days.
+    await payFor(rahul.agent, postB, collectiveB.id);
+    const after = await db.buyingPass.findUniqueOrThrow({ where: { id: elite.id } });
+    expect(after.expiresAt!.getTime() - elite.expiresAt!.getTime()).toBe(30 * DAY_MS);
+    expect(await db.buyingPass.count({ where: { userId: rahul.id, status: 'ACTIVE' } })).toBe(1);
+
     // A second ACTIVE pass for the same post is impossible at the database level.
     await expect(
       db.buyingPass.create({

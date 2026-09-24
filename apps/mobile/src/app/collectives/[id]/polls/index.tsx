@@ -63,7 +63,8 @@ function PollCard({ p, collectiveId }: { p: PollDto; collectiveId: string }) {
         </View>
         <Text style={type.h3}>{p.question}</Text>
         <Text style={type.small}>
-          Asked by {p.creator.name} on {formatDate(p.createdAt)}
+          Asked by {p.creator.name}
+          {p.creator.elite ? ' 👑' : ''} on {formatDate(p.createdAt)}
           {'\n'}
           {p.totalVotes} {p.totalVotes === 1 ? 'vote' : 'votes'}
           {p.status === 'ACTIVE' && left !== null

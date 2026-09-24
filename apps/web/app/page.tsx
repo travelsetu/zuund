@@ -15,7 +15,7 @@ const STEPS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Decide together in a collective',
-    body: `Discuss, run polls and share what you find. Joining is free for ${FREE_PASS_DAYS} days. Elite (₹${ELITE_PASS_AMOUNT_PAISE / 100} for ${ELITE_PASS_DAYS} days) adds buyer details, more connections and direct messages.`,
+    body: `Discuss, run polls and share what you find. Joining is free for ${FREE_PASS_DAYS} days. Elite (₹${ELITE_PASS_AMOUNT_PAISE / 100} for ${ELITE_PASS_DAYS} days, for all your Buying Posts) adds buyer details, match scores, more connections and direct messages.`,
   },
 ];
 

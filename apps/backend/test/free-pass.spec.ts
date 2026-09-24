@@ -15,6 +15,7 @@ import {
 describe('Free Pass: once per user for a car+city', () => {
   let ctx: TestContext;
   let priya: TestUser;
+  let amit: TestUser;
 
   beforeAll(async () => {
     ctx = await setup();
@@ -65,13 +66,34 @@ describe('Free Pass: once per user for a car+city', () => {
   });
 
   it('a different car or city starts its own Free Pass', async () => {
-    const venue = await createPost(priya.agent, ctx.venue, ctx.ahmedabad);
-    expect((await joinCollective(priya.agent, venue.id)).membership?.status).toBe('ACTIVE');
-    const surat = await createPost(priya.agent, ctx.creta, ctx.surat);
-    expect((await joinCollective(priya.agent, surat.id)).membership?.status).toBe('ACTIVE');
-    for (const id of [venue.id, surat.id])
-      expect((await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: id } })).plan).toBe(
+    amit = await registerUser(ctx, 'Amit', ctx.ahmedabad.id);
+    const creta = await createPost(amit.agent, ctx.creta, ctx.ahmedabad);
+    const venue = await createPost(amit.agent, ctx.venue, ctx.ahmedabad);
+    const surat = await createPost(amit.agent, ctx.creta, ctx.surat);
+    for (const p of [creta, venue, surat])
+      expect((await joinCollective(amit.agent, p.id)).membership?.status).toBe('ACTIVE');
+    for (const p of [creta, venue, surat])
+      expect((await db.buyingPass.findFirstOrThrow({ where: { buyingIntentId: p.id } })).plan).toBe(
         'FREE',
       );
+  });
+
+  it('upgrading to Elite moves every collective onto it and ends the Free Passes', async () => {
+    const posts = await db.buyingIntent.findMany({ where: { userId: amit.id } });
+    const first = posts[0]!;
+    const m = await db.collectiveMembership.findFirstOrThrow({
+      where: { buyingIntentId: first.id },
+    });
+    await payFor(amit.agent, first.id, m.collectiveId);
+    const elite = await db.buyingPass.findFirstOrThrow({
+      where: { userId: amit.id, plan: 'ELITE', status: 'ACTIVE' },
+    });
+    const memberships = await db.collectiveMembership.findMany({ where: { userId: amit.id } });
+    expect(memberships).toHaveLength(3);
+    for (const x of memberships)
+      expect(x).toMatchObject({ status: 'ACTIVE', buyingPassId: elite.id });
+    expect(
+      await db.buyingPass.count({ where: { userId: amit.id, plan: 'FREE', status: 'ACTIVE' } }),
+    ).toBe(0);
   });
 });

@@ -149,7 +149,8 @@ export default function Files() {
                 </Text>
                 <Text style={type.small} numberOfLines={1}>
                   {f.file ? `${fileSize(f.file.sizeBytes)}, ` : f.url ? `${safeHost(f.url)}, ` : ''}
-                  shared by {f.sharer.name} on {shortDate(f.createdAt)}
+                  shared by {f.sharer.name}
+                  {f.sharer.elite ? ' 👑' : ''} on {shortDate(f.createdAt)}
                 </Text>
               </View>
               <Pressable hitSlop={10} onPress={() => menu(f)} accessibilityLabel="More">

@@ -58,14 +58,16 @@ export function PassPanel({ intent }: { intent: BuyingIntentDto }) {
           {intent.membership?.status === 'PENDING_PAYMENT' ? (
             <Text style={type.small}>
               This post has joined its collective. Your Free Pass for this car and city is used, so
-              the Elite Pass ({ELITE_PRICE} for {ELITE_PASS_DAYS} days, for this Buying Post only)
-              opens the discussion, polls, shared information and activities.
+              the Elite Pass ({ELITE_PRICE} for {ELITE_PASS_DAYS} days, covering all your Buying
+              Posts) opens the discussion, polls, shared information and activities.
             </Text>
           ) : (
             <Text style={type.small}>
-              {intent.freePassAvailable
-                ? `Join the collective free for ${FREE_PASS_DAYS} days: the discussion, activities and demand counts. Upgrade to Elite (${ELITE_PRICE} for ${ELITE_PASS_DAYS} days) any time for buyer details, more connections and direct messages.`
-                : `Your Free Pass for this car and city is used. Elite is ${ELITE_PRICE} for ${ELITE_PASS_DAYS} days, for this Buying Post only.`}
+              {me?.pass?.plan === 'ELITE'
+                ? 'Your Elite Pass covers this post: join its collective at no extra cost.'
+                : intent.freePassAvailable
+                  ? `Join the collective free for ${FREE_PASS_DAYS} days: the discussion, activities and demand counts. Upgrade to Elite (${ELITE_PRICE} for ${ELITE_PASS_DAYS} days) any time for buyer details, more connections and direct messages.`
+                  : `Your Free Pass for this car and city is used. Elite is ${ELITE_PRICE} for ${ELITE_PASS_DAYS} days and covers all your Buying Posts.`}
             </Text>
           )}
           {intent.status !== 'ACTIVE' ? null : intent.membership?.status === 'PENDING_PAYMENT' ? (

@@ -27,6 +27,8 @@ import {
   type IconName,
 } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { useMe } from '@/lib/auth';
+import { formatDate } from '@/lib/format';
 import { useLightStatusBar } from '@/lib/statusBar';
 import { useFocusData } from '@/lib/useAsync';
 import { colors, radius, space, type } from '@/theme';
@@ -40,6 +42,7 @@ type Tab = 'insights' | 'about' | 'buyers' | 'discussion';
  */
 export default function GroupDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const me = useMe();
   useLightStatusBar();
   const [tab, setTab] = useState<Tab>('insights');
   const [joining, setJoining] = useState(false);
@@ -114,6 +117,14 @@ export default function GroupDetails() {
           <Text style={[type.small, { textAlign: 'center' }]}>
             Resume this Buying Post to join its collective.
           </Text>
+        ) : me.pass?.plan === 'ELITE' ? (
+          // Elite covers all of this person's collectives.
+          <View style={{ gap: space.sm }}>
+            <Text style={[type.small, { textAlign: 'center' }]}>
+              Included in your Elite Pass, active until {formatDate(me.pass.expiresAt)}.
+            </Text>
+            <Button title="Join with Elite" loading={joining} onPress={joinFree} />
+          </View>
         ) : free ? (
           <View style={{ gap: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>

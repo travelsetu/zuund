@@ -62,10 +62,11 @@ export class PaymentsService {
   // ── Create ──
 
   /**
-   * Opens a payment for the Elite Pass on one buying intent: to join, to upgrade from
-   * an active Free Pass, or to extend an active Elite Pass by another ELITE_PASS_DAYS.
-   * The same idempotency key returns the same payment; an intent with a live payment
-   * gets that payment back.
+   * Opens a payment for the Elite Pass. Elite is one pass per person, covering all their
+   * Buying Posts and collectives: while one is active, paying (from any post) extends it
+   * by ELITE_PASS_DAYS; otherwise it starts one, bought from this post, to join or to
+   * upgrade from Free. The same idempotency key returns the same payment; an intent with
+   * a live payment gets that payment back.
    */
   async create(userId: string, input: CreatePaymentRequest): Promise<PaymentCheckoutDto> {
     const existingByKey = await this.prisma.payment.findUnique({
@@ -84,21 +85,22 @@ export class PaymentsService {
     if (intent.userId !== userId) throw new ForbiddenException('Not your buying post');
     if (intent.status !== 'ACTIVE') throw E.POST_NOT_ACTIVE();
 
-    const membership = await this.prisma.collectiveMembership.findFirst({
-      where: {
-        collectiveId: input.collectiveId,
-        userId,
-        buyingIntentId: intent.id,
-        status: { in: ['PENDING_PAYMENT', 'ACTIVE'] },
-      },
+    // The person's active Elite Pass, on whichever post it was bought from: extended.
+    const elite = await this.prisma.buyingPass.findFirst({
+      where: { userId, plan: 'ELITE', status: 'ACTIVE', expiresAt: { gt: new Date() } },
+      orderBy: { expiresAt: 'desc' },
     });
-    if (!membership) throw E.JOIN_FIRST();
-
-    // An active Free Pass is upgraded; an active Elite Pass is extended.
-    const activePass = await this.prisma.buyingPass.findFirst({
-      where: { buyingIntentId: intent.id, status: 'ACTIVE' },
-    });
-    if (membership.status === 'ACTIVE' && !activePass) throw E.PASS_ALREADY_ACTIVE();
+    if (!elite) {
+      const membership = await this.prisma.collectiveMembership.findFirst({
+        where: {
+          collectiveId: input.collectiveId,
+          userId,
+          buyingIntentId: intent.id,
+          status: { in: ['PENDING_PAYMENT', 'ACTIVE'] },
+        },
+      });
+      if (!membership) throw E.JOIN_FIRST();
+    }
 
     // Another open payment for the same intent: hand it back rather than start a second one.
     const open = await this.prisma.payment.findFirst({
@@ -108,7 +110,7 @@ export class PaymentsService {
     if (open) return this.checkoutFor(open);
 
     const pass =
-      (activePass?.plan === 'ELITE' ? activePass : null) ??
+      elite ??
       (await this.prisma.buyingPass.findFirst({
         where: { buyingIntentId: intent.id, status: 'PENDING' },
       })) ??
@@ -341,10 +343,10 @@ export class PaymentsService {
         });
         this.logger.log(`Elite Pass ${pass.id} extended to ${pass.expiresAt?.toISOString()}`);
       } else if (pass.status !== 'ACTIVE') {
-        // One ACTIVE pass per post: the Free Pass being upgraded ends now.
+        // Elite covers everything: the person's Free Passes end now (Elite outlasts them).
         const upgraded = await tx.buyingPass.updateMany({
           where: {
-            buyingIntentId: payment.buyingIntentId,
+            userId: payment.userId,
             status: 'ACTIVE',
             plan: 'FREE',
             id: { not: pass.id },
@@ -352,7 +354,7 @@ export class PaymentsService {
           data: { status: 'EXPIRED', expiresAt: now },
         });
         if (upgraded.count)
-          this.logger.log(`Free Pass on ${payment.buyingIntentId} upgraded to Elite`);
+          this.logger.log(`${upgraded.count} Free Pass(es) of ${payment.userId} upgraded to Elite`);
         const expiresAt = new Date(now.getTime() + this.eliteDays * 86_400_000);
         pass = await tx.buyingPass.update({
           where: { id: pass.id },
@@ -360,37 +362,33 @@ export class PaymentsService {
         });
       }
 
-      const membership = await tx.collectiveMembership.findFirst({
-        where: {
-          buyingIntentId: payment.buyingIntentId,
-          userId: payment.userId,
-          status: { in: ['PENDING_PAYMENT', 'ACTIVE'] },
-        },
+      // Every collective the person is in (or waiting to join) now rides on the Elite Pass.
+      const live = await tx.collectiveMembership.findMany({
+        where: { userId: payment.userId, status: { in: ['PENDING_PAYMENT', 'ACTIVE'] } },
       });
-      if (membership && membership.status !== 'ACTIVE') {
+      for (const m of live) {
+        if (m.status === 'ACTIVE' && m.buyingPassId === pass.id) continue;
         await tx.collectiveMembership.update({
-          where: { id: membership.id },
-          data: { status: 'ACTIVE', joinedAt: now, buyingPassId: pass.id },
+          where: { id: m.id },
+          data: {
+            status: 'ACTIVE',
+            buyingPassId: pass.id,
+            ...(m.status === 'ACTIVE' ? {} : { joinedAt: now }),
+          },
         });
-      } else if (membership && membership.buyingPassId !== pass.id) {
-        // Upgrade: same membership, now held by the Elite Pass.
-        await tx.collectiveMembership.update({
-          where: { id: membership.id },
-          data: { buyingPassId: pass.id },
-        });
-      }
-      if (membership) {
         const conv = await tx.conversation.findUnique({
-          where: { collectiveId: membership.collectiveId },
+          where: { collectiveId: m.collectiveId },
           select: { id: true },
         });
-        if (conv) {
+        if (conv)
           await tx.conversationMember.upsert({
             where: { conversationId_userId: { conversationId: conv.id, userId: payment.userId } },
             create: { conversationId: conv.id, userId: payment.userId },
             update: { leftAt: null },
           });
-        }
+      }
+      const membership = live.find((m) => m.buyingIntentId === payment.buyingIntentId) ?? null;
+      if (membership) {
         await this.notifications.notify(
           {
             userId: payment.userId,
@@ -454,6 +452,66 @@ export class PaymentsService {
           },
           tx,
         );
+    });
+  }
+
+  // ── Joining ──
+
+  /**
+   * Joining while the person holds an active Elite Pass: the membership is active at once
+   * and rides on it (ending with it). No Free Pass is used and nothing is charged.
+   */
+  async joinWithElite(userId: string, membershipId: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.collectiveMembership.findUnique({ where: { id: membershipId } });
+      if (!membership || membership.userId !== userId || membership.status !== 'PENDING_PAYMENT')
+        return false;
+      const elite = await tx.buyingPass.findFirst({
+        where: { userId, plan: 'ELITE', status: 'ACTIVE', expiresAt: { gt: new Date() } },
+        orderBy: { expiresAt: 'desc' },
+      });
+      if (!elite) return false;
+      const now = new Date();
+      await tx.collectiveMembership.update({
+        where: { id: membership.id },
+        data: { status: 'ACTIVE', joinedAt: now, buyingPassId: elite.id },
+      });
+      const conv = await tx.conversation.findUnique({
+        where: { collectiveId: membership.collectiveId },
+        select: { id: true },
+      });
+      if (conv)
+        await tx.conversationMember.upsert({
+          where: { conversationId_userId: { conversationId: conv.id, userId } },
+          create: { conversationId: conv.id, userId },
+          update: { leftAt: null },
+        });
+      await this.notifications.notify(
+        {
+          userId,
+          type: 'COLLECTIVE_MEMBERSHIP',
+          title: 'You are in',
+          body: `Joined with your Elite Pass, active until ${elite.expiresAt?.toDateString()}.`,
+          data: {
+            collectiveId: membership.collectiveId,
+            buyingIntentId: membership.buyingIntentId,
+          },
+          dedupeKey: `member:${membership.id}`,
+        },
+        tx,
+      );
+      await this.audit.log(
+        {
+          actorId: userId,
+          actorType: 'SYSTEM',
+          action: 'MEMBERSHIP_ACTIVATED',
+          targetType: 'CollectiveMembership',
+          targetId: membership.id,
+          metadata: { collectiveId: membership.collectiveId, elite: elite.id },
+        },
+        tx,
+      );
+      return true;
     });
   }
 
@@ -634,6 +692,16 @@ export class PaymentsService {
   /** Called after a member leaves; what happens to the money is the configured policy, nothing more. */
   async applyLeavePolicy(membership: CollectiveMembership, policy: 'NONE' | 'FULL'): Promise<void> {
     if (policy !== 'FULL' || !membership.buyingPassId) return;
+    // Elite covers all of the person's collectives: leaving one refunds nothing while
+    // others still ride on it.
+    const others = await this.prisma.collectiveMembership.count({
+      where: {
+        buyingPassId: membership.buyingPassId,
+        status: 'ACTIVE',
+        id: { not: membership.id },
+      },
+    });
+    if (others) return;
     const payment = await this.prisma.payment.findFirst({
       where: { buyingPassId: membership.buyingPassId, status: 'SUCCESS' },
     });

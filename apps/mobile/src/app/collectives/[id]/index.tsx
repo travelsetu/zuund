@@ -17,7 +17,7 @@ import {
   sentenceCase,
   type IconName,
 } from '@/components/ui';
-import { ELITE_PRICE, PassChip, PulseSummary, goUpgrade } from '@/components/Plan';
+import { ELITE_PRICE, EliteBadge, PassChip, PulseSummary, goUpgrade } from '@/components/Plan';
 import { api, errorMessage } from '@/lib/api';
 import { daysLeft, formatDate, listTime } from '@/lib/format';
 import { useLightStatusBar } from '@/lib/statusBar';
@@ -225,7 +225,10 @@ export default function CollectiveDashboard() {
                 >
                   <Avatar user={m.sender} size={40} />
                   <View style={{ flex: 1 }}>
-                    <Text style={type.h3}>{m.sender.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={type.h3}>{m.sender.name}</Text>
+                      {m.sender.elite ? <EliteBadge small /> : null}
+                    </View>
                     <Text style={type.small} numberOfLines={1}>
                       {m.deletedAt ? 'Message deleted' : m.content || 'Shared an attachment'}
                     </Text>

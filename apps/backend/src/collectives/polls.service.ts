@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { E } from '../common/domain.exception';
 import type { CreatePollRequest, Page, PageQuery, PollDto } from '@zuund/shared';
+import { eliteUserIds } from '../common/entitlements';
 import { toPublicUser } from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { Prisma } from '../generated/prisma/client';
@@ -64,7 +65,7 @@ export class PollsService {
       targetId: row.id,
       metadata: { collectiveId },
     });
-    return this.toDto(row, userId);
+    return this.one(row, userId);
   }
 
   async list(userId: string, collectiveId: string, q: PageQuery): Promise<Page<PollDto>> {
@@ -75,7 +76,11 @@ export class PollsService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    return toPage(rows, q.limit, (r) => this.toDto(r, userId));
+    const elite = await eliteUserIds(
+      this.prisma,
+      rows.map((r) => r.creatorId),
+    );
+    return toPage(rows, q.limit, (r) => this.toDto(r, userId, elite));
   }
 
   /**
@@ -122,7 +127,7 @@ export class PollsService {
       targetId: pollId,
       metadata: { optionIds: unique },
     });
-    return this.toDto(fresh, userId);
+    return this.one(fresh, userId);
   }
 
   async close(userId: string, pollId: string): Promise<PollDto> {
@@ -135,15 +140,20 @@ export class PollsService {
       data: { status: 'CLOSED', closedAt: new Date() },
       include: pollInclude,
     });
-    return this.toDto(row, userId);
+    return this.one(row, userId);
   }
 
-  private toDto(r: PollRow, viewerId: string): PollDto {
+  /** One item: works out whether its creator holds an Elite Pass (the 👑). */
+  private async one(r: PollRow, viewerId: string): Promise<PollDto> {
+    return this.toDto(r, viewerId, await eliteUserIds(this.prisma, [r.creatorId]));
+  }
+
+  private toDto(r: PollRow, viewerId: string, elite?: Set<string>): PollDto {
     const mine = new Set(r.votes.filter((v) => v.userId === viewerId).map((v) => v.optionId));
     return {
       id: r.id,
       collectiveId: r.collectiveId,
-      creator: toPublicUser(r.creator),
+      creator: toPublicUser(r.creator, { elite }),
       question: r.question,
       multipleChoice: r.multipleChoice,
       allowVoteChange: r.allowVoteChange,

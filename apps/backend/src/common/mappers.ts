@@ -120,7 +120,7 @@ export type IntentWithRelations = BuyingIntent & {
   car: Car;
   city: City;
   passes: BuyingPass[];
-  memberships: CollectiveMembership[];
+  memberships: Array<CollectiveMembership & { buyingPass: BuyingPass | null }>;
 };
 
 /** Include clause that produces IntentWithRelations. */
@@ -128,14 +128,20 @@ export const intentInclude = {
   car: true,
   city: true,
   passes: { orderBy: { createdAt: 'desc' as const } },
-  memberships: { where: { status: { in: ['PENDING_PAYMENT' as const, 'ACTIVE' as const] } } },
+  memberships: {
+    where: { status: { in: ['PENDING_PAYMENT' as const, 'ACTIVE' as const] } },
+    include: { buyingPass: true },
+  },
 };
 
 /** `freePassAvailable`: whether this post can still start the owner's Free Pass (`freePassUsed`). */
 export function toIntent(i: IntentWithRelations, freePassAvailable = false): BuyingIntentDto {
-  const active = i.passes.find((p) => p.status === 'ACTIVE');
-  const pass = active ?? i.passes[0] ?? null;
   const m = i.memberships[0] ?? null;
+  // The pass covering this post's collective: its own, or the person's Elite Pass bought
+  // from another post (Elite covers all their collectives).
+  const covering = m?.buyingPass?.status === 'ACTIVE' ? m.buyingPass : null;
+  const active = i.passes.find((p) => p.status === 'ACTIVE');
+  const pass = covering ?? active ?? i.passes[0] ?? null;
   return {
     id: i.id,
     userId: i.userId,

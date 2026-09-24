@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Page, PageQuery, ShareFileRequest, SharedFileDto } from '@zuund/shared';
+import { eliteUserIds } from '../common/entitlements';
 import { toFile, toPublicUser } from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import { FilesService } from '../files/files.service';
@@ -41,7 +42,7 @@ export class SharedFilesService {
       },
       include,
     });
-    return this.toDto(row);
+    return this.one(row);
   }
 
   async list(userId: string, collectiveId: string, q: PageQuery): Promise<Page<SharedFileDto>> {
@@ -52,7 +53,11 @@ export class SharedFilesService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    return toPage(rows, q.limit, (r) => this.toDto(r));
+    const elite = await eliteUserIds(
+      this.prisma,
+      rows.map((r) => r.sharerId),
+    );
+    return toPage(rows, q.limit, (r) => this.toDto(r, elite));
   }
 
   async remove(userId: string, id: string): Promise<void> {
@@ -62,11 +67,16 @@ export class SharedFilesService {
     await this.prisma.sharedFile.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
-  private toDto(r: Row): SharedFileDto {
+  /** One item: works out whether its sharer holds an Elite Pass (the 👑). */
+  private async one(r: Row): Promise<SharedFileDto> {
+    return this.toDto(r, await eliteUserIds(this.prisma, [r.sharerId]));
+  }
+
+  private toDto(r: Row, elite?: Set<string>): SharedFileDto {
     return {
       id: r.id,
       collectiveId: r.collectiveId,
-      sharer: toPublicUser(r.sharer),
+      sharer: toPublicUser(r.sharer, { elite }),
       type: r.type,
       title: r.title,
       description: r.description,

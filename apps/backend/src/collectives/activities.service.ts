@@ -7,6 +7,7 @@ import type {
   PageQuery,
   ParticipantStatus,
 } from '@zuund/shared';
+import { eliteUserIds } from '../common/entitlements';
 import { toPublicUser } from '../common/mappers';
 import { afterCursor, cursorOrder, decodeCursor, toPage } from '../common/pagination';
 import type { Prisma } from '../generated/prisma/client';
@@ -60,7 +61,7 @@ export class ActivitiesService {
         data: { collectiveId, activityId: row.id },
       })),
     );
-    return this.toDto(row, userId);
+    return this.one(row, userId);
   }
 
   async list(userId: string, collectiveId: string, q: PageQuery): Promise<Page<ActivityDto>> {
@@ -71,7 +72,11 @@ export class ActivitiesService {
       orderBy: cursorOrder,
       take: q.limit + 1,
     });
-    return toPage(rows, q.limit, (r) => this.toDto(r, userId));
+    const elite = await eliteUserIds(
+      this.prisma,
+      rows.map((r) => r.creatorId),
+    );
+    return toPage(rows, q.limit, (r) => this.toDto(r, userId, elite));
   }
 
   async rsvp(userId: string, activityId: string, status: ParticipantStatus): Promise<ActivityDto> {
@@ -83,7 +88,7 @@ export class ActivitiesService {
       create: { activityId, userId, status },
       update: { status },
     });
-    return this.toDto(
+    return this.one(
       await this.prisma.activity.findUniqueOrThrow({ where: { id: activityId }, include }),
       userId,
     );
@@ -94,7 +99,7 @@ export class ActivitiesService {
     if (!a) throw new NotFoundException('Activity not found');
     await this.collectives.requireActiveMember(a.collectiveId, userId);
     if (a.creatorId !== userId) throw E.NOT_CREATOR('activity');
-    return this.toDto(
+    return this.one(
       await this.prisma.activity.update({
         where: { id: activityId },
         data: { status: 'CANCELLED' },
@@ -104,11 +109,16 @@ export class ActivitiesService {
     );
   }
 
-  private toDto(r: Row, viewerId: string): ActivityDto {
+  /** One item: works out whether its creator holds an Elite Pass (the 👑). */
+  private async one(r: Row, viewerId: string): Promise<ActivityDto> {
+    return this.toDto(r, viewerId, await eliteUserIds(this.prisma, [r.creatorId]));
+  }
+
+  private toDto(r: Row, viewerId: string, elite?: Set<string>): ActivityDto {
     return {
       id: r.id,
       collectiveId: r.collectiveId,
-      creator: toPublicUser(r.creator),
+      creator: toPublicUser(r.creator, { elite }),
       title: r.title,
       description: r.description,
       type: r.type,

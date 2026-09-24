@@ -123,7 +123,8 @@ export default function PollDetail() {
       <View style={{ gap: 4 }}>
         <Text style={type.h2}>{poll.question}</Text>
         <Text style={type.small}>
-          Asked by {poll.creator.name} on {formatDate(poll.createdAt)}
+          Asked by {poll.creator.name}
+          {poll.creator.elite ? ' 👑' : ''} on {formatDate(poll.createdAt)}
         </Text>
         <Text style={type.tiny}>
           {poll.multipleChoice ? 'Choose one or more.' : 'Choose one.'}

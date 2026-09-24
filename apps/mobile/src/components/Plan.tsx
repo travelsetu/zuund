@@ -30,7 +30,7 @@ export const FREE_FEATURES = [
 
 /** What Elite adds: the reasons to upgrade. */
 export const ELITE_FEATURES = [
-  `${ELITE_PASS_DAYS} days validity`,
+  `${ELITE_PASS_DAYS} days, across all your Buying Posts and collectives`,
   `${PLAN_LIMITS.ELITE.activeConnections} active connections`,
   `${PLAN_LIMITS.ELITE.acceptedConnections} total connections`,
   `Message buyers you're not connected with (${PLAN_LIMITS.ELITE.directMessages} per pass)`,
