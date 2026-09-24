@@ -707,6 +707,8 @@ model FileObject {
   id         String   @id @default(uuid())
   uploaderId String   @map("uploader_id")
   storageKey String   @unique @map("storage_key")
+  /// Photos only: a small WebP (≤480 px) next to the original, for lists and previews.
+  thumbKey   String?  @map("thumb_key")
   url        String
   fileName   String   @map("file_name")
   mimeType   String   @map("mime_type")

@@ -80,6 +80,7 @@ export function toFile(f: FileObject): FileDto {
   return {
     id: f.id,
     url: f.url,
+    thumbUrl: f.thumbKey ? `${f.url}?size=thumb` : null,
     fileName: f.fileName,
     mimeType: f.mimeType,
     sizeBytes: f.sizeBytes,

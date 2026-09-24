@@ -301,6 +301,8 @@ export interface ConnectionDto {
 export interface FileDto {
   id: string;
   url: string;
+  /** Photos: a small preview (≤480 px WebP) for lists and chat; null for other files. */
+  thumbUrl: string | null;
   fileName: string;
   mimeType: string;
   sizeBytes: number;

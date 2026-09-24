@@ -25,8 +25,11 @@ export const API_URL = resolveApiUrl();
  * server's own public address (http://localhost:3000 on a developer's Mac, which a
  * phone can't reach); the path is what matters. Other addresses pass through.
  */
-export function apiFileUrl(url: string): string {
+export function apiFileUrl(url: string, opts: { thumb?: boolean } = {}): string {
   const at = url.indexOf('/api/files/');
-  return at >= 0 ? `${API_URL}${url.slice(at)}` : url;
+  if (at < 0) return url;
+  // ?size=thumb: a photo's small preview (the server falls back to the original).
+  const path = url.slice(at).split('?')[0]!;
+  return `${API_URL}${path}${opts.thumb ? '?size=thumb' : ''}`;
 }
 export const SUPPORT_EMAIL = 'support@zuund.com';

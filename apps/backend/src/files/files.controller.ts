@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Query,
   ParseUUIDPipe,
   Post,
   Res,
@@ -55,20 +56,25 @@ export class FilesController {
   async read(
     @CurrentUser() user: RequestUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('size') size: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const f = await this.files.authorizeRead(id, user.userId);
-    const signed = this.files.signedUrl(f);
+    // ?size=thumb: the photo's small preview, or the original when it has none.
+    const key = this.files.keyFor(f, size === 'thumb' ? 'thumb' : 'full');
+    const thumb = key !== f.storageKey;
+    const signed = this.files.signedUrl(key);
     if (signed) {
       // Only for this caller, briefly: the link itself is what may be cached.
       res.setHeader('Cache-Control', 'private, max-age=300');
       res.redirect(302, signed);
       return;
     }
-    res.setHeader('Content-Type', f.mimeType);
+    const mime = thumb ? 'image/webp' : f.mimeType;
+    res.setHeader('Content-Type', mime);
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Disposition', disposition(f.mimeType, f.fileName));
-    res.sendFile(this.files.pathFor(f)!);
+    res.setHeader('Content-Disposition', disposition(mime, f.fileName));
+    res.sendFile(this.files.pathFor(key)!);
   }
 }

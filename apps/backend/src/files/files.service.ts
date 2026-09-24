@@ -7,8 +7,10 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import sharp from 'sharp';
 import { ConfigService } from '@nestjs/config';
 import type { FileDto } from '@zuund/shared';
 import { toFile } from '../common/mappers';
@@ -52,6 +54,7 @@ const ALLOWED_EXT = new Set([
  */
 @Injectable()
 export class FilesService {
+  private readonly logger = new Logger(FilesService.name);
   private readonly dir: string;
   private readonly publicBase: string;
   private readonly s3: {
@@ -94,26 +97,24 @@ export class FilesService {
 
     const id = randomUUID();
     const key = `${this.s3?.prefix ?? ''}${new Date().toISOString().slice(0, 10)}/${id}${ext}`;
-    if (this.s3) {
-      await this.s3.client.send(
-        new PutObjectCommand({
-          Bucket: this.s3.bucket,
-          Key: key,
-          Body: file.buffer,
-          ContentType: file.mimetype,
-          ContentDisposition: disposition(file.mimetype, file.originalname),
-          CacheControl: 'private, max-age=86400',
-        }),
-      );
-    } else {
-      await mkdir(join(this.dir, key.split('/')[0]!), { recursive: true });
-      await writeFile(join(this.dir, key), file.buffer);
+    await this.put(key, file.buffer, file.mimetype, file.originalname);
+
+    // Photos get a small preview for lists and chat; the original stays for the viewer.
+    let thumbKey: string | null = null;
+    const thumb = file.mimetype.startsWith('image/') ? await thumbnail(file.buffer) : null;
+    if (thumb) {
+      thumbKey = key.replace(/\.[^./]+$/, '.thumb.webp');
+      await this.put(thumbKey, thumb, 'image/webp', file.originalname);
+    } else if (file.mimetype.startsWith('image/')) {
+      this.logger.warn(`No thumbnail for ${id} (${file.mimetype}); lists get the original`);
     }
+
     const row = await this.prisma.fileObject.create({
       data: {
         id,
         uploaderId,
         storageKey: key,
+        thumbKey,
         url: `${this.publicBase}/api/files/${id}`,
         fileName: file.originalname.slice(0, 200),
         mimeType: file.mimetype,
@@ -121,6 +122,29 @@ export class FilesService {
       },
     });
     return toFile(row);
+  }
+
+  private async put(key: string, body: Buffer, mime: string, name: string): Promise<void> {
+    if (this.s3) {
+      await this.s3.client.send(
+        new PutObjectCommand({
+          Bucket: this.s3.bucket,
+          Key: key,
+          Body: body,
+          ContentType: mime,
+          ContentDisposition: disposition(mime, name),
+          CacheControl: 'private, max-age=86400',
+        }),
+      );
+      return;
+    }
+    await mkdir(join(this.dir, key.split('/').slice(0, -1).join('/')), { recursive: true });
+    await writeFile(join(this.dir, key), body);
+  }
+
+  /** The stored object to serve: the thumbnail when asked for and there is one. */
+  keyFor(f: FileObject, size: 'full' | 'thumb' = 'full'): string {
+    return size === 'thumb' && f.thumbKey ? f.thumbKey : f.storageKey;
   }
 
   /** A file may only be attached by the user who uploaded it. */
@@ -170,20 +194,20 @@ export class FilesService {
   }
 
   /** Local storage: the file on disk. Null when files live in S3 (use signedUrl). */
-  pathFor(f: FileObject): string | null {
-    return this.s3 ? null : join(this.dir, f.storageKey);
+  pathFor(key: string): string | null {
+    return this.s3 ? null : join(this.dir, key);
   }
 
   /**
    * S3 storage: a CloudFront link valid until the end of the next hour. The same link is
    * handed out for the rest of this hour, so phones and browsers can cache the file.
    */
-  signedUrl(f: FileObject): string | null {
+  signedUrl(key: string): string | null {
     if (!this.s3) return null;
     const hour = 3_600_000;
     const until = new Date((Math.floor(Date.now() / hour) + 2) * hour);
     return getSignedUrl({
-      url: `https://${this.s3.domain}/${f.storageKey.split('/').map(encodeURIComponent).join('/')}`,
+      url: `https://${this.s3.domain}/${key.split('/').map(encodeURIComponent).join('/')}`,
       keyPairId: this.s3.keyPairId,
       privateKey: this.s3.privateKey,
       dateLessThan: until.toISOString(),
@@ -221,4 +245,20 @@ function sniffMatches(mime: string, buf: Buffer): boolean {
 /** Images render inline; everything else downloads, under its original name. */
 export function disposition(mime: string, name: string): string {
   return `${mime.startsWith('image/') ? 'inline' : 'attachment'}; filename="${encodeURIComponent(name)}"`;
+}
+
+/**
+ * A preview for lists and chat: at most 480 px on the long side, WebP, turned upright
+ * from the photo's EXIF. Null when the image can't be read (the original still serves).
+ */
+async function thumbnail(buf: Buffer): Promise<Buffer | null> {
+  try {
+    return await sharp(buf, { animated: false, failOn: 'error' })
+      .rotate()
+      .resize(480, 480, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
 }

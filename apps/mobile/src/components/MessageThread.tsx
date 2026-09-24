@@ -324,7 +324,7 @@ function Bubble({
                 accessibilityLabel="Open image"
               >
                 <Image
-                  source={fileSource(a)}
+                  source={fileSource(a, 'thumb')}
                   style={{ width: 200, height: 150, borderRadius: radius.sm }}
                   contentFit="cover"
                 />

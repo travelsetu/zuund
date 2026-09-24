@@ -15,10 +15,13 @@ import { colors, fonts, space } from '@/theme';
 
 const MAX_ZOOM = 5;
 
-/** Headers for GET /api/files/:id: phones send the bearer token, the web its cookie. */
-export function fileSource(f: Pick<FileDto, 'url'>) {
+/**
+ * An image to load from GET /api/files/:id (phones send the bearer token, the web its
+ * cookie). `thumb`: the photo's small preview, for lists and chat.
+ */
+export function fileSource(f: Pick<FileDto, 'url' | 'thumbUrl'>, size: 'full' | 'thumb' = 'full') {
   return {
-    uri: apiFileUrl(f.url),
+    uri: apiFileUrl(f.url, { thumb: size === 'thumb' && !!f.thumbUrl }),
     headers: tokens.access ? { Authorization: `Bearer ${tokens.access}` } : undefined,
   };
 }
@@ -120,6 +123,10 @@ function Viewer({ file, onClose }: { file: FileDto; onClose: () => void }) {
         <Animated.View style={[StyleSheet.absoluteFill, zoom]}>
           <Image
             source={fileSource(file)}
+            // The preview (already cached from the list) shows at once; the original replaces it.
+            placeholder={file.thumbUrl ? fileSource(file, 'thumb') : undefined}
+            placeholderContentFit="contain"
+            transition={150}
             style={StyleSheet.absoluteFill}
             contentFit="contain"
             accessibilityLabel={file.fileName}

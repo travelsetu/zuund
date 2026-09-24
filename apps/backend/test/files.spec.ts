@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -145,5 +146,36 @@ describe('files', () => {
     expect((await outsider.agent.get(`/api/collectives/${collectiveId}/files`)).status).toBe(403);
     const list = await rahul.agent.get(`/api/collectives/${collectiveId}/files`);
     expect(list.body.items.map((f: { title: string }) => f.title)).toEqual(['Review']);
+  });
+
+  it('a photo gets a small WebP preview; other files and unreadable images do not', async () => {
+    const photo = await sharp({
+      create: { width: 2000, height: 1200, channels: 3, background: '#1650e0' },
+    })
+      .jpeg()
+      .toBuffer();
+    const up = await upload(rahul.agent, photo, 'car.jpg', 'image/jpeg');
+    expect(up.status).toBe(201);
+    expect(up.body.thumbUrl).toBe(`${up.body.url}?size=thumb`);
+
+    const thumb = await rahul.agent.get(`/api/files/${up.body.id}?size=thumb`);
+    expect(thumb.status).toBe(200);
+    expect(thumb.headers['content-type']).toBe('image/webp');
+    const meta = await sharp(thumb.body as Buffer).metadata();
+    expect(Math.max(meta.width!, meta.height!)).toBe(480);
+    const full = await rahul.agent.get(`/api/files/${up.body.id}`);
+    expect(full.headers['content-type']).toBe('image/jpeg');
+    expect((full.body as Buffer).length).toBeGreaterThan((thumb.body as Buffer).length);
+
+    // The preview goes through the same check as the original.
+    expect((await outsider.agent.get(`/api/files/${up.body.id}?size=thumb`)).status).toBe(403);
+
+    const pdf = await upload(rahul.agent, PDF, 'brochure.pdf', 'application/pdf');
+    expect(pdf.body.thumbUrl).toBeNull();
+    // Right magic bytes but no real image: stored, no preview, the original serves.
+    const odd = await upload(rahul.agent, PNG, 'odd.png', 'image/png');
+    expect(odd.status).toBe(201);
+    expect(odd.body.thumbUrl).toBeNull();
+    expect((await rahul.agent.get(`/api/files/${odd.body.id}?size=thumb`)).status).toBe(200);
   });
 });

@@ -155,7 +155,7 @@ export default function Files() {
             >
               {f.file?.mimeType.startsWith('image/') ? (
                 // Images show a preview; tapping opens them full screen.
-                <Image source={fileSource(f.file)} style={s.thumb} contentFit="cover" />
+                <Image source={fileSource(f.file, 'thumb')} style={s.thumb} contentFit="cover" />
               ) : (
                 <Ionicons name={ICON[f.type].name} size={30} color={ICON[f.type].color} />
               )}

@@ -469,7 +469,8 @@ export function Avatar({
     return (
       <Image
         source={{
-          uri: apiFileUrl(user.photoUrl),
+          // Avatars are small: the photo's preview is plenty.
+          uri: apiFileUrl(user.photoUrl, { thumb: true }),
           headers: tokens.access ? { Authorization: `Bearer ${tokens.access}` } : undefined,
         }}
         style={[round, { backgroundColor: colors.brandSoft }]}
