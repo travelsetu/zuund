@@ -181,6 +181,17 @@ export interface BuyerDiscoveryDto extends Page<BuyerDto> {
   counts: Record<BuyerFilter, number>;
 }
 
+/** Buyers for a car+city, as counts only (seen before joining). */
+export interface BuyerCountDto {
+  /** Active buyers for this car+city, excluding the viewer. */
+  count: number;
+  /** The collective's active members, by their post's timeline and how sure they are. */
+  members: {
+    byTimeline: Record<PurchaseTimeline, number>;
+    byIntentLevel: Record<IntentLevel, number>;
+  };
+}
+
 export interface BuyerProfileDto {
   user: PublicUserDto;
   activeIntents: Array<{

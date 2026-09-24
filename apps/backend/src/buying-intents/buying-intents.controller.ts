@@ -16,6 +16,7 @@ import {
   createBuyingIntentRequestSchema,
   pageQuerySchema,
   updateBuyingIntentRequestSchema,
+  type BuyerCountDto,
   type BuyerDiscoveryDto,
   type BuyerDiscoveryQuery,
   type BuyingIntentDto,
@@ -115,7 +116,11 @@ export class BuyingIntentsController {
   async count(
     @CurrentUser() user: RequestUser,
     @Query(new ZodValidationPipe(countQuery)) q: z.infer<typeof countQuery>,
-  ): Promise<{ count: number }> {
-    return { count: await this.intents.countBuyers(q.carId, q.cityId, user.userId) };
+  ): Promise<BuyerCountDto> {
+    const [count, members] = await Promise.all([
+      this.intents.countBuyers(q.carId, q.cityId, user.userId),
+      this.intents.memberBreakdown(q.carId, q.cityId),
+    ]);
+    return { count, members };
   }
 }

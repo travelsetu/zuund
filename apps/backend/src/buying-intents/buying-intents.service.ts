@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { E } from '../common/domain.exception';
 import type {
+  BuyerCountDto,
   BuyerDiscoveryDto,
   BuyerDiscoveryQuery,
   BuyerDto,
@@ -16,8 +17,14 @@ import type {
   IntentLevel,
   Page,
   PageQuery,
+  PurchaseTimeline,
 } from '@zuund/shared';
-import { isTravelWeekOpen, travelMonthOptions } from '@zuund/shared';
+import {
+  INTENT_LEVELS,
+  PURCHASE_TIMELINES,
+  isTravelWeekOpen,
+  travelMonthOptions,
+} from '@zuund/shared';
 import { CatalogService } from '../catalog/catalog.service';
 import {
   intentInclude,
@@ -345,6 +352,33 @@ export class BuyingIntentsService {
         ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
       },
     });
+  }
+
+  /** The collective's active members for a car+city, by timeline and by how sure they are. */
+  async memberBreakdown(carId: string, cityId: string): Promise<BuyerCountDto['members']> {
+    const where = {
+      memberships: {
+        some: {
+          status: 'ACTIVE' as const,
+          collective: { carId, cityId, status: 'ACTIVE' as const },
+        },
+      },
+    };
+    const [timelines, levels] = await Promise.all([
+      this.prisma.buyingIntent.groupBy({ by: ['purchaseTimeline'], where, _count: true }),
+      this.prisma.buyingIntent.groupBy({ by: ['intentLevel'], where, _count: true }),
+    ]);
+    const byTimeline = Object.fromEntries(PURCHASE_TIMELINES.map((t) => [t, 0])) as Record<
+      PurchaseTimeline,
+      number
+    >;
+    for (const r of timelines) byTimeline[r.purchaseTimeline] = r._count;
+    const byIntentLevel = Object.fromEntries(INTENT_LEVELS.map((l) => [l, 0])) as Record<
+      IntentLevel,
+      number
+    >;
+    for (const r of levels) byIntentLevel[r.intentLevel] = r._count;
+    return { byTimeline, byIntentLevel };
   }
 
   // ── helpers ──

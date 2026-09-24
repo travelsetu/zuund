@@ -3,6 +3,7 @@ import type {
   ApiError,
   AuthUser,
   BrandDto,
+  BuyerCountDto,
   BuyerDiscoveryDto,
   BuyerFilter,
   BuyerProfileDto,
@@ -274,9 +275,9 @@ export const api = {
   buyers: {
     discover: (p: { carId: string; cityId: string; filter?: BuyerFilter; cursor?: string }) =>
       request<BuyerDiscoveryDto>(`/buyers${qs({ ...p, limit: 20 })}`),
-    /** How many others are buying it: open to everyone, unlike the list itself. */
+    /** How many others are buying it, and how the members plan: counts, open to everyone. */
     count: (p: { carId: string; cityId: string }) =>
-      request<{ count: number }>(`/buyers/count${qs(p)}`),
+      request<BuyerCountDto>(`/buyers/count${qs(p)}`),
   },
   connections: {
     list: (box: 'ACCEPTED' | 'INCOMING' | 'OUTGOING' | 'BLOCKED', cursor?: string) =>
