@@ -7,7 +7,7 @@ import { HeroSlider } from '@/components/HeroSlider';
 import { PostCard } from '@/components/PostCard';
 import { Card, Hero, IconButton, Loading, ProductArt, Screen, Section } from '@/components/ui';
 import { api } from '@/lib/api';
-import { useMe } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';
 import { useLightStatusBar } from '@/lib/statusBar';
 import { useFocusData } from '@/lib/useAsync';
@@ -21,10 +21,12 @@ const CATEGORIES: Array<{ key: ProductCategory; hint: string }> = [
 
 /** Mockup 2 — Home: search, the live categories, and the user's own activity. */
 export default function Home() {
-  const me = useMe();
+  // Guests (me null) can look around; signing in is asked for when they create a Buying Post.
+  const { me } = useAuth();
   const desktop = useIsDesktop();
   useLightStatusBar();
   const { data, refresh, refreshing } = useFocusData(async () => {
+    if (!me) return null;
     const [profile, intents, unread] = await Promise.all([
       api.users.profile(me.id),
       api.intents.list(),
@@ -38,28 +40,43 @@ export default function Home() {
     <Screen onRefresh={refresh} refreshing={refreshing} edges={[]}>
       <Hero>
         {/* On desktop the sidebar already carries the wordmark, city and notifications. */}
-        {desktop ? null : (
+        {/* Guests have no sidebar on desktop, so they get the top row everywhere. */}
+        {desktop && me ? null : (
           <View style={s.top}>
             <Logo size={26} light />
-            <Pressable
-              style={s.city}
-              onPress={() => router.push('/edit-profile')}
-              accessibilityLabel="Change city"
-            >
-              <Ionicons name="location" size={14} color={colors.onNavyMuted} />
-              <Text style={{ color: colors.white, fontFamily: fonts.medium, fontSize: 14 }}>
-                {me.city?.name ?? 'Set city'}
-              </Text>
-              <Ionicons name="chevron-down" size={13} color={colors.onNavyMuted} />
-            </Pressable>
+            {me ? (
+              <Pressable
+                style={s.city}
+                onPress={() => router.push('/edit-profile')}
+                accessibilityLabel="Change city"
+              >
+                <Ionicons name="location" size={14} color={colors.onNavyMuted} />
+                <Text style={{ color: colors.white, fontFamily: fonts.medium, fontSize: 14 }}>
+                  {me.city?.name ?? 'Set city'}
+                </Text>
+                <Ionicons name="chevron-down" size={13} color={colors.onNavyMuted} />
+              </Pressable>
+            ) : null}
             <View style={{ flex: 1 }} />
-            <IconButton
-              name="notifications-outline"
-              label="Notifications"
-              color={colors.white}
-              badge={data?.unread}
-              onPress={() => router.push('/notifications')}
-            />
+            {me ? (
+              <IconButton
+                name="notifications-outline"
+                label="Notifications"
+                color={colors.white}
+                badge={data?.unread}
+                onPress={() => router.push('/notifications')}
+              />
+            ) : (
+              <Pressable
+                style={s.city}
+                onPress={() => router.push('/login')}
+                accessibilityRole="button"
+              >
+                <Text style={{ color: colors.white, fontFamily: fonts.semibold, fontSize: 14 }}>
+                  Log in
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
         <Text style={[type.display, { color: colors.white, marginTop: space.sm }]}>
@@ -88,7 +105,7 @@ export default function Home() {
         ))}
       </View>
 
-      {!data ? <Loading /> : null}
+      {me && !data ? <Loading /> : null}
       {data ? (
         <Section title="Your activity">
           <Card style={s.stats}>

@@ -23,7 +23,6 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
-import { useAuth } from '@/lib/auth';
 import { initials } from '@/lib/format';
 import { markPress, useMinimumLoading } from '@/lib/minDuration';
 import { Preloader } from './Preloader';
@@ -108,15 +107,13 @@ export function Header({
   /** White text and back arrow, for use inside <Hero>. */
   light?: boolean;
 }) {
-  const { me } = useAuth();
   const goBack = () => {
     if (router.canGoBack()) return router.back();
     // Opened straight from zuund.com (or a link): leave the app the way the visitor came in.
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.history.length > 1) {
       return window.history.back();
     }
-    // Signed-out visitors can't open '/', so send them to the welcome screen instead.
-    router.replace(me ? '/' : '/welcome');
+    router.replace('/');
   };
   return (
     <View style={[styles.header, light && { paddingVertical: 0 }]}>

@@ -17,7 +17,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DialogHost } from '@/lib/alert';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';
-import { keepOpeningLink, takeOpeningLink } from '@/lib/returnTo';
+import { keepOpeningLink, takeReturnLink } from '@/lib/returnTo';
 import { Sidebar } from '@/components/Sidebar';
 import { Preloader } from '@/components/Preloader';
 import { colors } from '@/theme';
@@ -29,26 +29,37 @@ function RootStack() {
   // Accounts from before mobile numbers were required must add one first.
   const needsPhone = signedIn && !me.phone;
   const ready = signedIn && !needsPhone;
-  // A zuund.com link opened while signed out continues after signing in or up.
+  // Guests look around freely. Once they sign in, carry on where they were: a link they
+  // opened that needs an account, or the Buying Post they filled in.
   useEffect(() => {
     if (me === null) keepOpeningLink();
     if (!ready) return;
-    const path = takeOpeningLink();
-    if (path) setTimeout(() => router.push(path as never), 0);
+    const path = takeReturnLink();
+    if (!path) return;
+    setTimeout(() => {
+      if (router.canDismiss()) router.dismissAll();
+      router.push(path as never);
+    }, 0);
   }, [me, ready]);
   if (me === undefined) return <Preloader fill />;
   const stack = (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
+      {/* Open to guests too: signing in is asked for when creating a Buying Post. */}
+      <Stack.Protected guard={!needsPhone}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="posts/new" />
+        <Stack.Screen name="privacy" />
+      </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
-        <Stack.Screen name="welcome" />
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
+        <Stack.Screen name="welcome" />
       </Stack.Protected>
       <Stack.Protected guard={needsPhone}>
         <Stack.Screen name="add-phone" />
       </Stack.Protected>
       <Stack.Protected guard={ready}>
-        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="change-password" />
         <Stack.Screen name="collectives/[id]/activities" />
         <Stack.Screen name="collectives/[id]/discussion" />
@@ -70,9 +81,6 @@ function RootStack() {
         <Stack.Screen name="posts/[id]/index" />
         <Stack.Screen name="posts/[id]/pay" />
         <Stack.Screen name="posts/[id]/success" options={{ gestureEnabled: false }} />
-        <Stack.Screen name="posts/new" />
-        <Stack.Screen name="privacy" />
-        <Stack.Screen name="search" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="users/[id]" />
       </Stack.Protected>

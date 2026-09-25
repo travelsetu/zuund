@@ -18,6 +18,8 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
   const desktop = useIsDesktop();
   if (desktop) return null; // the sidebar takes over
   const routes = state.routes.filter((r) => TABS[r.name]);
+  // Guests only have Home; sign-in sits where Profile would be.
+  const guest = routes.length === 1;
   const left = routes.slice(0, 2);
   const right = routes.slice(2);
   const tab = (route: (typeof routes)[number]) => {
@@ -62,7 +64,14 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
           <Ionicons name="add" size={30} color={colors.white} />
         </Pressable>
       </View>
-      {right.map(tab)}
+      {guest ? (
+        <Pressable style={s.tab} accessibilityRole="button" onPress={() => router.push('/login')}>
+          <Ionicons name="log-in-outline" size={23} color={colors.muted} />
+          <Text style={[s.label, { color: colors.muted }]}>Log in</Text>
+        </Pressable>
+      ) : (
+        right.map(tab)
+      )}
     </View>
   );
 }

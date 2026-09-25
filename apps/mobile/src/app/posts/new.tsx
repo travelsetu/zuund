@@ -25,24 +25,45 @@ import { Button, Card, ErrorText, Header, ProductArt, Screen } from '@/component
 import { Ionicons } from '@expo/vector-icons';
 import { devicePosition, suggestedCity } from '@/lib/location';
 import { api, ApiRequestError, errorMessage } from '@/lib/api';
-import { useMe } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
+import { returnAfterSignIn, saveDraft, takeDraft } from '@/lib/returnTo';
 import { colors, space, type } from '@/theme';
 
-/** Steps 4–6: city, buying timeline, intent → create the Buying Post (free). */
+/** What a guest filled in, kept while they sign in or up. */
+interface Draft {
+  carId: string;
+  city: CityDto | null;
+  position: GeoPoint | null;
+  timeline: PurchaseTimeline | null;
+  level: IntentLevel | null;
+  trip: HolidayTripDraft;
+}
+
+/**
+ * Steps 4–6: city, buying timeline, intent → create the Buying Post (free).
+ * Guests can fill it in; "Create" asks them to sign in or up, then creates the post
+ * straight away (`resume`).
+ */
 export default function NewPost() {
-  const me = useMe();
+  const { me } = useAuth();
   const p = useLocalSearchParams<{
     carId: string;
     name: string;
     category: ProductCategory;
     segment?: string;
+    resume?: string;
   }>();
-  const [city, setCity] = useState<CityDto | null>(me.city);
+  const [draft] = useState(() => {
+    if (!p.resume || !me) return null;
+    const d = takeDraft<Draft>();
+    return d?.carId === p.carId ? d : null;
+  });
+  const [city, setCity] = useState<CityDto | null>(draft?.city ?? me?.city ?? null);
 
   // Where the buyer is, to find buyers near them: the device's position when they allow
   // it, else the server uses the IP address. The nearest city is pre-selected (unless the
   // profile already has one); the user confirms or changes it.
-  const [position, setPosition] = useState<GeoPoint | null>(null);
+  const [position, setPosition] = useState<GeoPoint | null>(draft?.position ?? null);
   const [locating, setLocating] = useState(true);
   const found = async (pos: GeoPoint | null) => {
     setPosition(pos);
@@ -57,11 +78,11 @@ export default function NewPost() {
   useEffect(() => {
     void devicePosition().then(found);
   }, []);
-  const [timeline, setTimeline] = useState<PurchaseTimeline | null>(null);
+  const [timeline, setTimeline] = useState<PurchaseTimeline | null>(draft?.timeline ?? null);
   const holiday = p.category === 'HOLIDAY';
-  const [trip, setTrip] = useState<HolidayTripDraft>(EMPTY_TRIP);
+  const [trip, setTrip] = useState<HolidayTripDraft>(draft?.trip ?? EMPTY_TRIP);
   // Nothing pre-selected: the buyer chooses both the timeline and how sure they are.
-  const [level, setLevel] = useState<IntentLevel | null>(null);
+  const [level, setLevel] = useState<IntentLevel | null>(draft?.level ?? null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -70,6 +91,21 @@ export default function NewPost() {
     if (!level) return setErr('Choose how sure you are');
     const problem = holiday ? tripProblem(trip) : null;
     if (problem) return setErr(problem);
+    if (!me) {
+      // The one place a guest is asked to sign in: keep the form, then create it right after.
+      saveDraft<Draft>({ carId: p.carId, city, position, timeline, level, trip });
+      returnAfterSignIn(
+        `/posts/new?${new URLSearchParams({
+          carId: p.carId,
+          name: p.name,
+          category: p.category,
+          segment: p.segment ?? '',
+          resume: '1',
+        })}`,
+      );
+      router.push('/register');
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -117,6 +153,15 @@ export default function NewPost() {
       setErr(errorMessage(e));
     }
   }
+
+  // Back from signing in or up: create the post they already filled in.
+  useEffect(() => {
+    if (!draft) return;
+    const t = setTimeout(() => void create(), 0);
+    return () => clearTimeout(t);
+    // Once, with the restored form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Screen
@@ -199,6 +244,11 @@ export default function NewPost() {
           You can change this any time. None of these is a promise to buy.
         </Text>
       </View>
+      {me ? null : (
+        <Text style={type.small}>
+          Next you&apos;ll sign in, or create a free account in a minute. Your answers are kept.
+        </Text>
+      )}
       <ErrorText>{err}</ErrorText>
     </Screen>
   );
