@@ -243,4 +243,41 @@ describe('catalog categories', () => {
     expect(isTravelWeekOpen('2026-09', 3, new Date('2026-09-21T20:00:00Z'))).toBe(false);
     expect(travelWeekDays('2027-02', 4)).toEqual([22, 28]);
   });
+  it('landing overview: whole catalog, and demand only once enough people are buying', async () => {
+    const solar = await request(ctx.server).get('/api/catalog/overview?category=SOLAR');
+    expect(solar.status).toBe(200);
+    expect(solar.body.items).toHaveLength(11);
+    expect(solar.body.items[0].displayName).toBe('1 kW Rooftop Solar');
+    expect(solar.body.brands).toEqual([{ name: 'Rooftop Solar', count: 11 }]);
+    // Two solar buyers so far: too few to show anything.
+    expect(solar.body.demand).toBeNull();
+
+    const kashmir = await db.car.findUniqueOrThrow({ where: { slug: 'kashmir-holiday-package' } });
+    const others = await db.car.findMany({
+      where: { category: 'HOLIDAY', status: 'ACTIVE', slug: { not: kashmir.slug } },
+      take: 9,
+    });
+    // A city nobody else in this file posts in, with just two travellers.
+    const quiet = ctx.cities.find((c) => c.id !== ctx.ahmedabad.id && c.id !== ctx.surat.id)!;
+    for (let i = 0; i < 12; i++) {
+      const city = i < 10 ? ctx.ahmedabad : quiet;
+      const u = await registerUser(ctx, `Traveller${i}`, city.id);
+      await createPost(u.agent, i < 3 ? kashmir : others[i - 3]!, city);
+    }
+    const res = await request(ctx.server).get('/api/catalog/overview?category=HOLIDAY');
+    expect(res.body.items.length).toBeGreaterThan(80);
+    const d = res.body.demand;
+    expect(d.buyers).toBeGreaterThanOrEqual(12);
+    expect(d.newThisWeek).toBeGreaterThanOrEqual(12);
+    expect(d.topItems).toContainEqual({ carId: kashmir.id, buyers: 3 });
+    // A destination or city with one or two buyers never appears.
+    expect(d.topItems.every((r: { buyers: number }) => r.buyers >= 3)).toBe(true);
+    expect(d.topCities.map((c: { name: string }) => c.name)).toContain(ctx.ahmedabad.name);
+    expect(d.topCities.map((c: { name: string }) => c.name)).not.toContain(quiet.name);
+    expect(JSON.stringify(res.body)).not.toMatch(/Traveller/);
+
+    expect((await request(ctx.server).get('/api/catalog/overview?category=BIKES')).status).toBe(
+      400,
+    );
+  });
 });

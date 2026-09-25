@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ELITE_PASS_AMOUNT_PAISE, ELITE_PASS_DAYS, FREE_PASS_DAYS } from '@zuund/shared';
 import { Icon, type IconName } from '@/components/Icon';
 import { ProductArt } from '@/components/ProductArt';
@@ -88,7 +89,7 @@ export default function HomePage() {
         <div className="wrap">
           <h2 className="section-title">What you can buy together today</h2>
           <div className="cats">
-            <a href={appLink('/search?category=CAR')} className="cat">
+            <Link href="/cars" className="cat">
               <ProductArt car={{ category: 'CAR', imageUrl: null }} size="md" />
               <div>
                 <h3>Cars</h3>
@@ -97,8 +98,8 @@ export default function HomePage() {
                   your city.
                 </p>
               </div>
-            </a>
-            <a href={appLink('/search?category=SOLAR')} className="cat">
+            </Link>
+            <Link href="/solar" className="cat">
               <ProductArt car={{ category: 'SOLAR', imageUrl: null }} size="md" />
               <div>
                 <h3>Rooftop solar</h3>
@@ -107,8 +108,8 @@ export default function HomePage() {
                   notes.
                 </p>
               </div>
-            </a>
-            <a href={appLink('/search?category=HOLIDAY')} className="cat">
+            </Link>
+            <Link href="/holidays" className="cat">
               <ProductArt car={{ category: 'HOLIDAY', imageUrl: null }} size="md" />
               <div>
                 <h3>Holiday packages</h3>
@@ -117,7 +118,7 @@ export default function HomePage() {
                   city.
                 </p>
               </div>
-            </a>
+            </Link>
           </div>
         </div>
       </section>

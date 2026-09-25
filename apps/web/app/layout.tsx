@@ -31,8 +31,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Logo size={26} />
             </Link>
             <nav className="site-nav" aria-label="Main">
-              <Link href="/#how-it-works" className="hide-sm">
-                How it works
+              <Link href="/cars" className="hide-md">
+                Cars
+              </Link>
+              <Link href="/solar" className="hide-md">
+                Solar
+              </Link>
+              <Link href="/holidays" className="hide-md">
+                Holidays
               </Link>
               <Link href="/about" className="hide-sm">
                 About
@@ -55,6 +61,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </p>
             </div>
             <nav className="stack-sm small" aria-label="Footer">
+              <Link href="/cars">Cars</Link>
+              <Link href="/solar">Rooftop solar</Link>
+              <Link href="/holidays">Holiday packages</Link>
               <Link href="/about">About</Link>
               <a href={appLink('/login')}>Log in</a>
               <a href={appLink('/register')}>Create an account</a>

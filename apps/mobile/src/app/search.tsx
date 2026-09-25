@@ -76,9 +76,12 @@ const TRIP_TYPES: Record<
  * filterable by region.
  */
 export default function Search() {
-  const params = useLocalSearchParams<{ category?: ProductCategory }>();
-  const [category, setCategory] = useState<ProductCategory>(params.category ?? 'CAR');
-  const [brand, setBrand] = useState<string | null>(null);
+  // zuund.com's category pages link here with the category, and a brand or trip type.
+  const params = useLocalSearchParams<{ category?: ProductCategory; brand?: string }>();
+  const [category, setCategory] = useState<ProductCategory>(
+    PRODUCT_CATEGORIES.includes(params.category as ProductCategory) ? params.category! : 'CAR',
+  );
+  const [brand, setBrand] = useState<string | null>(params.brand || null);
   const [segment, setSegment] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [brands, setBrands] = useState<BrandDto[] | null>(null);

@@ -1,5 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { BrandDto, CarDto, CityDto, CountryDto, ProductCategory } from '@zuund/shared';
+import {
+  CATEGORY_DEMAND_MIN_BUYERS,
+  NEARBY_MIN_COUNT,
+  type BrandDto,
+  type CarDto,
+  type CategoryDemandDto,
+  type CategoryOverviewDto,
+  type CityDto,
+  type CountryDto,
+  type ProductCategory,
+} from '@zuund/shared';
 import { toCar, toCity } from '../common/mappers';
 import { PrismaService } from '../prisma/prisma.service';
 import { distanceKm } from '../common/geo';
@@ -7,6 +17,74 @@ import { distanceKm } from '../common/geo';
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Landing pages are rebuilt every few minutes by many visitors; one query per category per window. */
+  private overviews = new Map<
+    ProductCategory,
+    { at: number; value: Promise<CategoryOverviewDto> }
+  >();
+  private static readonly OVERVIEW_TTL_MS = 5 * 60_000;
+
+  /** A category's whole catalog and its live demand, for the public landing page on zuund.com. */
+  categoryOverview(category: ProductCategory): Promise<CategoryOverviewDto> {
+    const hit = this.overviews.get(category);
+    if (hit && Date.now() - hit.at < CatalogService.OVERVIEW_TTL_MS) return hit.value;
+    const value = this.buildOverview(category);
+    this.overviews.set(category, { at: Date.now(), value });
+    value.catch(() => this.overviews.delete(category));
+    return value;
+  }
+
+  private async buildOverview(category: ProductCategory): Promise<CategoryOverviewDto> {
+    const [cars, brands, demand] = await Promise.all([
+      this.prisma.car.findMany({ where: { status: 'ACTIVE', category } }),
+      this.listBrands(category),
+      this.categoryDemand(category),
+    ]);
+    cars.sort(
+      (a, b) =>
+        a.brand.localeCompare(b.brand) ||
+        a.model.localeCompare(b.model, undefined, { numeric: true, sensitivity: 'base' }),
+    );
+    return { category, items: cars.map(toCar), brands, demand };
+  }
+
+  /**
+   * People (not posts) buying in this category now. Null below CATEGORY_DEMAND_MIN_BUYERS;
+   * models and cities with fewer than NEARBY_MIN_COUNT buyers are left out.
+   */
+  private async categoryDemand(category: ProductCategory): Promise<CategoryDemandDto | null> {
+    const posts = await this.prisma.buyingIntent.findMany({
+      where: { status: 'ACTIVE', car: { category, status: 'ACTIVE' }, user: { status: 'ACTIVE' } },
+      select: { userId: true, carId: true, createdAt: true, city: { select: { name: true } } },
+    });
+    const buyers = new Set(posts.map((p) => p.userId)).size;
+    if (buyers < CATEGORY_DEMAND_MIN_BUYERS) return null;
+
+    const tally = (key: (p: (typeof posts)[number]) => string) => {
+      const people = new Map<string, Set<string>>();
+      for (const p of posts) {
+        const k = key(p);
+        if (!people.has(k)) people.set(k, new Set());
+        people.get(k)!.add(p.userId);
+      }
+      return [...people]
+        .map(([k, users]) => ({ key: k, buyers: users.size }))
+        .filter((r) => r.buyers >= NEARBY_MIN_COUNT)
+        .sort((a, b) => b.buyers - a.buyers || a.key.localeCompare(b.key))
+        .slice(0, 8);
+    };
+    const weekAgo = Date.now() - 7 * 24 * 3600_000;
+    return {
+      buyers,
+      cities: new Set(posts.map((p) => p.city.name)).size,
+      newThisWeek: new Set(
+        posts.filter((p) => p.createdAt.getTime() >= weekAgo).map((p) => p.userId),
+      ).size,
+      topItems: tally((p) => p.carId).map((r) => ({ carId: r.key, buyers: r.buyers })),
+      topCities: tally((p) => p.city.name).map((r) => ({ name: r.key, buyers: r.buyers })),
+    };
+  }
 
   /** Matches brand, model or display name word by word, case-insensitively. Empty query returns the catalog head. */
   async listBrands(category: ProductCategory): Promise<BrandDto[]> {

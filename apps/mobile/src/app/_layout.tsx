@@ -7,8 +7,9 @@ import {
   SchibstedGrotesk_900Black,
   useFonts,
 } from '@expo-google-fonts/schibsted-grotesk';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -16,6 +17,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DialogHost } from '@/lib/alert';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { useIsDesktop } from '@/lib/layout';
+import { keepOpeningLink, takeOpeningLink } from '@/lib/returnTo';
 import { Sidebar } from '@/components/Sidebar';
 import { Preloader } from '@/components/Preloader';
 import { colors } from '@/theme';
@@ -23,11 +25,18 @@ import { colors } from '@/theme';
 function RootStack() {
   const { me } = useAuth();
   const desktop = useIsDesktop();
-  if (me === undefined) return <Preloader fill />;
   const signedIn = !!me;
   // Accounts from before mobile numbers were required must add one first.
   const needsPhone = signedIn && !me.phone;
   const ready = signedIn && !needsPhone;
+  // A zuund.com link opened while signed out continues after signing in or up.
+  useEffect(() => {
+    if (me === null) keepOpeningLink();
+    if (!ready) return;
+    const path = takeOpeningLink();
+    if (path) setTimeout(() => router.push(path as never), 0);
+  }, [me, ready]);
+  if (me === undefined) return <Preloader fill />;
   const stack = (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
       <Stack.Protected guard={!signedIn}>

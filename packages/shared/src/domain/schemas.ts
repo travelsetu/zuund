@@ -99,6 +99,11 @@ export const brandsQuerySchema = z.object({
 });
 export type BrandsQuery = z.infer<typeof brandsQuerySchema>;
 
+export const categoryOverviewQuerySchema = z.object({
+  category: z.enum(PRODUCT_CATEGORIES),
+});
+export type CategoryOverviewQuery = z.infer<typeof categoryOverviewQuerySchema>;
+
 export const citiesQuerySchema = z.object({
   country: z
     .string()

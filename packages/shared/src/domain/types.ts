@@ -463,3 +463,29 @@ export interface ReportDto {
   status: ReportStatus;
   createdAt: string;
 }
+
+/**
+ * Everything a category's public landing page shows: the whole catalog plus live
+ * demand. Demand is aggregate only and hidden until a category has enough buyers
+ * (CATEGORY_DEMAND_MIN_BUYERS); a model or city appears only with NEARBY_MIN_COUNT
+ * buyers or more, so nobody can be singled out.
+ */
+export interface CategoryOverviewDto {
+  category: ProductCategory;
+  items: CarDto[];
+  brands: BrandDto[];
+  demand: CategoryDemandDto | null;
+}
+
+export interface CategoryDemandDto {
+  /** People with an active Buying Post in this category. */
+  buyers: number;
+  /** Cities those posts are in. */
+  cities: number;
+  /** Of those, people who posted in the last 7 days. */
+  newThisWeek: number;
+  /** Most-wanted models, most buyers first. */
+  topItems: Array<{ carId: string; buyers: number }>;
+  /** Busiest cities, most buyers first. */
+  topCities: Array<{ name: string; buyers: number }>;
+}

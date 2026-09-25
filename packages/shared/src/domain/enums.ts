@@ -179,6 +179,8 @@ export const NEARBY_BANDS_KM = [5, 10, 25] as const;
 export type NearbyBandKm = (typeof NEARBY_BANDS_KM)[number];
 /** A nearby count below this is shown as "fewer than 3", so nobody can be singled out. */
 export const NEARBY_MIN_COUNT = 3;
+/** A category's public landing page shows live demand only from this many buyers. */
+export const CATEGORY_DEMAND_MIN_BUYERS = 10;
 
 /**
  * What each plan allows. Active connections = accepted now + your own pending requests;

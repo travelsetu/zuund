@@ -4,6 +4,9 @@ import {
   brandsQuerySchema,
   type BrandDto,
   type BrandsQuery,
+  categoryOverviewQuerySchema,
+  type CategoryOverviewDto,
+  type CategoryOverviewQuery,
   carSearchQuerySchema,
   citiesQuerySchema,
   geoNearestQuerySchema,
@@ -38,6 +41,14 @@ export class CatalogController {
   @Get('cars/brands')
   brands(@Query(new ZodValidationPipe(brandsQuerySchema)) q: BrandsQuery): Promise<BrandDto[]> {
     return this.catalog.listBrands(q.category);
+  }
+
+  /** A category's catalog and live demand, for its landing page on zuund.com. */
+  @Get('catalog/overview')
+  overview(
+    @Query(new ZodValidationPipe(categoryOverviewQuerySchema)) q: CategoryOverviewQuery,
+  ): Promise<CategoryOverviewDto> {
+    return this.catalog.categoryOverview(q.category);
   }
 
   @Get('countries')
