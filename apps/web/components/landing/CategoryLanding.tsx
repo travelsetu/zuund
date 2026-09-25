@@ -5,45 +5,16 @@ import {
   type CarDto,
   type CategoryOverviewDto,
 } from '@zuund/shared';
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { ProductArt } from '@/components/ProductArt';
-import { CatalogExplorer } from '@/components/landing/CatalogExplorer';
-import { CountUp } from '@/components/landing/CountUp';
-import { HeroArt } from '@/components/landing/HeroArt';
-import { SolarSizer } from '@/components/landing/SolarSizer';
+import { CatalogExplorer } from './CatalogExplorer';
+import { CountUp } from './CountUp';
+import { HeroArt } from './HeroArt';
+import { SolarSizer } from './SolarSizer';
 import { categoryOverview } from '@/lib/api';
-import { CATEGORY_PAGES, categoryPage, type CategoryPage } from '@/lib/categories';
+import { CATEGORY_PAGES, type CategoryPage } from '@/lib/categories';
 import { appLink, appPostLink, appSearchLink } from '@/lib/links';
-
-// Must be a literal for Next; the same value as LANDING_REVALIDATE_SECONDS.
-export const revalidate = 600;
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return CATEGORY_PAGES.map((c) => ({ category: c.slug }));
-}
-
-type Props = { params: Promise<{ category: string }> };
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = categoryPage((await params).category);
-  if (!page) return {};
-  return {
-    title: page.metaTitle,
-    description: page.metaDescription,
-    alternates: { canonical: `/${page.slug}` },
-    openGraph: {
-      title: `${page.metaTitle} · ZUUND`,
-      description: page.metaDescription,
-      url: `/${page.slug}`,
-      siteName: 'ZUUND',
-      type: 'website',
-    },
-  };
-}
 
 /** Headline numbers from the catalog itself, true on day one. */
 function catalogFacts(page: CategoryPage, o: CategoryOverviewDto | null) {
@@ -70,9 +41,8 @@ function catalogFacts(page: CategoryPage, o: CategoryOverviewDto | null) {
   ];
 }
 
-export default async function CategoryLanding({ params }: Props) {
-  const page = categoryPage((await params).category);
-  if (!page) notFound();
+/** A category's landing page: the same content at /<category> and at /<category>/lp. */
+export async function CategoryLanding({ page }: { page: CategoryPage }) {
   const overview = await categoryOverview(page.category);
   const demand = overview?.demand ?? null;
   const byId = new Map((overview?.items ?? []).map((c) => [c.id, c]));
